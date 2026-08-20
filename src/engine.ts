@@ -1,4 +1,4 @@
-import {
+import type {
   Entity,
   Alias,
   Relation,
@@ -72,12 +72,18 @@ export class InMemoryEngine implements EQueryEngine {
       case "findRelations": {
         const matchingRelations = this.relations.filter(
           (r) =>
-            r.subjectId === request.subjectId &&
+            (!request.subjectId || r.subjectId === request.subjectId) &&
+            (!request.objectId || r.objectId === request.objectId) &&
             (!request.predicate || r.predicate === request.predicate)
         );
         result.relations = matchingRelations;
-        // Optionally hydrate objects
+        
+        // Hydrate related entities
         for (const rel of matchingRelations) {
+          const subj = this.entities.get(rel.subjectId);
+          if (subj && !result.entities.some(e => e.id === subj.id)) {
+            result.entities.push(subj);
+          }
           const obj = this.entities.get(rel.objectId);
           if (obj && !result.entities.some(e => e.id === obj.id)) {
             result.entities.push(obj);

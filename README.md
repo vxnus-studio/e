@@ -34,6 +34,37 @@ The goal: consistent structure in → consistent, graph-backed AI retrieval out,
 - **AI-retrievable by default** — structure exists so retrieval is exact, with traceable graph evidence, not vibes-based RAG guessing.
 - **Domain-agnostic** — a "character" and an "employee" and a "product" should be able to live in the same underlying architecture.
 
+## Installation
+
+```bash
+npm install git+https://github.com/vxnuslabs/e.git
+```
+
+## Basic Usage
+
+The package exposes the core types and an `InMemoryEngine` for testing.
+
+```typescript
+import { InMemoryEngine } from "e";
+import type { QueryRequest } from "e";
+
+const engine = new InMemoryEngine();
+
+// Finding relations (both directions supported)
+const result = await engine.query({ 
+  type: "findRelations", 
+  subjectId: "char_1" 
+});
+
+const reverseResult = await engine.query({ 
+  type: "findRelations", 
+  objectId: "item_1",
+  predicate: "drops_from"
+});
+```
+
+See the `docs/` folder for architectural guidelines, such as `HYDRATION_AND_ERRORS.md` which formalizes the guarantees an `EQueryEngine` must provide.
+
 ---
 
 *This is just the intro. Nothing's built out under this framing yet — more to come as the schema takes shape.*

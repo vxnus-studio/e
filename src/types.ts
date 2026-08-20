@@ -38,7 +38,10 @@ export interface Document {
 export type QueryRequest =
   | { type: "resolve"; alias: string; namespace?: string }
   | { type: "getEntity"; id: string }
-  | { type: "findRelations"; subjectId: string; predicate?: string }
+  | ({ type: "findRelations"; predicate?: string } & (
+      | { subjectId: string; objectId?: string }
+      | { subjectId?: string; objectId: string }
+    ))
   | { type: "findClaims"; entityId: string }
   | { type: "search"; query: string; namespace?: string; limit?: number }
   | { type: "traverse"; startId: string; maxDepth?: number; predicates?: string[] };

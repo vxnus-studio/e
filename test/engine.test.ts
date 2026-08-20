@@ -40,8 +40,9 @@ describe("E Core Engine", () => {
     const relationResult = await engine.query({ type: "findRelations", subjectId: "e-1" });
     expect(relationResult.relations.length).toBe(1);
     expect(relationResult.relations[0].objectId).toBe("e-2");
-    expect(relationResult.entities.length).toBe(1);
-    expect(relationResult.entities[0].id).toBe("e-2");
+    expect(relationResult.entities.length).toBe(2);
+    expect(relationResult.entities.find(e => e.id === "e-2")).toBeDefined();
+    expect(relationResult.entities.find(e => e.id === "e-1")).toBeDefined();
   });
 
   test("Software Fixture", async () => {
@@ -52,7 +53,7 @@ describe("E Core Engine", () => {
 
     const result = await engine.query({ type: "findRelations", subjectId: "s-1" });
     expect(result.relations.length).toBe(1);
-    expect(result.entities[0].id).toBe("s-2");
+    expect(result.entities.find(e => e.id === "s-2")).toBeDefined();
   });
 
   test("Schale Fixture", async () => {
@@ -63,6 +64,34 @@ describe("E Core Engine", () => {
 
     const result = await engine.query({ type: "findRelations", subjectId: "sh-1" });
     expect(result.relations.length).toBe(1);
-    expect(result.entities[0].name).toBe("Abydos");
+    expect(result.entities.find(e => e.id === "sh-2")?.name).toBe("Abydos");
+  });
+
+  test("Reverse Relation and Hydration Guarantees", async () => {
+    const engine = new InMemoryEngine();
+    engine.insertEntity({ id: "e-1", namespace: "test", kind: "node", slug: "a", name: "A", data: {} });
+    engine.insertEntity({ id: "e-2", namespace: "test", kind: "node", slug: "b", name: "B", data: {} });
+    engine.insertEntity({ id: "e-3", namespace: "test", kind: "node", slug: "c", name: "C", data: {} });
+    engine.insertRelation({ id: "r-1", subjectId: "e-1", predicate: "links_to", objectId: "e-2" });
+    engine.insertRelation({ id: "r-2", subjectId: "e-3", predicate: "links_to", objectId: "e-2" });
+
+    // Query by objectId (reverse relation)
+    const reverseResult = await engine.query({ type: "findRelations", objectId: "e-2" });
+    expect(reverseResult.relations.length).toBe(2);
+    // Both subject and object should be hydrated
+    const hydratedIds = reverseResult.entities.map(e => e.id);
+    expect(hydratedIds).toContain("e-1");
+    expect(hydratedIds).toContain("e-2");
+    expect(hydratedIds).toContain("e-3");
+
+    // Query by subjectId and objectId
+    const exactResult = await engine.query({ type: "findRelations", subjectId: "e-1", objectId: "e-2" });
+    expect(exactResult.relations.length).toBe(1);
+    expect(exactResult.relations[0].id).toBe("r-1");
+
+    // Empty result behavior
+    const emptyResult = await engine.query({ type: "findRelations", subjectId: "e-1", objectId: "e-3" });
+    expect(emptyResult.relations.length).toBe(0);
+    expect(emptyResult.entities.length).toBe(0);
   });
 });
