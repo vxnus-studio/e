@@ -71,8 +71,8 @@ interface KnowledgeResult {
   entities: Entity[];
   relations: Relation[];
   claims: Claim[];
-  context: Document[];
-  provenance: ProvenanceSummary;
+  documents: Document[];
+  metadata: QueryMetadata;
 }
 ```
 This stable result model ensures that Siduri doesn't need to reconstruct the graph; the graph is delivered as a fully hydrated context package.

@@ -1,0 +1,31 @@
+{
+  "name": "e",
+  "version": "1.0.0",
+  "description": "> One schema to structure them all 🌐",
+  "main": "./dist/index.js",
+  "scripts": {
+    "test": "vitest run",
+    "build": "tsc",
+    "prepack": "npm run build"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/vxnuslabs/e.git"
+  },
+  "keywords": [],
+  "type": "module",
+  "bugs": {
+    "url": "https://github.com/vxnuslabs/e/issues"
+  },
+  "homepage": "https://github.com/vxnuslabs/e#readme",
+  "devDependencies": {
+    "@types/node": "^26.2.0",
+    "typescript": "^7.0.2",
+    "vitest": "^4.1.11"
+  },
+  "types": "./dist/index.d.ts",
+  "exports": {
+    "import": "./dist/index.js",
+    "require": "./dist/index.js"
+  }
+}
