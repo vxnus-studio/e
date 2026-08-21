@@ -250,7 +250,7 @@ export class SqliteEngine implements EQueryEngine {
           }
 
           let frontier: FrontierItem[] = [{ entityId: request.startId, pathEdges: [], depth: 0 }];
-          const pathLimit = 1000;
+          const pathLimit = request.maxPaths !== undefined ? request.maxPaths : 1000;
           let pathCount = 0;
 
           while (frontier.length > 0 && pathCount < pathLimit) {
@@ -311,6 +311,7 @@ export class SqliteEngine implements EQueryEngine {
 
             relations.sort((a, b) => {
               if (a.id !== b.id) return a.id < b.id ? -1 : 1;
+              if (a.dir !== b.dir) return a.dir < b.dir ? -1 : 1;
               return 0;
             });
 
@@ -390,13 +391,14 @@ export class SqliteEngine implements EQueryEngine {
 
           if (frontier.length > 0) {
              for(const f of frontier) {
-               if (f.depth > 0) {
+               if (f.depth > 0 && pathCount < pathLimit) {
                   paths.push({
                     startId: request.startId,
                     endId: f.entityId,
                     edges: f.pathEdges,
                     depth: f.depth
                   });
+                  pathCount++;
                }
              }
           }

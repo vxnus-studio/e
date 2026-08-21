@@ -196,7 +196,7 @@ export class InMemoryEngine implements EQueryEngine {
         let frontier: FrontierItem[] = [{ entityId: request.startId, pathEdges: [], depth: 0 }];
 
         // Prevent infinite loops / unbounded expansion
-        const pathLimit = 1000;
+        const pathLimit = request.maxPaths !== undefined ? request.maxPaths : 1000;
         let pathCount = 0;
 
         while (frontier.length > 0 && pathCount < pathLimit) {
@@ -233,6 +233,7 @@ export class InMemoryEngine implements EQueryEngine {
           // Deterministic sorting
           allEdges.sort((a, b) => {
             if (a.r.id !== b.r.id) return a.r.id < b.r.id ? -1 : 1;
+            if (a.dir !== b.dir) return a.dir < b.dir ? -1 : 1;
             return 0;
           });
 
@@ -284,13 +285,14 @@ export class InMemoryEngine implements EQueryEngine {
         // Cleanup paths if they don't terminate or we hit limits
         if (frontier.length > 0) {
            for(const f of frontier) {
-             if (f.depth > 0) {
+             if (f.depth > 0 && pathCount < pathLimit) {
                 paths.push({
                   startId: request.startId,
                   endId: f.entityId,
                   edges: f.pathEdges,
                   depth: f.depth
                 });
+                pathCount++;
              }
            }
         }
@@ -309,7 +311,13 @@ export class InMemoryEngine implements EQueryEngine {
           relations: Array.from(visitedRelations.values()),
           paths: paths
         };
-        // also map them to top level arrays for backward compat (or not, if breaking is okay? We'll leave them).
+        
+        if (pathCount >= pathLimit) {
+          result.metadata.partial = true;
+          result.metadata.warnings = result.metadata.warnings || [];
+          result.metadata.warnings.push("Traversal reached maxPaths limit");
+        }
+
         result.entities = result.traversal.entities;
         result.relations = result.traversal.relations;
         break;

@@ -138,7 +138,7 @@ export type QueryRequest =
   | { type: "findClaims"; entityId: string }
   | { type: "findDocuments"; entityId: string }
   | { type: "search"; search: SearchQuery }
-  | { type: "traverse"; startId: string; steps?: TraversalStep[]; maxDepth?: number; predicates?: string[] }
+  | { type: "traverse"; startId: string; steps?: TraversalStep[]; maxDepth?: number; maxPaths?: number; predicates?: string[] }
   | { type: "getCapabilities" };
 
 export const DEFAULT_MAX_DEPTH = 5;

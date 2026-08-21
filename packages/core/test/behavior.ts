@@ -285,6 +285,127 @@ export function runBehavioralTests(
       expect(claimRes.claims!.length).toBe(4);
       expect(claimRes.claims!.map(c => c.confidence).sort()).toEqual(["canon", "outdated", "theory", "unverified"]);
 
+      // PHASE 2 ADVERSARIAL TESTS
+
+      // TEST 1: SIMPLE CHAIN
+      await insertFixtures({
+        entities: [
+          { id: "C-1", namespace: "chain", kind: "node", slug: "1", name: "1", data: {} },
+          { id: "C-2", namespace: "chain", kind: "node", slug: "2", name: "2", data: {} },
+          { id: "C-3", namespace: "chain", kind: "node", slug: "3", name: "3", data: {} },
+          { id: "C-4", namespace: "chain", kind: "node", slug: "4", name: "4", data: {} },
+          { id: "C-5", namespace: "chain", kind: "node", slug: "5", name: "5", data: {} },
+        ],
+        aliases: [],
+        relations: [
+          { id: "cr1", subjectId: "C-1", predicate: "next", objectId: "C-2" },
+          { id: "cr2", subjectId: "C-2", predicate: "next", objectId: "C-3" },
+          { id: "cr3", subjectId: "C-3", predicate: "next", objectId: "C-4" },
+          { id: "cr4", subjectId: "C-4", predicate: "next", objectId: "C-5" },
+        ],
+        claims: [], documents: []
+      });
+      const t1 = await engine.query({ type: "traverse", startId: "C-1", maxDepth: 4 });
+      expect(t1.traversal!.paths.length).toBe(1);
+      expect(t1.traversal!.paths[0].depth).toBe(4);
+      expect(t1.traversal!.paths[0].endId).toBe("C-5");
+
+      // TEST 2: CYCLE
+      await insertFixtures({
+        entities: [
+          { id: "CY-1", namespace: "cy", kind: "node", slug: "1", name: "1", data: {} },
+          { id: "CY-2", namespace: "cy", kind: "node", slug: "2", name: "2", data: {} },
+          { id: "CY-3", namespace: "cy", kind: "node", slug: "3", name: "3", data: {} },
+        ],
+        aliases: [],
+        relations: [
+          { id: "cyr1", subjectId: "CY-1", predicate: "next", objectId: "CY-2" },
+          { id: "cyr2", subjectId: "CY-2", predicate: "next", objectId: "CY-3" },
+          { id: "cyr3", subjectId: "CY-3", predicate: "next", objectId: "CY-1" },
+        ],
+        claims: [], documents: []
+      });
+      const t2 = await engine.query({ type: "traverse", startId: "CY-1", maxDepth: 10 });
+      expect(t2.traversal!.paths.length).toBe(1);
+      expect(t2.traversal!.paths[0].depth).toBe(3); // Ends at CY-1, cannot repeat cyr1
+
+      // TEST 3: SELF LOOP
+      await insertFixtures({
+        entities: [{ id: "SL-1", namespace: "sl", kind: "node", slug: "1", name: "1", data: {} }],
+        aliases: [],
+        relations: [{ id: "slr1", subjectId: "SL-1", predicate: "loop", objectId: "SL-1" }],
+        claims: [], documents: []
+      });
+      const t3 = await engine.query({ type: "traverse", startId: "SL-1", maxDepth: 5 });
+      expect(t3.traversal!.paths.length).toBe(1);
+      expect(t3.traversal!.paths[0].depth).toBe(1);
+
+      // TEST 4: TWO-EDGE CYCLE
+      await insertFixtures({
+        entities: [
+          { id: "TEC-1", namespace: "tec", kind: "node", slug: "1", name: "1", data: {} },
+          { id: "TEC-2", namespace: "tec", kind: "node", slug: "2", name: "2", data: {} },
+        ],
+        aliases: [],
+        relations: [
+          { id: "tecr1", subjectId: "TEC-1", predicate: "next", objectId: "TEC-2" },
+          { id: "tecr2", subjectId: "TEC-2", predicate: "next", objectId: "TEC-1" },
+        ],
+        claims: [], documents: []
+      });
+      const t4 = await engine.query({ type: "traverse", startId: "TEC-1", maxDepth: 5 });
+      expect(t4.traversal!.paths.length).toBe(1);
+      expect(t4.traversal!.paths[0].depth).toBe(2);
+
+      // TEST 5: DIAMOND
+      await insertFixtures({
+        entities: [
+          { id: "D-A", namespace: "d", kind: "node", slug: "A", name: "A", data: {} },
+          { id: "D-B", namespace: "d", kind: "node", slug: "B", name: "B", data: {} },
+          { id: "D-C", namespace: "d", kind: "node", slug: "C", name: "C", data: {} },
+          { id: "D-D", namespace: "d", kind: "node", slug: "D", name: "D", data: {} },
+        ],
+        aliases: [],
+        relations: [
+          { id: "dr1", subjectId: "D-A", predicate: "next", objectId: "D-B" },
+          { id: "dr2", subjectId: "D-A", predicate: "next", objectId: "D-C" },
+          { id: "dr3", subjectId: "D-B", predicate: "next", objectId: "D-D" },
+          { id: "dr4", subjectId: "D-C", predicate: "next", objectId: "D-D" },
+        ],
+        claims: [], documents: []
+      });
+      const t5 = await engine.query({ type: "traverse", startId: "D-A", maxDepth: 2 });
+      expect(t5.traversal!.paths.length).toBe(2);
+      expect(t5.traversal!.paths.map(p => p.endId)).toEqual(["D-D", "D-D"]);
+      expect(t5.traversal!.entities.map(e => e.id).sort()).toEqual(["D-A", "D-B", "D-C", "D-D"]);
+
+      // TEST 9 & 10: DEPTH ZERO AND NEGATIVE
+      const t9 = await engine.query({ type: "traverse", startId: "C-1", maxDepth: 0 });
+      expect(t9.traversal!.paths.length).toBe(1);
+      expect(t9.traversal!.paths[0].depth).toBe(0);
+      expect(t9.traversal!.paths[0].edges.length).toBe(0);
+      
+      const t10 = await engine.query({ type: "traverse", startId: "C-1", maxDepth: -1 });
+      expect(t10.traversal!.paths.length).toBe(0);
+
+      // TEST 13: BOTH DIRECTION
+      const t13 = await engine.query({ type: "traverse", startId: "C-2", maxDepth: 1, steps: [{ direction: "both" }] });
+      expect(t13.traversal!.paths.length).toBe(2);
+      expect(t13.traversal!.paths.map(p => p.endId).sort()).toEqual(["C-1", "C-3"]);
+
+      // TEST 16 & 17: EXPONENTIAL BLOWUP
+      const expRels: any[] = [];
+      for(let i=0; i<3; i++) {
+        expRels.push({ id: `e${i}${i+1}a`, subjectId: `E-${i}`, predicate: "next", objectId: `E-${i+1}` });
+        expRels.push({ id: `e${i}${i+1}b`, subjectId: `E-${i}`, predicate: "next", objectId: `E-${i+1}` });
+      }
+      await insertFixtures({
+        entities: [0,1,2,3].map(i => ({ id: `E-${i}`, namespace: "exp", kind: "node", slug: `${i}`, name: `${i}`, data: {} })),
+        aliases: [], relations: expRels, claims: [], documents: []
+      });
+      const tExp = await engine.query({ type: "traverse", startId: "E-0", maxDepth: 3 });
+      expect(tExp.traversal!.paths.length).toBe(8);
+
       await teardownFn();
     });
   });
