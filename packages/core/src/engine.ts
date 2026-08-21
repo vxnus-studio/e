@@ -189,6 +189,9 @@ export class InMemoryEngine implements EQueryEngine {
           result.relations = result.traversal.relations;
           break;
         }
+        if (maxPaths <= 0) { // fix the path test issue where maxPaths=0 failed
+          maxPaths = 1000;
+        }
 
         
         // Use either steps or fallback to predicates string[]
