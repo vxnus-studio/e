@@ -16,9 +16,10 @@ The architecture enforces a strict boundary between the generic E runtime and an
 
 ## Identity and Namespaces
 
-- **Entities** have unique IDs (usually UUIDs or ULIDs for persistence, though the in-memory engine can use strings).
+- **Entities** have unique IDs (usually UUIDs or ULIDs for persistence, though the in-memory engine can use strings). They can also map to external systems via an `identities` array.
 - **Namespaces** group entities by domain (e.g., `teyvat`, `schale`, `software`). This ensures that `Entity(name: "API", namespace: "software")` does not collide with anything else.
 - **Aliases** are separate records pointing to an Entity, allowing robust resolution of alternative names without mutating the core Entity record.
+- **Provenance & Temporal Semantics** attach source truthfulness (`confidence`, `source`) and time boundaries (`validFrom`, `validUntil`) to Entities, Relations, and Claims, ensuring AI can reason about *when* and *where* facts come from.
 
 ## Canonical Abstraction
 

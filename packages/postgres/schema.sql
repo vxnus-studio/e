@@ -7,7 +7,10 @@ CREATE TABLE IF NOT EXISTS e_entities (
   kind VARCHAR(255) NOT NULL,
   slug VARCHAR(255) NOT NULL,
   name VARCHAR(255) NOT NULL,
-  data JSONB NOT NULL DEFAULT '{}'
+  data JSONB NOT NULL DEFAULT '{}',
+  identities JSONB,
+  provenance JSONB,
+  temporal JSONB
 );
 
 -- Index for namespace filtering and search
@@ -28,7 +31,10 @@ CREATE TABLE IF NOT EXISTS e_relations (
   id VARCHAR(255) PRIMARY KEY,
   subject_id VARCHAR(255) NOT NULL REFERENCES e_entities(id) ON DELETE CASCADE,
   predicate VARCHAR(255) NOT NULL,
-  object_id VARCHAR(255) NOT NULL REFERENCES e_entities(id) ON DELETE CASCADE
+  object_id VARCHAR(255) NOT NULL REFERENCES e_entities(id) ON DELETE CASCADE,
+  provenance JSONB,
+  temporal JSONB,
+  metadata JSONB
 );
 
 -- Indexes for forward, reverse, and exact relation lookups
@@ -40,8 +46,10 @@ CREATE TABLE IF NOT EXISTS e_claims (
   id VARCHAR(255) PRIMARY KEY,
   entity_id VARCHAR(255) NOT NULL REFERENCES e_entities(id) ON DELETE CASCADE,
   statement TEXT NOT NULL,
-  confidence VARCHAR(50) NOT NULL CHECK (confidence IN ('canon', 'theory', 'outdated')),
-  source VARCHAR(255) NOT NULL
+  confidence VARCHAR(50) NOT NULL CHECK (confidence IN ('canon', 'theory', 'outdated', 'unverified')),
+  source VARCHAR(255) NOT NULL,
+  provenance JSONB,
+  temporal JSONB
 );
 
 -- Index for fetching claims by entity
@@ -50,7 +58,8 @@ CREATE INDEX IF NOT EXISTS idx_e_claims_entity_id ON e_claims(entity_id);
 CREATE TABLE IF NOT EXISTS e_documents (
   id VARCHAR(255) PRIMARY KEY,
   entity_id VARCHAR(255) NOT NULL REFERENCES e_entities(id) ON DELETE CASCADE,
-  content TEXT NOT NULL
+  content TEXT NOT NULL,
+  provenance JSONB
 );
 
 -- Index for fetching documents by entity

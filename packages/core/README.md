@@ -10,19 +10,19 @@ E acts as a layer over persistence. It standardizes the shape of data into a gra
 
 ### Current Core Capabilities
 The E schema natively supports:
-- **Entities:** Nodes in the graph with a `kind` and domain-specific `data`.
+- **Entities:** Nodes in the graph with a `kind`, domain-specific `data`, and mapped external `identities`.
 - **Aliases:** Alternative names for entities to aid in resolution.
 - **Relations:** Directed edges between entities with an optional predicate.
 - **Claims:** Source-backed statements about an entity.
 - **Documents:** Long-form text attached to an entity for semantic search.
+- **Provenance & Temporal Semantics:** Universal properties across schema components for tracking data sources, revisions, and temporal validity.
 
 ### Graph Traversal
-E features a scalable, cycle-protected, Breadth-First Search (BFS) graph traversal engine. Starting from a root entity, it can predictably fetch deep relational context without N+1 query scaling issues, supporting bounded depth limits and predicate filtering.
+E features a scalable, cycle-protected, Breadth-First Search (BFS) graph traversal engine. Starting from a root entity, it can predictably fetch deep relational context without N+1 query scaling issues, supporting bounded depth limits, bidirectional edge traversal, multiple traversal paths, and predicate filtering.
 
 ### Current Limitations
 - **Read-Only API:** E's query contract is strictly retrieval-oriented. Write/Ingestion APIs must be handled directly via the underlying database using the E schemas.
 - **Local Bounding:** Graph traversals operate locally within the configured database engine; distributed or federated cross-database traversal is not supported.
-- **Claim Provenance:** Claims currently support basic strings for `source` and `confidence`. Advanced evidence trees or claim-level relation mapping are future proposals.
 - **Alias Scoping:** Aliases currently resolve flatly per-namespace. Language-based scoping is a future proposal.
 
 ## Packages

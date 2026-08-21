@@ -192,52 +192,7 @@ export function runBehavioralTests(
       const travEmptyPred = await engine.query({ type: "traverse", startId: "T-A", maxDepth: 2, predicates: ["unknown_pred"] });
       expect(travEmptyPred.traversal!.entities.map(e => e.id)).toEqual(["T-A"]);
 
-      // New Traversal Graph (Weapon -> Material <- Domain -> Region)
-      await insertFixtures({
-        entities: [
-          { id: "W", namespace: "game", kind: "Weapon", slug: "weapon", name: "Weapon", data: {} },
-          { id: "M", namespace: "game", kind: "Material", slug: "material", name: "Material", data: {} },
-          { id: "D", namespace: "game", kind: "Domain", slug: "domain", name: "Domain", data: {} },
-          { id: "R", namespace: "game", kind: "Region", slug: "region", name: "Region", data: {} },
-        ],
-        aliases: [],
-        relations: [
-          { id: "r_w_m", subjectId: "W", predicate: "requires", objectId: "M" },
-          { id: "r_d_m", subjectId: "D", predicate: "rewards", objectId: "M" },
-          { id: "r_d_r", subjectId: "D", predicate: "located_in", objectId: "R" },
-        ],
-        claims: [], documents: []
-      });
-
-      // 1. Bidirectional Traversal from M
-      const mTrav = await engine.query({
-        type: "traverse",
-        startId: "M",
-        steps: [
-          { direction: "in" }, // Step 1: go backwards to find who requires or rewards M
-          { direction: "out" } // Step 2: from those, go out (e.g. D -> R, W has no out)
-        ],
-        maxDepth: 2
-      });
       
-      const mEnts = mTrav.traversal!.entities.map(e => e.id).sort();
-      expect(mEnts).toEqual(["D", "M", "R", "W"]);
-      
-      const mPaths = mTrav.traversal!.paths;
-      expect(mPaths.length).toBeGreaterThan(0);
-      // Path to R: M <-(rewards)- D -(located_in)-> R
-      const pathToR = mPaths.find(p => p.endId === "R");
-      expect(pathToR).toBeDefined();
-      expect(pathToR!.edges.length).toBe(2);
-      expect(pathToR!.edges[0].predicate).toBe("rewards");
-      expect(pathToR!.edges[0].direction).toBe("in");
-      expect(pathToR!.edges[1].predicate).toBe("located_in");
-      expect(pathToR!.edges[1].direction).toBe("out");
-      
-      const capabilities = await engine.query({ type: "getCapabilities" });
-      expect(capabilities.capabilities).toBeDefined();
-      expect(capabilities.capabilities!.traversal).toBe(true);
-
       // 15. Invalid findRelations (neither subjectId nor objectId)
       await expect(engine.query({ type: "findRelations" } as any)).rejects.toThrow(/requires at least subjectId or objectId/);
 

@@ -7,6 +7,8 @@ import type {
   QueryRequest,
   KnowledgeResult,
   EQueryEngine,
+  TraversalPath,
+  TraversalPathEdge,
 } from "e";
 import { DEFAULT_MAX_DEPTH } from "e";
 
@@ -34,6 +36,21 @@ export class PostgresEngine implements EQueryEngine {
 
     try {
       switch (request.type) {
+        case "getCapabilities": {
+          result.capabilities = {
+            exactResolution: true,
+            lexicalSearch: true,
+            semanticSearch: false,
+            hybridSearch: false,
+            relations: true,
+            traversal: true,
+            claims: true,
+            documents: true,
+            provenance: true,
+            temporalQueries: false,
+          };
+          break;
+        }
         case "resolve": {
           const queryText = `
             SELECT e.* FROM e_entities e
@@ -42,7 +59,7 @@ export class PostgresEngine implements EQueryEngine {
           `;
           const params = request.namespace ? [request.alias, request.namespace] : [request.alias];
           const res = await this.pool.query(queryText, params);
-          result.entities = res.rows.map(this.mapEntity);
+          result.entities = res.rows.map((row) => this.mapEntity(row));
           break;
         }
         case "getEntity": {
@@ -102,91 +119,223 @@ export class PostgresEngine implements EQueryEngine {
           break;
         }
         case "search": {
-          if (request.limit !== undefined && request.limit <= 0) {
-            return result;
+          const sq = request.search;
+          if (sq.limit !== undefined && sq.limit <= 0) {
+            result.search = { entities: [], matches: [] };
+            break;
           }
-          const escapedQuery = request.query.replace(/\\/g, '\\\\').replace(/%/g, '\\%').replace(/_/g, '\\_');
+          const escapedQuery = sq.query.replace(/\\/g, '\\\\').replace(/%/g, '\\%').replace(/_/g, '\\_');
           const params: any[] = [`%${escapedQuery}%`];
           let queryText = `SELECT * FROM e_entities WHERE (name ILIKE $1 ESCAPE '\\' OR slug ILIKE $1 ESCAPE '\\')`;
-          if (request.namespace) {
-            params.push(request.namespace);
-            queryText += ` AND namespace = $2`;
+          if (sq.namespace) {
+            params.push(sq.namespace);
+            queryText += ` AND namespace = $${params.length}`;
+          }
+          if (sq.kind) {
+            params.push(sq.kind);
+            queryText += ` AND kind = $${params.length}`;
           }
           queryText += ` ORDER BY id COLLATE "C" ASC`; // deterministic binary ordering
-          if (request.limit !== undefined) {
-            params.push(request.limit);
+          if (sq.limit !== undefined) {
+            params.push(sq.limit);
             queryText += ` LIMIT $${params.length}`;
           }
           const res = await this.pool.query(queryText, params);
-          result.entities = res.rows.map(this.mapEntity);
+          const entities = res.rows.map((row) => this.mapEntity(row));
+          result.search = {
+            entities,
+            matches: entities.map(e => ({
+              entityId: e.id,
+              score: 1.0,
+              matchReason: "lexical"
+            }))
+          };
+          result.entities = entities;
           break;
         }
         case "traverse": {
           const maxDepth = request.maxDepth !== undefined ? request.maxDepth : DEFAULT_MAX_DEPTH;
           if (maxDepth < 0) {
+            result.traversal = { entities: [], relations: [], paths: [] };
             break;
           }
 
-          const visited = new Set<string>();
-          let frontier: string[] = [request.startId];
-          const resultEntities: Entity[] = [];
-          let currentDepth = 0;
+          const startRes = await this.pool.query("SELECT * FROM e_entities WHERE id = $1", [request.startId]);
+          if (startRes.rows.length === 0) {
+            result.traversal = { entities: [], relations: [], paths: [] };
+            break;
+          }
+          const startEntity = this.mapEntity(startRes.rows[0]);
 
-          visited.add(request.startId);
+          const steps = request.steps || (request.predicates ? [{ predicates: request.predicates, direction: "out" as const }] : []);
 
-          while (frontier.length > 0 && currentDepth <= maxDepth) {
-            const entRes = await this.pool.query("SELECT * FROM e_entities WHERE id = ANY($1)", [frontier]);
-            
-            const entMap = new Map<string, Entity>();
-            for (const r of entRes.rows) {
-              entMap.set(r.id, this.mapEntity(r));
-            }
-            
-            for (const id of frontier) {
-              const ent = entMap.get(id);
-              if (ent) {
-                resultEntities.push(ent);
-              }
+          const visitedEntities = new Map<string, Entity>();
+          const visitedRelations = new Map<string, Relation>();
+          const paths: TraversalPath[] = [];
+
+          visitedEntities.set(startEntity.id, startEntity);
+
+          interface FrontierItem {
+            entityId: string;
+            pathEdges: TraversalPathEdge[];
+            depth: number;
+          }
+
+          let frontier: FrontierItem[] = [{ entityId: request.startId, pathEdges: [], depth: 0 }];
+          const pathLimit = 1000;
+          let pathCount = 0;
+
+          while (frontier.length > 0 && pathCount < pathLimit) {
+            const currentDepth = frontier[0].depth;
+            const currentLevelItems: FrontierItem[] = [];
+            while (frontier.length > 0 && frontier[0].depth === currentDepth) {
+              currentLevelItems.push(frontier.shift()!);
             }
 
             if (currentDepth >= maxDepth) {
-              break;
-            }
-
-            let relQuery = "SELECT * FROM e_relations WHERE subject_id = ANY($1)";
-            const relParams: any[] = [frontier];
-            
-            if (request.predicates && request.predicates.length > 0) {
-              relQuery += ` AND predicate = ANY($2)`;
-              relParams.push(request.predicates);
-            }
-            relQuery += ' ORDER BY object_id COLLATE "C" ASC';
-            
-            const relRes = await this.pool.query(relQuery, relParams);
-            
-            const edgesBySubject = new Map<string, any[]>();
-            for (const edge of relRes.rows) {
-              if (!edgesBySubject.has(edge.subject_id)) {
-                edgesBySubject.set(edge.subject_id, []);
-              }
-              edgesBySubject.get(edge.subject_id)!.push(edge);
-            }
-
-            const newFrontier: string[] = [];
-            for (const parentId of frontier) {
-              const outgoing = edgesBySubject.get(parentId) || [];
-              for (const edge of outgoing) {
-                if (!visited.has(edge.object_id)) {
-                  visited.add(edge.object_id);
-                  newFrontier.push(edge.object_id);
+              for (const item of currentLevelItems) {
+                if (pathCount < pathLimit) {
+                  paths.push({
+                    startId: request.startId,
+                    endId: item.entityId,
+                    edges: item.pathEdges,
+                    depth: item.depth
+                  });
+                  pathCount++;
                 }
               }
+              continue;
             }
-            
-            frontier = newFrontier;
-            currentDepth++;
+
+            let stepFilter = steps[currentDepth];
+            let allowedDir = stepFilter ? stepFilter.direction : "out";
+            let allowedPreds = stepFilter && stepFilter.predicates ? new Set(stepFilter.predicates) : 
+                                 (request.predicates ? new Set(request.predicates) : null);
+
+            const entityIds = Array.from(new Set(currentLevelItems.map(i => i.entityId)));
+            let allEdges: { r: Relation, dir: "out" | "in" }[] = [];
+
+            if (entityIds.length > 0) {
+              const queries = [];
+              if (allowedDir === "out" || allowedDir === "both") {
+                let q = "SELECT * FROM e_relations WHERE subject_id = ANY($1)";
+                const p: any[] = [entityIds];
+                if (allowedPreds) {
+                  q += " AND predicate = ANY($2)";
+                  p.push(Array.from(allowedPreds));
+                }
+                queries.push(this.pool.query(q, p).then(r => r.rows.map(row => ({ r: this.mapRelation(row), dir: "out" as const }))));
+              }
+              if (allowedDir === "in" || allowedDir === "both") {
+                let q = "SELECT * FROM e_relations WHERE object_id = ANY($1)";
+                const p: any[] = [entityIds];
+                if (allowedPreds) {
+                  q += " AND predicate = ANY($2)";
+                  p.push(Array.from(allowedPreds));
+                }
+                queries.push(this.pool.query(q, p).then(r => r.rows.map(row => ({ r: this.mapRelation(row), dir: "in" as const }))));
+              }
+              const results = await Promise.all(queries);
+              for (const res of results) {
+                allEdges = allEdges.concat(res);
+              }
+
+              // Deterministic sort
+              allEdges.sort((a, b) => {
+                if (a.r.id !== b.r.id) return a.r.id < b.r.id ? -1 : 1;
+                return 0;
+              });
+            }
+
+            const nextEntityIds = new Set<string>();
+            for (const { r, dir } of allEdges) {
+              const nextId = dir === "out" ? r.objectId : r.subjectId;
+              if (!visitedEntities.has(nextId)) {
+                nextEntityIds.add(nextId);
+              }
+              visitedRelations.set(r.id, r);
+            }
+
+            if (nextEntityIds.size > 0) {
+              const nextEntsRes = await this.pool.query("SELECT * FROM e_entities WHERE id = ANY($1)", [Array.from(nextEntityIds)]);
+              for (const row of nextEntsRes.rows) {
+                const ent = this.mapEntity(row);
+                visitedEntities.set(ent.id, ent);
+              }
+            }
+
+            for (const current of currentLevelItems) {
+              let foundAny = false;
+              const relevantEdges = allEdges.filter(e =>
+                (e.dir === "out" && e.r.subjectId === current.entityId) ||
+                (e.dir === "in" && e.r.objectId === current.entityId)
+              );
+
+              for (const { r, dir } of relevantEdges) {
+                if (current.pathEdges.some(pe => pe.relationId === r.id)) {
+                  continue;
+                }
+
+                const nextId = dir === "out" ? r.objectId : r.subjectId;
+                if (!visitedEntities.has(nextId)) continue;
+
+                const newEdge: TraversalPathEdge = {
+                  relationId: r.id,
+                  sourceId: dir === "out" ? current.entityId : nextId,
+                  targetId: dir === "out" ? nextId : current.entityId,
+                  predicate: r.predicate,
+                  direction: dir
+                };
+
+                frontier.push({
+                  entityId: nextId,
+                  pathEdges: [...current.pathEdges, newEdge],
+                  depth: current.depth + 1
+                });
+                foundAny = true;
+              }
+
+              if (!foundAny && current.depth > 0 && pathCount < pathLimit) {
+                paths.push({
+                  startId: request.startId,
+                  endId: current.entityId,
+                  edges: current.pathEdges,
+                  depth: current.depth
+                });
+                pathCount++;
+              }
+            }
           }
-          result.entities = resultEntities;
+
+          if (frontier.length > 0) {
+            for (const f of frontier) {
+              if (f.depth > 0 && pathCount < pathLimit) {
+                paths.push({
+                  startId: request.startId,
+                  endId: f.entityId,
+                  edges: f.pathEdges,
+                  depth: f.depth
+                });
+                pathCount++;
+              }
+            }
+          }
+
+          paths.sort((a, b) => {
+            if (a.depth !== b.depth) return a.depth - b.depth;
+            const aStr = a.edges.map((e: any) => e.relationId).join(",");
+            const bStr = b.edges.map((e: any) => e.relationId).join(",");
+            if (aStr !== bStr) return aStr < bStr ? -1 : 1;
+            return 0;
+          });
+
+          result.traversal = {
+            entities: Array.from(visitedEntities.values()),
+            relations: Array.from(visitedRelations.values()),
+            paths
+          };
+          result.entities = result.traversal.entities;
+          result.relations = result.traversal.relations;
           break;
         }
         default: {
@@ -209,6 +358,9 @@ export class PostgresEngine implements EQueryEngine {
       slug: row.slug,
       name: row.name,
       data: row.data || {},
+      identities: row.identities || undefined,
+      provenance: row.provenance || undefined,
+      temporal: row.temporal || undefined,
     };
   }
 
@@ -218,6 +370,9 @@ export class PostgresEngine implements EQueryEngine {
       subjectId: row.subject_id,
       predicate: row.predicate,
       objectId: row.object_id,
+      provenance: row.provenance || undefined,
+      temporal: row.temporal || undefined,
+      metadata: row.metadata || undefined,
     };
   }
 
@@ -228,6 +383,8 @@ export class PostgresEngine implements EQueryEngine {
       statement: row.statement,
       confidence: row.confidence,
       source: row.source,
+      provenance: row.provenance || undefined,
+      temporal: row.temporal || undefined,
     };
   }
 
@@ -236,6 +393,7 @@ export class PostgresEngine implements EQueryEngine {
       id: row.id,
       entityId: row.entity_id,
       content: row.content,
+      provenance: row.provenance || undefined,
     };
   }
 }

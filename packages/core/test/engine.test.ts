@@ -32,8 +32,8 @@ describe("InMemoryEngine Contract Tests", () => {
   test("search with limit = 0 returns empty", async () => {
     const engine = new InMemoryEngine();
     engine.insertEntity({ id: "1", namespace: "ns", kind: "test", slug: "test", name: "test", data: {} });
-    const result = await engine.query({ type: "search", query: "test", limit: 0 });
-    expect(result.entities).toHaveLength(0);
+    const result = await engine.query({ type: "search", search: { query: "test", limit: 0 } });
+    expect(result.search!.entities).toHaveLength(0);
   });
 
   test("findClaims and findDocuments do not hydrate entities", async () => {
@@ -43,11 +43,11 @@ describe("InMemoryEngine Contract Tests", () => {
     engine.insertDocument({ id: "d1", entityId: "1", content: "doc" });
 
     const claimRes = await engine.query({ type: "findClaims", entityId: "1" });
-    expect(claimRes.claims).toHaveLength(1);
-    expect(claimRes.entities).toHaveLength(0);
+    expect(claimRes.claims!).toHaveLength(1);
+    expect(claimRes.entities!).toHaveLength(0);
 
     const docRes = await engine.query({ type: "findDocuments", entityId: "1" });
-    expect(docRes.documents).toHaveLength(1);
-    expect(docRes.entities).toHaveLength(0);
+    expect(docRes.documents!).toHaveLength(1);
+    expect(docRes.entities!).toHaveLength(0);
   });
 });

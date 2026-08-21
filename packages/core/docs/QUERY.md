@@ -59,29 +59,26 @@ Fetches long-form text documents attached to an entity.
 
 ### 6. `search`
 Searches entities by a substring match against `name` or `slug`.
-- **Request Shape:** `{ type: "search"; query: string; namespace?: string; limit?: number }`
-- **Required Fields:** `query`
-- **Optional Fields:** `namespace`, `limit`
+- **Request Shape:** `{ type: "search"; search: { query: string; namespace?: string; kind?: string; limit?: number; mode?: string } }`
+- **Required Fields:** `search.query`
+- **Optional Fields:** `search.namespace`, `search.limit`, `search.kind`, `search.mode`
 - **Defaults:** Unbounded search if `limit` is undefined.
 - **Limits:** If `limit <= 0`, immediately returns an empty result `[]`. If `limit > 0`, returns up to that many entities.
 - **Ordering:** Deterministically ordered by `id` ascending across all engines.
-- **Backend Parity:** All engines support ASCII case-insensitive search. (Full Unicode case-insensitivity depends on the underlying database engine collation).
+- **Result Shape:** Returns a `SearchResult` object containing `entities` and `matches` in `search`.
 
 ### 7. `traverse`
 Performs a directed Breadth-First Search (BFS) graph traversal starting from an entity ID.
-- **Request Shape:** `{ type: "traverse"; startId: string; maxDepth?: number; predicates?: string[] }`
+- **Request Shape:** `{ type: "traverse"; startId: string; maxDepth?: number; steps?: TraversalStep[]; predicates?: string[] }`
 - **Required Fields:** `startId`
-- **Optional Fields:** `maxDepth`, `predicates`
-- **Defaults:** `maxDepth` defaults to `5` if undefined. If `predicates` is omitted or empty, all edges are followed.
-- **Limits:** 
-  - `maxDepth = 0` returns only the start entity.
-  - `maxDepth < 0` returns an empty result `[]`.
-- **Ordering & Cycles:** 
-  - **Deterministic BFS:** At each depth layer, outgoing edges are sorted by `object_id` (ASCII/binary ASC).
-  - **Deduplication:** Converging paths (e.g., `A->B, A->C, B->D, C->D`) will only yield node `D` once, at the earliest discovered depth layer.
-  - **Cycles:** `A->B->C->A` terminates gracefully using a visited-node tracker.
-- **Result Shape:** Returns all discovered nodes in `entities`.
-- **Backend Parity:** Fully supported by all engines. Implemented using scalable, frontier-based depth layer queries (no N+1 node loop scaling issues).
+- **Optional Fields:** `maxDepth`, `steps`, `predicates`
+- **Defaults:** `maxDepth` defaults to `5` if undefined. If `steps` and `predicates` are omitted, all out edges are followed.
+- **Result Shape:** Returns `traversal` containing `entities`, `relations`, and `paths`.
+
+### 8. `getCapabilities`
+Retrieves the supported feature set of the current backend.
+- **Request Shape:** `{ type: "getCapabilities" }`
+- **Result Shape:** Returns `capabilities: ProviderCapabilities`.
 
 ---
 
@@ -91,10 +88,13 @@ The engine returns a hydrated graph slice, not tabular rows.
 
 ```typescript
 interface KnowledgeResult {
-  entities: Entity[];
-  relations: Relation[];
-  claims: Claim[];
-  documents: Document[];
+  entities?: Entity[];
+  relations?: Relation[];
+  claims?: Claim[];
+  documents?: Document[];
+  traversal?: TraversalResult;
+  search?: SearchResult;
+  capabilities?: ProviderCapabilities;
   metadata: QueryMetadata; // Contains timeMs, warnings, partial flag
 }
 ```
