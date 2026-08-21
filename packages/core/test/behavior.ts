@@ -81,15 +81,61 @@ export function runBehavioralTests(
       expect(searchRes.entities.length).toBe(1);
       expect(searchRes.entities[0].id).toBe("e-1");
 
-      // 9. Search Limits & Deterministic Behavior
-      const searchLimit = await engine.query({ type: "search", query: "acme", limit: 1 });
-      expect(searchLimit.entities.length).toBe(1);
+      // 10. Search Limits & Deterministic Behavior
+      const searchLimit0 = await engine.query({ type: "search", query: "acme", limit: 0 });
+      expect(searchLimit0.entities.length).toBe(0);
 
-      // 10. Missing Entities
+      const searchLimitNeg = await engine.query({ type: "search", query: "acme", limit: -5 });
+      expect(searchLimitNeg.entities.length).toBe(0);
+
+      const searchLimitOmitted = await engine.query({ type: "search", query: "acme" });
+      expect(searchLimitOmitted.entities.length).toBe(2);
+
+      const searchLimit1 = await engine.query({ type: "search", query: "acme", limit: 1 });
+      expect(searchLimit1.entities.length).toBe(1);
+      expect(searchLimit1.entities[0].id).toBe("e-2");
+
+      // 10.5 Deterministic Binary Ordering
+      await insertFixtures({
+        entities: [
+          { id: "A-1", namespace: "order", kind: "test", slug: "order", name: "order", data: {} },
+          { id: "A1", namespace: "order", kind: "test", slug: "order", name: "order", data: {} },
+          { id: "A_1", namespace: "order", kind: "test", slug: "order", name: "order", data: {} },
+          { id: "a-1", namespace: "order", kind: "test", slug: "order", name: "order", data: {} },
+          { id: "a1", namespace: "order", kind: "test", slug: "order", name: "order", data: {} },
+          { id: "a_1", namespace: "order", kind: "test", slug: "order", name: "order", data: {} },
+        ],
+        aliases: [], relations: [], claims: [], documents: []
+      });
+      const orderSearch = await engine.query({ type: "search", query: "order", namespace: "order" });
+      const orderIds = orderSearch.entities.map(e => e.id);
+      expect(orderIds).toEqual(["A-1", "A1", "A_1", "a-1", "a1", "a_1"]);
+
+      // 11. Escaping % and _
+      await insertFixtures({
+        entities: [
+          { id: "e-pct", namespace: "test", kind: "test", slug: "100%", name: "100%", data: {} },
+          { id: "e-us", namespace: "test", kind: "test", slug: "a_b", name: "a_b", data: {} },
+        ],
+        aliases: [], relations: [], claims: [], documents: []
+      });
+      const pctSearch = await engine.query({ type: "search", query: "%" });
+      expect(pctSearch.entities.map(e => e.id)).toContain("e-pct");
+      expect(pctSearch.entities.map(e => e.id)).not.toContain("e-1"); // Should not match everything
+
+      const usSearch = await engine.query({ type: "search", query: "_" });
+      expect(usSearch.entities.map(e => e.id)).toContain("e-us");
+      expect(usSearch.entities.map(e => e.id)).not.toContain("e-1"); // Should not match everything
+
+      // 12. Missing Entities
       const missingRes = await engine.query({ type: "getEntity", id: "missing" });
       expect(missingRes.entities.length).toBe(0);
 
-      // 11. Unsupported Traversal & Warnings
+      // 13. Empty query
+      const emptyQuery = await engine.query({ type: "search", query: "" });
+      expect(emptyQuery.entities.length).toBeGreaterThan(0); // Should match everything, restricted by whatever is in db
+      
+      // 14. Unsupported Traversal & Warnings
       const traverseRes = await engine.query({ type: "traverse", startId: "e-1" } as any);
       expect(traverseRes.metadata.warnings?.length).toBeGreaterThan(0);
 

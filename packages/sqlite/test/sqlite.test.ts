@@ -39,6 +39,29 @@ if (canRun) {
 
     return { engine, insertFixtures, teardown };
   });
+  describe.runIf(canRun)("SqliteEngine Specifics", () => {
+    test("Foreign key constraint and cascade", () => {
+      const engine = new SqliteEngine(":memory:");
+      const db = (engine as any).db as Database.Database;
+
+      const insertEntity = db.prepare("INSERT INTO e_entities (id, namespace, kind, slug, name, data) VALUES (?, ?, ?, ?, ?, ?)");
+      insertEntity.run("parent", "ns", "node", "p", "Parent", "{}");
+
+      const insertRelation = db.prepare("INSERT INTO e_relations (id, subject_id, predicate, object_id) VALUES (?, ?, ?, ?)");
+      insertRelation.run("rel1", "parent", "owns", "parent"); // self-relation valid
+
+      expect(() => {
+        insertRelation.run("rel2", "missing", "owns", "parent");
+      }).toThrow(/FOREIGN KEY constraint failed/);
+
+      // Cascade delete
+      db.prepare("DELETE FROM e_entities WHERE id = 'parent'").run();
+      const relationsCount = db.prepare("SELECT count(*) as c FROM e_relations").get() as any;
+      expect(relationsCount.c).toBe(0);
+
+      engine.close();
+    });
+  });
 } else {
   describe.skip("SqliteEngine", () => {
     test("skipped", () => {});

@@ -40,7 +40,7 @@ CREATE TABLE IF NOT EXISTS e_claims (
   id VARCHAR(255) PRIMARY KEY,
   entity_id VARCHAR(255) NOT NULL REFERENCES e_entities(id) ON DELETE CASCADE,
   statement TEXT NOT NULL,
-  confidence VARCHAR(50) NOT NULL,
+  confidence VARCHAR(50) NOT NULL CHECK (confidence IN ('canon', 'theory', 'outdated')),
   source VARCHAR(255) NOT NULL
 );
 

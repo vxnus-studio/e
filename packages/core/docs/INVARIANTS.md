@@ -12,7 +12,7 @@ E must never import from or depend on `e-teyvat`, `siduri`, or any other consume
 The `EQueryEngine` and `QueryRequest` intents must remain serializable and conceptually identical whether queried via direct library import, HTTP API, or MCP Server. E Core does not implement HTTP or MCP itself; these are transport adapters.
 
 ### Invariant 4: The Result Contract is Storage-Independent
-`KnowledgeResult` returns hydrated graphs of knowledge (entities, relations, claims) and metadata. It must never leak implementation details such as SQL row formats, vector database scores, or ORM models.
+`KnowledgeResult` returns hydrated graphs of knowledge (entities, relations, claims, documents) and metadata. It must never leak implementation details such as SQL row formats, vector database scores, or ORM models.
 
 ### Invariant 5: Domain Implementations Depend on E, Never the Reverse
 A project like `e-teyvat` is free to use Postgres, custom tables (e.g., `banner_phases`), and domain rules, but E itself must never be updated merely to accommodate a limitation or feature of `e-teyvat` unless it is a generic knowledge layer feature.

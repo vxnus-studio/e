@@ -46,7 +46,7 @@ export class SqliteEngine implements EQueryEngine {
         id TEXT PRIMARY KEY,
         entity_id TEXT NOT NULL REFERENCES e_entities(id) ON DELETE CASCADE,
         statement TEXT NOT NULL,
-        confidence TEXT NOT NULL,
+        confidence TEXT NOT NULL CHECK (confidence IN ('canon', 'theory', 'outdated')),
         source TEXT NOT NULL
       );
 
@@ -55,7 +55,18 @@ export class SqliteEngine implements EQueryEngine {
         entity_id TEXT NOT NULL REFERENCES e_entities(id) ON DELETE CASCADE,
         content TEXT NOT NULL
       );
+
+      CREATE INDEX IF NOT EXISTS idx_e_entities_namespace ON e_entities(namespace);
+      CREATE INDEX IF NOT EXISTS idx_e_entities_slug ON e_entities(slug);
+      CREATE INDEX IF NOT EXISTS idx_e_aliases_alias ON e_aliases(alias);
+      CREATE INDEX IF NOT EXISTS idx_e_aliases_entity_id ON e_aliases(entity_id);
+      CREATE INDEX IF NOT EXISTS idx_e_relations_subject_id ON e_relations(subject_id);
+      CREATE INDEX IF NOT EXISTS idx_e_relations_object_id ON e_relations(object_id);
+      CREATE INDEX IF NOT EXISTS idx_e_relations_predicate ON e_relations(predicate);
+      CREATE INDEX IF NOT EXISTS idx_e_claims_entity_id ON e_claims(entity_id);
+      CREATE INDEX IF NOT EXISTS idx_e_documents_entity_id ON e_documents(entity_id);
     `);
+    this.db.pragma('foreign_keys = ON');
   }
 
   close() {
@@ -143,14 +154,18 @@ export class SqliteEngine implements EQueryEngine {
           break;
         }
         case "search": {
-          const params: any[] = [`%${request.query}%`, `%${request.query}%`];
-          let queryText = `SELECT * FROM e_entities WHERE (name LIKE ? OR slug LIKE ?)`;
+          if (request.limit !== undefined && request.limit <= 0) {
+            return result;
+          }
+          const escapedQuery = request.query.replace(/\\/g, '\\\\').replace(/%/g, '\\%').replace(/_/g, '\\_');
+          const params: any[] = [`%${escapedQuery}%`, `%${escapedQuery}%`];
+          let queryText = `SELECT * FROM e_entities WHERE (name LIKE ? ESCAPE '\\' OR slug LIKE ? ESCAPE '\\')`;
           if (request.namespace) {
             queryText += ` AND namespace = ?`;
             params.push(request.namespace);
           }
-          queryText += ` ORDER BY id ASC`; // deterministic ordering
-          if (request.limit) {
+          queryText += ` ORDER BY id COLLATE BINARY ASC`; // deterministic binary ordering
+          if (request.limit !== undefined) {
             queryText += ` LIMIT ?`;
             params.push(request.limit);
           }

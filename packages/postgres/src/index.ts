@@ -97,14 +97,18 @@ export class PostgresEngine implements EQueryEngine {
           break;
         }
         case "search": {
-          const params: any[] = [`%${request.query}%`];
-          let queryText = `SELECT * FROM e_entities WHERE (name ILIKE $1 OR slug ILIKE $1)`;
+          if (request.limit !== undefined && request.limit <= 0) {
+            return result;
+          }
+          const escapedQuery = request.query.replace(/\\/g, '\\\\').replace(/%/g, '\\%').replace(/_/g, '\\_');
+          const params: any[] = [`%${escapedQuery}%`];
+          let queryText = `SELECT * FROM e_entities WHERE (name ILIKE $1 ESCAPE '\\' OR slug ILIKE $1 ESCAPE '\\')`;
           if (request.namespace) {
             params.push(request.namespace);
             queryText += ` AND namespace = $2`;
           }
-          queryText += ` ORDER BY id ASC`; // deterministic ordering
-          if (request.limit) {
+          queryText += ` ORDER BY id COLLATE "C" ASC`; // deterministic binary ordering
+          if (request.limit !== undefined) {
             params.push(request.limit);
             queryText += ` LIMIT $${params.length}`;
           }

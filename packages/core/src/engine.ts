@@ -106,6 +106,9 @@ export class InMemoryEngine implements EQueryEngine {
         break;
       }
       case "search": {
+        if (request.limit !== undefined && request.limit <= 0) {
+          return result;
+        }
         const q = request.query.toLowerCase();
         for (const entity of this.entities.values()) {
           if (
@@ -113,10 +116,12 @@ export class InMemoryEngine implements EQueryEngine {
             (entity.name.toLowerCase().includes(q) || entity.slug.toLowerCase().includes(q))
           ) {
             result.entities.push(entity);
-            if (request.limit && result.entities.length >= request.limit) {
-              break;
-            }
           }
+        }
+        // Deterministic ordering by id (Binary / ASCII order)
+        result.entities.sort((a, b) => a.id < b.id ? -1 : a.id > b.id ? 1 : 0);
+        if (request.limit !== undefined && result.entities.length > request.limit) {
+          result.entities = result.entities.slice(0, request.limit);
         }
         break;
       }
