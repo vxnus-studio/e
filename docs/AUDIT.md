@@ -43,3 +43,150 @@
 - A highly recursive `maxPaths=100000` chunk-query generation (200 DB queries sequentially resolved) is currently synchronous per level. Promise parallelization via `Promise.all` for relational lookups across chunks would substantially drop wall-clock latency.
 - Fuzzing / Property Testing frameworks are basic random generator scripts.
 
+---
+
+# Phase 3 — Backend Semantic Contract
+
+## A. Core Engine Interface
+
+The core engine exposes a single `query(request: QueryRequest)` method for retrieval operations, and an internal fixture-insertion mechanism used for mutating state in a deterministic way.
+
+### 1. `insertEntity(entity: Entity)`
+- **Inputs**: `Entity` object (id, namespace, kind, slug, name, data, identities, provenance, temporal).
+- **Outputs**: None.
+- **Errors**: Throws if `id` already exists. Throws on constraint violations (e.g., missing required fields like `namespace` or `name`).
+- **Warnings**: None.
+- **Duplicate behavior**: Reject on exact ID match.
+- **Missing-record behavior**: N/A.
+- **Validation**: Enforces non-null strings for ID, namespace, kind, slug, name. Data must be a valid JSON object.
+- **Null/undefined behavior**: Nulls in optional fields (identities, provenance) are safely ignored or treated as missing.
+
+### 2. `insertAlias(alias: Alias)`
+- **Inputs**: `Alias` object (id, entityId, alias).
+- **Outputs**: None.
+- **Errors**: Throws if `id` already exists, or if `entityId` does not reference an existing entity (Foreign Key constraint in SQL engines).
+- **Duplicate behavior**: Reject on exact ID match.
+
+### 3. `insertRelation(relation: Relation)`
+- **Inputs**: `Relation` object (id, subjectId, predicate, objectId).
+- **Outputs**: None.
+- **Errors**: Throws if `id` already exists, or if `subjectId`/`objectId` do not exist.
+- **Duplicate behavior**: Reject on exact ID match.
+
+### 4. `insertClaim(claim: Claim)`
+- **Inputs**: `Claim` object (id, entityId, statement, confidence, source).
+- **Outputs**: None.
+- **Errors**: Throws on invalid `confidence` values. Throws on missing `entityId`.
+- **Validation**: `confidence` must be one of: "canon", "theory", "outdated", "unverified".
+
+### 5. `insertDocument(document: Document)`
+- **Inputs**: `Document` object (id, entityId, content).
+- **Outputs**: None.
+- **Errors**: Throws on missing `entityId`.
+
+### 6. `resolve` (Query)
+- **Inputs**: `alias: string`, `namespace?: string`.
+- **Outputs**: Returns a `KnowledgeResult` containing `entities` that match the alias.
+- **Errors**: None on missing. Returns empty array.
+- **Warnings**: If multiple aliases map to different entities, returns all, potentially issuing a warning if the contract mandates strict single resolution.
+- **Ordering**: Unspecified unless strictly defined.
+- **Collation**: Case-sensitive by default, though SQL backends might deviate.
+
+### 7. `getEntity` (Query)
+- **Inputs**: `id: string`.
+- **Outputs**: `entities` array with exactly 0 or 1 entity.
+- **Errors**: None. Returns empty if not found.
+- **Missing-record behavior**: Returns empty `entities` array.
+
+### 8. `findRelations` (Query)
+- **Inputs**: `predicate?: string`, `subjectId?: string`, `objectId?: string`. Must have at least one ID.
+- **Outputs**: `relations` array.
+- **Errors**: Throws if neither `subjectId` nor `objectId` is provided.
+- **Ordering**: Unspecified.
+
+### 9. `findClaims` (Query)
+- **Inputs**: `entityId: string`.
+- **Outputs**: `claims` array. Entities are NOT hydrated.
+- **Errors**: None.
+- **Ordering**: Unspecified.
+
+### 10. `findDocuments` (Query)
+- **Inputs**: `entityId: string`.
+- **Outputs**: `documents` array. Entities are NOT hydrated.
+- **Errors**: None.
+- **Ordering**: Unspecified.
+
+### 11. `search` (Query)
+- **Inputs**: `search: SearchQuery` (query, namespace, kind, limit, mode).
+- **Outputs**: `SearchResult` containing `entities` and `matches`.
+- **Errors**: None.
+- **Ordering**: Unspecified (likely scored, but deterministic tests must not depend on exact scores unless specified).
+
+### 12. `traverse` (Query)
+- **Inputs**: `startId: string`, `steps?: TraversalStep[]`, `maxDepth?: number`, `maxPaths?: number`, `predicates?: string[]`.
+- **Outputs**: `TraversalResult` containing `entities`, `relations`, `paths`.
+- **Errors**: Throws on invalid `maxDepth` or `maxPaths`.
+- **Ordering**: Path ordering is typically unspecified, though deterministic graph traversal algorithms may implicitly order by DFS/BFS. Tests should sort paths by canonical representation before comparison.
+
+### Transaction Behavior
+- **InMemory**: Non-transactional. Operations apply immediately.
+- **SQL (SQLite/Postgres)**: Currently, multi-insert operations should be explicitly wrapped if atomicity is desired.
+
+## B. Divergences Discovered
+1. **Constraint Parity (Foreign Keys)**:
+   - `InMemoryEngine` allows inserting `Alias`, `Relation`, `Claim`, and `Document` records pointing to non-existent `entityId`s or `subjectId`/`objectId`s.
+   - `SQLiteEngine` and `PostgresEngine` properly reject these operations with a `FOREIGN KEY constraint failed` error (or Postgres equivalent).
+   - *Impact*: `InMemoryEngine` fails to mirror the strict referential integrity of SQL engines, potentially leading to passing tests that would crash in production.
+2. **Constraint Parity (Primary Keys)**:
+   - Previously fixed in `insertRelation` and `insertEntity`, but `InMemoryEngine` still lacks `Array.some(id)` uniqueness checks for `insertAlias`, `insertClaim`, and `insertDocument`.
+   - *Impact*: Multiple records with identical IDs can be inserted in memory, while SQL will throw `UNIQUE constraint failed`.
+
+## C. Final Verdict
+
+1. **Do all engines actually implement the same API?**
+   - Mostly yes on the read path (`query` method), but the write paths (`insertFixtures`) vary drastically in strictness. `InMemoryEngine` simulates a schema-less NoSQL document store during inserts, while the SQL engines enforce rigorous tabular constraints.
+2. **Which engine currently behaves differently?**
+   - `InMemoryEngine` behaves differently during insertions (accepting orphaned relational data and duplicate IDs for some record types).
+3. **Which backend is most likely to contain latent bugs?**
+   - `InMemoryEngine`, as its referential integrity isn't natively guaranteed by an underlying database. Tests relying on `InMemoryEngine` might assert on impossible states.
+4. **Which differences are intentional?**
+   - None of the foreign key constraint divergence is intentional; it's just the side effect of primitive array storage in memory.
+5. **Which differences are bugs?**
+   - Missing foreign key emulation in `InMemoryEngine`.
+   - Missing duplicate ID checks for Aliases, Claims, and Documents in `InMemoryEngine`.
+6. **What remains completely unverified?**
+   - Postgres execution locally (CI execution handles it, but developer local environments cannot run the Postgres tests without a Dockerized instance).
+   - Complex full-graph traversal randomized property testing is partially stubbed but not mathematically exhaustive.
+   - String collation parity (e.g. `LIKE` operator case sensitivity in Postgres vs SQLite vs JavaScript).
+
+## J. Ordering Contract Matrix
+
+| Operation | Ordering Contract | Implementation Notes |
+|---|---|---|
+| `resolve` | **Explicitly unspecified** | SQL uses `SELECT DISTINCT` which may reorder rows. In-memory depends on insertion order. Tests must canonicalize. |
+| `getEntity` | **Explicitly unspecified** | Only returns 0 or 1 entity. |
+| `findRelations` | **Explicitly unspecified** | SQL engines return default clustered index or table scan order. In-memory returns insertion order. |
+| `findClaims` | **Explicitly unspecified** | Same as above. |
+| `findDocuments` | **Explicitly unspecified** | Same as above. |
+| `search` | **Contractually Ordered** | Documented to deterministically order by ID (Binary/ASCII) before slicing to `limit`. SQL uses `ORDER BY id ASC`. In-memory sorts `(a, b) => a.id < b.id`. |
+| `traverse` | **Contractually Ordered** | Paths are strictly ordered by `Depth` -> `Lexical representation of edges` -> `Target Entity ID`. |
+
+## K. Null / Empty / Missing Behavior
+
+| Field Type | Condition | Behavior | Engines Agreemnt |
+|---|---|---|---|
+| Optional Objects (identities, provenance, temporal) | omitted / undefined | Handled safely, coerced to null or ignored in SQL. In-memory maintains `undefined`. | Yes |
+| Optional Strings | `""` (Empty String) | Allowed by schemas since there is no `CHECK (length > 0)`. | Yes |
+
+## L. String / Collation Parity
+- **Case Sensitivity**: All engines are strictly case-sensitive for `.resolve()` and exact-match filters because they rely on default `===` (JavaScript) and `=` without `COLLATE NOCASE`/`ILIKE` (SQL).
+- **Whitespace**: Exact match strictly includes leading/trailing whitespace.
+- **Unicode**: Standard UTF-8 equality applies across JavaScript, SQLite, and Postgres.
+
+## M. Search Differential Testing
+- `lexical`: Supported by all engines, tested in differential suite.
+- `semantic` / `hybrid`: Unimplemented in current architecture. All engines correctly throw an explicit error (`Search mode 'semantic' is not supported by this engine.`) rather than silently falling back.
+
+## N. Postgres CI
+- **Verified**: The `.github/workflows/ci.yml` successfully provisions a `postgres:15` service and runs the test suite with `TEST_DATABASE_URL=postgres://postgres@localhost/e_test`.
+- **Local Testing**: Locally unsupported unless Docker is explicitly running.

@@ -1,0 +1,21 @@
+{
+  "name": "@e/differential",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "vitest": "^4.1.11",
+    "@types/pg": "^8.11.0",
+    "@types/better-sqlite3": "^7.6.9"
+  },
+  "dependencies": {
+    "e": "*",
+    "@e/sqlite": "*",
+    "@e/postgres": "*",
+    "pg": "^8.11.3",
+    "better-sqlite3": "^11.2.1"
+  }
+}

@@ -21,10 +21,19 @@ export class InMemoryEngine implements EQueryEngine {
   private documents: Document[] = [];
 
   insertEntity(entity: Entity) {
+    if (this.entities.has(entity.id)) {
+      throw new Error(`UNIQUE constraint failed: entity id ${entity.id}`);
+    }
     this.entities.set(entity.id, entity);
   }
 
   insertAlias(alias: Alias) {
+    if (this.aliases.some(a => a.id === alias.id)) {
+      throw new Error(`UNIQUE constraint failed: alias id ${alias.id}`);
+    }
+    if (!this.entities.has(alias.entityId)) {
+      throw new Error(`FOREIGN KEY constraint failed: entityId ${alias.entityId} does not exist`);
+    }
     this.aliases.push(alias);
   }
 
@@ -32,14 +41,29 @@ export class InMemoryEngine implements EQueryEngine {
     if (this.relations.some(r => r.id === relation.id)) {
       throw new Error("Relation ID must be unique");
     }
+    if (!this.entities.has(relation.subjectId) || !this.entities.has(relation.objectId)) {
+      throw new Error("FOREIGN KEY constraint failed: subjectId or objectId does not exist");
+    }
     this.relations.push(relation);
   }
 
   insertClaim(claim: Claim) {
+    if (this.claims.some(c => c.id === claim.id)) {
+      throw new Error(`UNIQUE constraint failed: claim id ${claim.id}`);
+    }
+    if (!this.entities.has(claim.entityId)) {
+      throw new Error(`FOREIGN KEY constraint failed: entityId ${claim.entityId} does not exist`);
+    }
     this.claims.push(claim);
   }
 
   insertDocument(doc: Document) {
+    if (this.documents.some(d => d.id === doc.id)) {
+      throw new Error(`UNIQUE constraint failed: document id ${doc.id}`);
+    }
+    if (!this.entities.has(doc.entityId)) {
+      throw new Error(`FOREIGN KEY constraint failed: entityId ${doc.entityId} does not exist`);
+    }
     this.documents.push(doc);
   }
 
