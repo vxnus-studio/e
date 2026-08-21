@@ -235,7 +235,8 @@ export class SqliteEngine implements EQueryEngine {
         if (maxDepth > 100) maxDepth = 100;
         
         let maxPaths = request.maxPaths !== undefined ? request.maxPaths : 1000;
-        if (typeof maxPaths !== 'number' || isNaN(maxPaths) || maxPaths <= 0 || !Number.isInteger(maxPaths)) maxPaths = 1000;
+        if (typeof maxPaths !== 'number' || isNaN(maxPaths) || !Number.isInteger(maxPaths)) maxPaths = 1000;
+        if (maxPaths <= 0) maxPaths = 1000;
         if (maxPaths > 100000) maxPaths = 100000;
 
           const steps = request.steps || (request.predicates ? [{ predicates: request.predicates, direction: "out" as const }] : []);

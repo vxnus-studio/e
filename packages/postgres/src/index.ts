@@ -162,7 +162,8 @@ export class PostgresEngine implements EQueryEngine {
         if (maxDepth > 100) maxDepth = 100;
         
         let maxPaths = request.maxPaths !== undefined ? request.maxPaths : 1000;
-        if (typeof maxPaths !== 'number' || isNaN(maxPaths) || maxPaths <= 0 || !Number.isInteger(maxPaths)) maxPaths = 1000;
+        if (typeof maxPaths !== 'number' || isNaN(maxPaths) || !Number.isInteger(maxPaths)) maxPaths = 1000;
+        if (maxPaths <= 0) maxPaths = 1000;
         if (maxPaths > 100000) maxPaths = 100000;
 
           const startRes = await this.pool.query("SELECT * FROM e_entities WHERE id = $1", [request.startId]);
