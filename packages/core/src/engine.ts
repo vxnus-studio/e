@@ -12,6 +12,7 @@ import type {
 } from "./types.js";
 
 import { DEFAULT_MAX_DEPTH } from "./types.js";
+import { ConstraintError, QueryError, UnsupportedOperationError } from "./errors.js";
 
 export class InMemoryEngine implements EQueryEngine {
   private entities: Map<string, Entity> = new Map();
@@ -22,47 +23,47 @@ export class InMemoryEngine implements EQueryEngine {
 
   insertEntity(entity: Entity) {
     if (this.entities.has(entity.id)) {
-      throw new Error(`UNIQUE constraint failed: entity id ${entity.id}`);
+      throw new ConstraintError(`UNIQUE constraint failed: entity id ${entity.id}`, undefined, "UNIQUE_VIOLATION");
     }
     this.entities.set(entity.id, entity);
   }
 
   insertAlias(alias: Alias) {
     if (this.aliases.some(a => a.id === alias.id)) {
-      throw new Error(`UNIQUE constraint failed: alias id ${alias.id}`);
+      throw new ConstraintError(`UNIQUE constraint failed: alias id ${alias.id}`, undefined, "UNIQUE_VIOLATION");
     }
     if (!this.entities.has(alias.entityId)) {
-      throw new Error(`FOREIGN KEY constraint failed: entityId ${alias.entityId} does not exist`);
+      throw new ConstraintError(`FOREIGN KEY constraint failed: entityId ${alias.entityId} does not exist`, undefined, "FOREIGN_KEY_VIOLATION");
     }
     this.aliases.push(alias);
   }
 
   insertRelation(relation: Relation) {
     if (this.relations.some(r => r.id === relation.id)) {
-      throw new Error("Relation ID must be unique");
+      throw new ConstraintError("Relation ID must be unique", undefined, "UNIQUE_VIOLATION");
     }
     if (!this.entities.has(relation.subjectId) || !this.entities.has(relation.objectId)) {
-      throw new Error("FOREIGN KEY constraint failed: subjectId or objectId does not exist");
+      throw new ConstraintError("FOREIGN KEY constraint failed: subjectId or objectId does not exist", undefined, "FOREIGN_KEY_VIOLATION");
     }
     this.relations.push(relation);
   }
 
   insertClaim(claim: Claim) {
     if (this.claims.some(c => c.id === claim.id)) {
-      throw new Error(`UNIQUE constraint failed: claim id ${claim.id}`);
+      throw new ConstraintError(`UNIQUE constraint failed: claim id ${claim.id}`, undefined, "UNIQUE_VIOLATION");
     }
     if (!this.entities.has(claim.entityId)) {
-      throw new Error(`FOREIGN KEY constraint failed: entityId ${claim.entityId} does not exist`);
+      throw new ConstraintError(`FOREIGN KEY constraint failed: entityId ${claim.entityId} does not exist`, undefined, "FOREIGN_KEY_VIOLATION");
     }
     this.claims.push(claim);
   }
 
   insertDocument(doc: Document) {
     if (this.documents.some(d => d.id === doc.id)) {
-      throw new Error(`UNIQUE constraint failed: document id ${doc.id}`);
+      throw new ConstraintError(`UNIQUE constraint failed: document id ${doc.id}`, undefined, "UNIQUE_VIOLATION");
     }
     if (!this.entities.has(doc.entityId)) {
-      throw new Error(`FOREIGN KEY constraint failed: entityId ${doc.entityId} does not exist`);
+      throw new ConstraintError(`FOREIGN KEY constraint failed: entityId ${doc.entityId} does not exist`, undefined, "FOREIGN_KEY_VIOLATION");
     }
     this.documents.push(doc);
   }
@@ -121,7 +122,7 @@ export class InMemoryEngine implements EQueryEngine {
       }
       case "findRelations": {
         if (!request.subjectId && !request.objectId) {
-          throw new Error("findRelations requires at least subjectId or objectId");
+          throw new QueryError("findRelations requires at least subjectId or objectId");
         }
         const matchingRelations = this.relations.filter(
           (r) =>
@@ -161,7 +162,7 @@ export class InMemoryEngine implements EQueryEngine {
       case "search": {
         const sq = request.search;
         if (sq.mode && sq.mode !== "lexical") {
-          throw new Error(`Search mode '${sq.mode}' is not supported by this engine.`);
+          throw new UnsupportedOperationError(`Search mode '${sq.mode}' is not supported by this engine.`);
         }
         if (sq.limit !== undefined && sq.limit <= 0) {
           result.search = { entities: [], matches: [] };
@@ -202,12 +203,12 @@ export class InMemoryEngine implements EQueryEngine {
         
         let maxDepth = request.maxDepth !== undefined ? request.maxDepth : DEFAULT_MAX_DEPTH;
         if (typeof maxDepth !== 'number' || isNaN(maxDepth) || !Number.isInteger(maxDepth) || maxDepth < 0 || maxDepth > 100) {
-          throw new Error("Invalid maxDepth: must be an integer between 0 and 100");
+          throw new QueryError("Invalid maxDepth: must be an integer between 0 and 100");
         }
         
         let maxPaths = request.maxPaths !== undefined ? request.maxPaths : 1000;
         if (typeof maxPaths !== 'number' || isNaN(maxPaths) || !Number.isInteger(maxPaths) || maxPaths < 0 || maxPaths > 100000) {
-          throw new Error("Invalid maxPaths: must be an integer between 0 and 100000");
+          throw new QueryError("Invalid maxPaths: must be an integer between 0 and 100000");
         }
         if (maxPaths === 0) {
           result.traversal = { entities: [], relations: [], paths: [] };
@@ -377,7 +378,7 @@ export class InMemoryEngine implements EQueryEngine {
         break;
       }
       default: {
-        throw new Error(`Unknown query type: ${(request as any).type}`);
+        throw new UnsupportedOperationError(`Unknown query type: ${(request as any).type}`);
       }
     }
 

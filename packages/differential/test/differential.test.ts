@@ -2,6 +2,7 @@ import { test, expect, describe, beforeAll, afterAll, beforeEach } from "vitest"
 import { InMemoryEngine } from "../../core/src/engine.js";
 import { SqliteEngine } from "../../sqlite/src/index.js";
 import { PostgresEngine } from "../../postgres/src/index.js";
+import { ConstraintError, QueryError, UnsupportedOperationError } from "../../core/src/errors.js";
 import Database from "better-sqlite3";
 import { Pool } from "pg";
 import * as fs from "fs";
@@ -58,8 +59,11 @@ describe("Differential Cross-Backend Semantic Parity", () => {
             const insertDoc = db.prepare("INSERT INTO e_documents (id, entity_id, content) VALUES (?, ?, ?)");
             (f.documents || []).forEach((d: any) => insertDoc.run(d.id, d.entityId, d.content));
             db.exec("COMMIT");
-          } catch(e) {
+          } catch(e: any) {
             db.exec("ROLLBACK");
+            if (e.message.includes("UNIQUE constraint") || e.message.includes("FOREIGN KEY constraint")) {
+               throw new ConstraintError(e.message, e);
+            }
             throw e;
           }
         },
@@ -100,8 +104,11 @@ describe("Differential Cross-Backend Semantic Parity", () => {
               for (const c of (f.claims || [])) await client.query("INSERT INTO e_claims (id, entity_id, statement, confidence, source) VALUES ($1, $2, $3, $4, $5)", [c.id, c.entityId, c.statement, c.confidence, c.source]);
               for (const d of (f.documents || [])) await client.query("INSERT INTO e_documents (id, entity_id, content) VALUES ($1, $2, $3)", [d.id, d.entityId, d.content]);
               await client.query("COMMIT");
-            } catch(e) {
+            } catch(e: any) {
               await client.query("ROLLBACK");
+              if (e.code === "23505" || e.code === "23503") {
+                 throw new ConstraintError(e.message, e, e.code);
+              }
               throw e;
             } finally {
               client.release();
@@ -133,7 +140,7 @@ describe("Differential Cross-Backend Semantic Parity", () => {
     test("Duplicate Entity ID", async () => {
       for (const e of engines) {
         await e.insert({ entities: [createEmptyEntity("E1")] });
-        await expect(e.insert({ entities: [createEmptyEntity("E1")] })).rejects.toThrow();
+        await expect(e.insert({ entities: [createEmptyEntity("E1")] })).rejects.toThrowError(ConstraintError);
       }
     });
 
@@ -141,13 +148,13 @@ describe("Differential Cross-Backend Semantic Parity", () => {
       for (const e of engines) {
         await e.insert({ entities: [createEmptyEntity("E1")] });
         await e.insert({ aliases: [{ id: "A1", entityId: "E1", alias: "one" }] });
-        await expect(e.insert({ aliases: [{ id: "A1", entityId: "E1", alias: "two" }] })).rejects.toThrow();
+        await expect(e.insert({ aliases: [{ id: "A1", entityId: "E1", alias: "two" }] })).rejects.toThrowError(ConstraintError);
       }
     });
 
     test("Orphan Alias (Foreign Key)", async () => {
       for (const e of engines) {
-        await expect(e.insert({ aliases: [{ id: "A1", entityId: "MISSING", alias: "one" }] })).rejects.toThrow();
+        await expect(e.insert({ aliases: [{ id: "A1", entityId: "MISSING", alias: "one" }] })).rejects.toThrowError(ConstraintError);
       }
     });
 
@@ -155,13 +162,13 @@ describe("Differential Cross-Backend Semantic Parity", () => {
       for (const e of engines) {
         await e.insert({ entities: [createEmptyEntity("E1"), createEmptyEntity("E2")] });
         await e.insert({ relations: [{ id: "R1", subjectId: "E1", predicate: "next", objectId: "E2" }] });
-        await expect(e.insert({ relations: [{ id: "R1", subjectId: "E1", predicate: "next", objectId: "E2" }] })).rejects.toThrow();
+        await expect(e.insert({ relations: [{ id: "R1", subjectId: "E1", predicate: "next", objectId: "E2" }] })).rejects.toThrowError(ConstraintError);
       }
     });
 
     test("Orphan Relation (Foreign Key)", async () => {
       for (const e of engines) {
-        await expect(e.insert({ relations: [{ id: "R1", subjectId: "MISSING", predicate: "next", objectId: "MISSING2" }] })).rejects.toThrow();
+        await expect(e.insert({ relations: [{ id: "R1", subjectId: "MISSING", predicate: "next", objectId: "MISSING2" }] })).rejects.toThrowError(ConstraintError);
       }
     });
   });

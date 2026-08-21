@@ -10,7 +10,7 @@ import type {
   TraversalPath,
   TraversalPathEdge,
 } from "e";
-import { DEFAULT_MAX_DEPTH } from "e";
+import { DEFAULT_MAX_DEPTH, ConstraintError, QueryError, UnsupportedOperationError } from "e";
 
 
 export class PostgresEngine implements EQueryEngine {
@@ -71,7 +71,7 @@ export class PostgresEngine implements EQueryEngine {
         }
         case "findRelations": {
           if (!request.subjectId && !request.objectId) {
-            throw new Error("findRelations requires at least subjectId or objectId");
+            throw new QueryError("findRelations requires at least subjectId or objectId");
           }
           let queryText = "SELECT * FROM e_relations WHERE 1=1";
           const params: any[] = [];
@@ -121,7 +121,7 @@ export class PostgresEngine implements EQueryEngine {
         case "search": {
           const sq = request.search;
           if (sq.mode && sq.mode !== "lexical") {
-            throw new Error(`Search mode '${sq.mode}' is not supported by this engine.`);
+            throw new UnsupportedOperationError(`Search mode '${sq.mode}' is not supported by this engine.`);
           }
           if (sq.limit !== undefined && sq.limit <= 0) {
             result.search = { entities: [], matches: [] };
@@ -158,12 +158,12 @@ export class PostgresEngine implements EQueryEngine {
         case "traverse": {
           let maxDepth = request.maxDepth !== undefined ? request.maxDepth : DEFAULT_MAX_DEPTH;
         if (typeof maxDepth !== 'number' || isNaN(maxDepth) || !Number.isInteger(maxDepth) || maxDepth < 0 || maxDepth > 100) {
-          throw new Error("Invalid maxDepth: must be an integer between 0 and 100");
+          throw new QueryError("Invalid maxDepth: must be an integer between 0 and 100");
         }
         
         let maxPaths = request.maxPaths !== undefined ? request.maxPaths : 1000;
         if (typeof maxPaths !== 'number' || isNaN(maxPaths) || !Number.isInteger(maxPaths) || maxPaths < 0 || maxPaths > 100000) {
-          throw new Error("Invalid maxPaths: must be an integer between 0 and 100000");
+          throw new QueryError("Invalid maxPaths: must be an integer between 0 and 100000");
         }
         if (maxPaths === 0) {
           result.traversal = { entities: [], relations: [], paths: [] };
@@ -364,7 +364,10 @@ export class PostgresEngine implements EQueryEngine {
         }
       }
     } catch (e: any) {
-      throw e;
+      if (e instanceof QueryError || e instanceof UnsupportedOperationError || e instanceof ConstraintError) {
+        throw e;
+      }
+      throw new QueryError(e.message, e);
     }
 
     result.metadata.timeMs = Date.now() - startTime;
