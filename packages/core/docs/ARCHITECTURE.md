@@ -33,3 +33,19 @@ This enforces the boundary where AI consumers (like Siduri) do not need to rever
 ## Storage Boundary
 
 E defines the models and the query interfaces. The actual persistence and retrieval mechanics are left to adapters. For Phase 1, we provide an in-memory reference engine to prove the domain abstraction works without premature optimization.
+
+## Write / Ingestion Boundary
+
+E Core and the `EQueryEngine` interface are intentionally retrieval-oriented. E does not provide generic "write" or "upsert" APIs.
+
+The intended architecture is:
+```text
+  External Ingestion Pipeline (e.g. Yatta / e-teyvat-raw)
+                 ↓
+      E Storage (Postgres / SQLite schemas)
+                 ↓
+      EQueryEngine (Read-only Graph Traversal)
+                 ↓
+      Consumers (Siduri / AI Agents)
+```
+Ingestion pipelines are responsible for connecting to the underlying database (e.g., using `pg` directly) and inserting `Entities`, `Relations`, `Claims`, and `Documents` that conform to the E schemas. This keeps E Core light, robust, and strictly focused on serving contextual knowledge safely.

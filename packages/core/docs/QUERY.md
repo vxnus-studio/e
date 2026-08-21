@@ -18,8 +18,9 @@ A `QueryRequest` is a discriminated union of query intents:
 2. **GetEntity:** Fetch an entity by ID.
 3. **FindRelations:** Find directed graph edges. Supports querying by `subjectId`, `objectId`, or both, along with an optional `predicate`.
 4. **FindClaims:** Fetch claims asserted about a specific `entityId`.
-5. **Search:** Search across entities using a query string (with optional limit and namespace scoping).
-6. **Traverse:** Recursive traversal starting from an ID (currently optional/unsupported by default reference engines).
+5. **FindDocuments:** Fetch long-form documents attached to a specific `entityId`.
+6. **Search:** Search across entities using a query string (with optional limit and namespace scoping).
+7. **Traverse:** Recursive traversal starting from an ID (currently optional/unsupported by default reference engines).
 
 ## Result Contract
 

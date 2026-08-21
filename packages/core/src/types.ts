@@ -43,6 +43,7 @@ export type QueryRequest =
       | { subjectId?: string; objectId: string }
     ))
   | { type: "findClaims"; entityId: string }
+  | { type: "findDocuments"; entityId: string }
   | { type: "search"; query: string; namespace?: string; limit?: number }
   | { type: "traverse"; startId: string; maxDepth?: number; predicates?: string[] };
 

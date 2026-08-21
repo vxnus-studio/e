@@ -137,6 +137,11 @@ export class SqliteEngine implements EQueryEngine {
           result.claims = rows.map(this.mapClaim);
           break;
         }
+        case "findDocuments": {
+          const rows = this.db.prepare("SELECT * FROM e_documents WHERE entity_id = ?").all(request.entityId);
+          result.documents = rows.map(this.mapDocument);
+          break;
+        }
         case "search": {
           const params: any[] = [`%${request.query}%`, `%${request.query}%`];
           let queryText = `SELECT * FROM e_entities WHERE (name LIKE ? OR slug LIKE ?)`;
@@ -144,6 +149,7 @@ export class SqliteEngine implements EQueryEngine {
             queryText += ` AND namespace = ?`;
             params.push(request.namespace);
           }
+          queryText += ` ORDER BY id ASC`; // deterministic ordering
           if (request.limit) {
             queryText += ` LIMIT ?`;
             params.push(request.limit);
@@ -192,6 +198,14 @@ export class SqliteEngine implements EQueryEngine {
       statement: row.statement,
       confidence: row.confidence,
       source: row.source,
+    };
+  }
+
+  private mapDocument(row: any): Document {
+    return {
+      id: row.id,
+      entityId: row.entity_id,
+      content: row.content,
     };
   }
 }

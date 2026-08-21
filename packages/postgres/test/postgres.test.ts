@@ -1,0 +1,50 @@
+import { test, expect, describe } from "vitest";
+import { PostgresEngine } from "../src/index.js";
+import { runBehavioralTests, type Fixtures } from "../../core/test/behavior.js";
+import { Pool } from "pg";
+import * as fs from "fs";
+import * as path from "path";
+
+const testDbUrl = process.env.TEST_DATABASE_URL;
+
+if (testDbUrl) {
+  runBehavioralTests("PostgresEngine", async () => {
+    const engine = new PostgresEngine({ connectionString: testDbUrl });
+    const pool = (engine as any).pool as Pool;
+
+    // init schema
+    const schemaSql = fs.readFileSync(path.join(__dirname, "../schema.sql"), "utf-8");
+    await pool.query(schemaSql);
+
+    // clear tables for test isolation
+    await pool.query(`TRUNCATE TABLE e_entities, e_aliases, e_relations, e_claims, e_documents CASCADE;`);
+
+    const insertFixtures = async (f: Fixtures) => {
+      for (const e of f.entities) {
+        await pool.query("INSERT INTO e_entities (id, namespace, kind, slug, name, data) VALUES ($1, $2, $3, $4, $5, $6)", [e.id, e.namespace, e.kind, e.slug, e.name, JSON.stringify(e.data)]);
+      }
+      for (const a of f.aliases) {
+        await pool.query("INSERT INTO e_aliases (id, entity_id, alias) VALUES ($1, $2, $3)", [a.id, a.entityId, a.alias]);
+      }
+      for (const r of f.relations) {
+        await pool.query("INSERT INTO e_relations (id, subject_id, predicate, object_id) VALUES ($1, $2, $3, $4)", [r.id, r.subjectId, r.predicate, r.objectId]);
+      }
+      for (const c of f.claims) {
+        await pool.query("INSERT INTO e_claims (id, entity_id, statement, confidence, source) VALUES ($1, $2, $3, $4, $5)", [c.id, c.entityId, c.statement, c.confidence, c.source]);
+      }
+      for (const d of f.documents) {
+        await pool.query("INSERT INTO e_documents (id, entity_id, content) VALUES ($1, $2, $3)", [d.id, d.entityId, d.content]);
+      }
+    };
+
+    const teardown = async () => {
+      await engine.close();
+    };
+
+    return { engine, insertFixtures, teardown };
+  });
+} else {
+  describe.skip("PostgresEngine", () => {
+    test("skipped because TEST_DATABASE_URL is not set", () => {});
+  });
+}

@@ -91,6 +91,11 @@ export class PostgresEngine implements EQueryEngine {
           result.claims = res.rows.map(this.mapClaim);
           break;
         }
+        case "findDocuments": {
+          const res = await this.pool.query("SELECT * FROM e_documents WHERE entity_id = $1", [request.entityId]);
+          result.documents = res.rows.map(this.mapDocument);
+          break;
+        }
         case "search": {
           const params: any[] = [`%${request.query}%`];
           let queryText = `SELECT * FROM e_entities WHERE (name ILIKE $1 OR slug ILIKE $1)`;
@@ -98,6 +103,7 @@ export class PostgresEngine implements EQueryEngine {
             params.push(request.namespace);
             queryText += ` AND namespace = $2`;
           }
+          queryText += ` ORDER BY id ASC`; // deterministic ordering
           if (request.limit) {
             params.push(request.limit);
             queryText += ` LIMIT $${params.length}`;
@@ -146,6 +152,14 @@ export class PostgresEngine implements EQueryEngine {
       statement: row.statement,
       confidence: row.confidence,
       source: row.source,
+    };
+  }
+
+  private mapDocument(row: any): Document {
+    return {
+      id: row.id,
+      entityId: row.entity_id,
+      content: row.content,
     };
   }
 }

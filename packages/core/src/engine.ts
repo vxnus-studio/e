@@ -98,12 +98,19 @@ export class InMemoryEngine implements EQueryEngine {
         result.claims = matchingClaims;
         break;
       }
+      case "findDocuments": {
+        const matchingDocs = this.documents.filter(
+          (d) => d.entityId === request.entityId
+        );
+        result.documents = matchingDocs;
+        break;
+      }
       case "search": {
-        // Simple exact match on name/slug for in-memory
+        const q = request.query.toLowerCase();
         for (const entity of this.entities.values()) {
           if (
             (!request.namespace || entity.namespace === request.namespace) &&
-            (entity.name.includes(request.query) || entity.slug.includes(request.query))
+            (entity.name.toLowerCase().includes(q) || entity.slug.toLowerCase().includes(q))
           ) {
             result.entities.push(entity);
             if (request.limit && result.entities.length >= request.limit) {
