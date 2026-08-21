@@ -2,19 +2,21 @@ import Database from "better-sqlite3";
 import type { Database as SqliteDatabase } from "better-sqlite3";
 import type {
   Entity,
+  Alias,
   Relation,
   Claim,
   Document,
   QueryRequest,
   KnowledgeResult,
   EQueryEngine,
+  EFixtureMutator,
   TraversalPath,
   TraversalPathEdge,
 } from "e";
 import { DEFAULT_MAX_DEPTH, ConstraintError, QueryError, UnsupportedOperationError } from "e";
 
 
-export class SqliteEngine implements EQueryEngine {
+export class SqliteEngine implements EQueryEngine, EFixtureMutator {
   private db: SqliteDatabase;
 
   constructor(filename: string, options?: Database.Options) {
@@ -506,5 +508,53 @@ export class SqliteEngine implements EQueryEngine {
       content: row.content,
       ...(row.provenance ? { provenance: JSON.parse(row.provenance) } : {}),
     };
+  }
+
+  // --- EFixtureMutator Implementation ---
+  private handleSqliteError(e: any): never {
+    if (e.message && (e.message.includes("UNIQUE constraint") || e.message.includes("FOREIGN KEY constraint") || e.message.includes("NOT NULL constraint") || e.message.includes("CHECK constraint"))) {
+      throw new ConstraintError(e.message, e, "CONSTRAINT_VIOLATION");
+    }
+    throw new QueryError(e.message, e);
+  }
+
+  insertEntity(entity: Entity): void {
+    try {
+      this.db.prepare("INSERT INTO e_entities (id, namespace, kind, slug, name, data) VALUES (?, ?, ?, ?, ?, ?)").run(
+        entity.id, entity.namespace, entity.kind, entity.slug, entity.name, JSON.stringify(entity.data || {})
+      );
+    } catch (e: any) { this.handleSqliteError(e); }
+  }
+
+  insertAlias(alias: Alias): void {
+    try {
+      this.db.prepare("INSERT INTO e_aliases (id, entity_id, alias) VALUES (?, ?, ?)").run(
+        alias.id, alias.entityId, alias.alias
+      );
+    } catch (e: any) { this.handleSqliteError(e); }
+  }
+
+  insertRelation(relation: Relation): void {
+    try {
+      this.db.prepare("INSERT INTO e_relations (id, subject_id, predicate, object_id) VALUES (?, ?, ?, ?)").run(
+        relation.id, relation.subjectId, relation.predicate, relation.objectId
+      );
+    } catch (e: any) { this.handleSqliteError(e); }
+  }
+
+  insertClaim(claim: Claim): void {
+    try {
+      this.db.prepare("INSERT INTO e_claims (id, entity_id, statement, confidence, source) VALUES (?, ?, ?, ?, ?)").run(
+        claim.id, claim.entityId, claim.statement, claim.confidence, claim.source
+      );
+    } catch (e: any) { this.handleSqliteError(e); }
+  }
+
+  insertDocument(doc: Document): void {
+    try {
+      this.db.prepare("INSERT INTO e_documents (id, entity_id, content) VALUES (?, ?, ?)").run(
+        doc.id, doc.entityId, doc.content
+      );
+    } catch (e: any) { this.handleSqliteError(e); }
   }
 }

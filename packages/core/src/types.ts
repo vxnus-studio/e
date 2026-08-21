@@ -166,3 +166,11 @@ export interface KnowledgeResult {
 export interface EQueryEngine {
   query(request: QueryRequest): Promise<KnowledgeResult>;
 }
+
+export interface EFixtureMutator {
+  insertEntity(entity: Entity): Promise<void> | void;
+  insertAlias(alias: Alias): Promise<void> | void;
+  insertRelation(relation: Relation): Promise<void> | void;
+  insertClaim(claim: Claim): Promise<void> | void;
+  insertDocument(doc: Document): Promise<void> | void;
+}

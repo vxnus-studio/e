@@ -1,19 +1,21 @@
 import { Pool, PoolConfig } from "pg";
 import type {
   Entity,
+  Alias,
   Relation,
   Claim,
   Document,
   QueryRequest,
   KnowledgeResult,
   EQueryEngine,
+  EFixtureMutator,
   TraversalPath,
   TraversalPathEdge,
 } from "e";
 import { DEFAULT_MAX_DEPTH, ConstraintError, QueryError, UnsupportedOperationError } from "e";
 
 
-export class PostgresEngine implements EQueryEngine {
+export class PostgresEngine implements EQueryEngine, EFixtureMutator {
   private pool: Pool;
 
   constructor(config: PoolConfig) {
@@ -419,5 +421,58 @@ export class PostgresEngine implements EQueryEngine {
       content: row.content,
       provenance: row.provenance || undefined,
     };
+  }
+
+  // --- EFixtureMutator Implementation ---
+  private handlePostgresError(e: any): never {
+    if (e.code === "23505" || e.code === "23503" || e.code === "23514" || e.code === "23502") {
+      throw new ConstraintError(e.message, e, e.code);
+    }
+    throw new QueryError(e.message, e);
+  }
+
+  async insertEntity(entity: Entity): Promise<void> {
+    try {
+      await this.pool.query(
+        "INSERT INTO e_entities (id, namespace, kind, slug, name, data) VALUES ($1, $2, $3, $4, $5, $6)",
+        [entity.id, entity.namespace, entity.kind, entity.slug, entity.name, JSON.stringify(entity.data || {})]
+      );
+    } catch (e: any) { this.handlePostgresError(e); }
+  }
+
+  async insertAlias(alias: Alias): Promise<void> {
+    try {
+      await this.pool.query(
+        "INSERT INTO e_aliases (id, entity_id, alias) VALUES ($1, $2, $3)",
+        [alias.id, alias.entityId, alias.alias]
+      );
+    } catch (e: any) { this.handlePostgresError(e); }
+  }
+
+  async insertRelation(relation: Relation): Promise<void> {
+    try {
+      await this.pool.query(
+        "INSERT INTO e_relations (id, subject_id, predicate, object_id) VALUES ($1, $2, $3, $4)",
+        [relation.id, relation.subjectId, relation.predicate, relation.objectId]
+      );
+    } catch (e: any) { this.handlePostgresError(e); }
+  }
+
+  async insertClaim(claim: Claim): Promise<void> {
+    try {
+      await this.pool.query(
+        "INSERT INTO e_claims (id, entity_id, statement, confidence, source) VALUES ($1, $2, $3, $4, $5)",
+        [claim.id, claim.entityId, claim.statement, claim.confidence, claim.source]
+      );
+    } catch (e: any) { this.handlePostgresError(e); }
+  }
+
+  async insertDocument(doc: Document): Promise<void> {
+    try {
+      await this.pool.query(
+        "INSERT INTO e_documents (id, entity_id, content) VALUES ($1, $2, $3)",
+        [doc.id, doc.entityId, doc.content]
+      );
+    } catch (e: any) { this.handlePostgresError(e); }
   }
 }

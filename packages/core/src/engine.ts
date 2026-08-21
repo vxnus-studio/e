@@ -7,6 +7,7 @@ import type {
   QueryRequest,
   KnowledgeResult,
   EQueryEngine,
+  EFixtureMutator,
   TraversalPath,
   TraversalPathEdge,
 } from "./types.js";
@@ -14,7 +15,7 @@ import type {
 import { DEFAULT_MAX_DEPTH } from "./types.js";
 import { ConstraintError, QueryError, UnsupportedOperationError } from "./errors.js";
 
-export class InMemoryEngine implements EQueryEngine {
+export class InMemoryEngine implements EQueryEngine, EFixtureMutator {
   private entities: Map<string, Entity> = new Map();
   private aliases: Alias[] = [];
   private relations: Relation[] = [];
