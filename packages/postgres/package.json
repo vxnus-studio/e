@@ -2,7 +2,9 @@
   "name": "@e/postgres",
   "version": "1.0.0",
   "type": "module",
-  "main": "./dist/index.js",
+  "exports": {
+    "import": "./dist/index.js"
+  },
   "types": "./dist/index.d.ts",
   "scripts": {
     "build": "tsc",
@@ -12,7 +14,7 @@
     "pg": "^8.11.3"
   },
   "peerDependencies": {
-    "e": "*"
+    "e": "^1.0.0"
   },
   "devDependencies": {
     "@types/pg": "^8.10.2",

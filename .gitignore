@@ -2,3 +2,6 @@ node_modules/
 dist/
 node-v*
 scratch/
+*.orig
+*.rej
+*.patch

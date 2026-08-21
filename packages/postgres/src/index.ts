@@ -53,7 +53,7 @@ export class PostgresEngine implements EQueryEngine {
         }
         case "resolve": {
           const queryText = `
-            SELECT e.* FROM e_entities e
+            SELECT DISTINCT e.* FROM e_entities e
             JOIN e_aliases a ON e.id = a.entity_id
             WHERE a.alias = $1 ${request.namespace ? "AND e.namespace = $2" : ""}
           `;
@@ -120,6 +120,9 @@ export class PostgresEngine implements EQueryEngine {
         }
         case "search": {
           const sq = request.search;
+          if (sq.mode && sq.mode !== "lexical") {
+            throw new Error(`Search mode '${sq.mode}' is not supported by this engine.`);
+          }
           if (sq.limit !== undefined && sq.limit <= 0) {
             result.search = { entities: [], matches: [] };
             break;
@@ -146,7 +149,6 @@ export class PostgresEngine implements EQueryEngine {
             entities,
             matches: entities.map(e => ({
               entityId: e.id,
-              score: 1.0,
               matchReason: "lexical"
             }))
           };

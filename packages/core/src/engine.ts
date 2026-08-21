@@ -70,13 +70,17 @@ export class InMemoryEngine implements EQueryEngine {
         const matches = this.aliases.filter(
           (a) => a.alias === request.alias
         );
+        const seen = new Set<string>();
         for (const match of matches) {
           const entity = this.entities.get(match.entityId);
           if (
             entity &&
             (!request.namespace || entity.namespace === request.namespace)
           ) {
-            result.entities!.push(entity);
+            if (!seen.has(entity.id)) {
+              seen.add(entity.id);
+              result.entities!.push(entity);
+            }
           }
         }
         break;
@@ -129,6 +133,9 @@ export class InMemoryEngine implements EQueryEngine {
       }
       case "search": {
         const sq = request.search;
+        if (sq.mode && sq.mode !== "lexical") {
+          throw new Error(`Search mode '${sq.mode}' is not supported by this engine.`);
+        }
         if (sq.limit !== undefined && sq.limit <= 0) {
           result.search = { entities: [], matches: [] };
           break;
@@ -153,7 +160,6 @@ export class InMemoryEngine implements EQueryEngine {
           entities: result.entities!,
           matches: result.entities!.map(e => ({
             entityId: e.id,
-            score: 1.0,
             matchReason: "lexical"
           }))
         };

@@ -30,7 +30,7 @@ Fetches a single entity by its exact ID.
 - **Required Fields:** `id`
 - **Optional Fields:** None.
 - **Result Shape:** Returns the `Entity` in `entities`.
-- **Errors:** Emits a warning in `metadata.warnings` if the entity is not found (e.g., `Entity not found: {id}`). Returns empty lists.
+- **Errors:** Returns empty lists if the entity is not found. It does not emit a warning or throw an error.
 - **Backend Parity:** Fully supported by all engines.
 
 ### 3. `findRelations`
@@ -41,6 +41,7 @@ Finds directed graph edges. Must provide at least one of `subjectId` or `objectI
 - **Defaults:** If `predicate` is omitted, returns all matching relations.
 - **Result Shape:** Returns the matching `Relation[]` in `relations`. Automatically hydrates the subjects and objects into `entities`.
 - **Errors:** Throws `Error("Must provide at least subjectId or objectId")` if both are missing.
+- **Ordering:** Intentionally unspecified.
 - **Backend Parity:** Fully supported by all engines.
 
 ### 4. `findClaims`
@@ -48,6 +49,7 @@ Fetches subjective or qualitative facts asserted about an entity.
 - **Request Shape:** `{ type: "findClaims"; entityId: string }`
 - **Required Fields:** `entityId`
 - **Result Shape:** Returns `Claim[]` in `claims`. *Note: Does NOT hydrate the target entity.*
+- **Ordering:** Intentionally unspecified.
 - **Backend Parity:** Fully supported by all engines.
 
 ### 5. `findDocuments`
@@ -55,6 +57,7 @@ Fetches long-form text documents attached to an entity.
 - **Request Shape:** `{ type: "findDocuments"; entityId: string }`
 - **Required Fields:** `entityId`
 - **Result Shape:** Returns `Document[]` in `documents`. *Note: Does NOT hydrate the target entity.*
+- **Ordering:** Intentionally unspecified.
 - **Backend Parity:** Fully supported by all engines.
 
 ### 6. `search`

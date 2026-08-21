@@ -147,6 +147,7 @@ export function runBehavioralTests(
       // 12. Missing Entities
       const missingRes = await engine.query({ type: "getEntity", id: "missing" });
       expect(missingRes.entities!.length).toBe(0);
+      expect(missingRes.metadata.warnings).toBeUndefined();
 
       // 13. Empty query
       const emptyQuery = await engine.query({ type: "search", search: { query: "" } });
@@ -243,6 +244,46 @@ export function runBehavioralTests(
 
       // 16. Unknown query type
       await expect(engine.query({ type: "unknown" } as any)).rejects.toThrow(/Unknown query type/);
+
+      // Phase 1 tests: Alias Deduplication
+      await insertFixtures({
+        entities: [
+          { id: "e-alias-test", namespace: "alias", kind: "test", slug: "alias-test", name: "Alias Test", data: {} }
+        ],
+        aliases: [
+          { id: "a1", entityId: "e-alias-test", alias: "duplicate-alias" },
+          { id: "a2", entityId: "e-alias-test", alias: "duplicate-alias" }
+        ],
+        relations: [], claims: [], documents: []
+      });
+      const aliasRes = await engine.query({ type: "resolve", alias: "duplicate-alias" });
+      expect(aliasRes.entities!.length).toBe(1);
+      expect(aliasRes.entities![0].id).toBe("e-alias-test");
+
+      // Phase 1 tests: Unsupported Search Modes
+      await expect(engine.query({ type: "search", search: { query: "test", mode: "semantic" } })).rejects.toThrow(/not supported/);
+      await expect(engine.query({ type: "search", search: { query: "test", mode: "hybrid" } })).rejects.toThrow(/not supported/);
+      const lexSearch = await engine.query({ type: "search", search: { query: "test", mode: "lexical" } });
+      expect(lexSearch.search).toBeDefined();
+
+      // Phase 1 tests: Claim Confidence
+      await insertFixtures({
+        entities: [
+          { id: "e-claim-test", namespace: "claim", kind: "test", slug: "claim-test", name: "Claim Test", data: {} }
+        ],
+        aliases: [],
+        relations: [],
+        claims: [
+          { id: "c1", entityId: "e-claim-test", statement: "Test", confidence: "canon", source: "test" },
+          { id: "c2", entityId: "e-claim-test", statement: "Test", confidence: "theory", source: "test" },
+          { id: "c3", entityId: "e-claim-test", statement: "Test", confidence: "outdated", source: "test" },
+          { id: "c4", entityId: "e-claim-test", statement: "Test", confidence: "unverified", source: "test" }
+        ],
+        documents: []
+      });
+      const claimRes = await engine.query({ type: "findClaims", entityId: "e-claim-test" });
+      expect(claimRes.claims!.length).toBe(4);
+      expect(claimRes.claims!.map(c => c.confidence).sort()).toEqual(["canon", "outdated", "theory", "unverified"]);
 
       await teardownFn();
     });

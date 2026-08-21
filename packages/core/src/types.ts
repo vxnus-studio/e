@@ -55,7 +55,7 @@ export interface Claim {
   id: string;
   entityId: string;
   statement: string;
-  confidence: string;
+  confidence: "canon" | "theory" | "outdated" | "unverified";
   source: string;
   provenance?: Provenance;
   temporal?: TemporalSemantics;
