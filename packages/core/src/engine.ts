@@ -174,7 +174,7 @@ export class InMemoryEngine implements EQueryEngine {
 
         
         let maxDepth = request.maxDepth !== undefined ? request.maxDepth : DEFAULT_MAX_DEPTH;
-        let maxPaths = request.maxPaths;
+        let maxPaths = request.maxPaths !== undefined ? request.maxPaths : 1000;
         if (typeof maxPaths !== 'number' || isNaN(maxPaths) || maxPaths <= 0 || !Number.isInteger(maxPaths)) maxPaths = 1000;
         
         if (typeof maxDepth !== 'number' || isNaN(maxDepth) || !Number.isInteger(maxDepth)) maxDepth = DEFAULT_MAX_DEPTH;
