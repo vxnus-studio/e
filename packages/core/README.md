@@ -34,10 +34,21 @@ The goal: consistent structure in → consistent, graph-backed AI retrieval out,
 - **AI-retrievable by default** — structure exists so retrieval is exact, with traceable graph evidence, not vibes-based RAG guessing.
 - **Domain-agnostic** — a "character" and an "employee" and a "product" should be able to live in the same underlying architecture.
 
-## Installation
+## Packages
+
+E is distributed as a monorepo with multiple packages:
+
+- `e`: The core types and in-memory engine.
+- `@e/sqlite`: The SQLite persistence engine.
+- `@e/postgres`: The PostgreSQL persistence engine.
+
+Since these are currently internal/workspace packages, you can use them within this repository's workspace, or if published, install them via npm:
 
 ```bash
-npm install git+https://github.com/vxnuslabs/e.git
+# To install the core interface
+npm install e
+# To install a persistence backend
+npm install @e/sqlite
 ```
 
 ## Basic Usage

@@ -1,4 +1,8 @@
-# E Architecture Proposal
+# E Architecture Proposal (Historical / Future)
+
+> [!WARNING]
+> **Historical / Proposal Notice**
+> This document contains historical proposals, future architectural plans, and speculative semantics (such as language-scoped aliases and advanced Evidence/Provenance models for Claims). It does **not** strictly describe the current implemented contract. For the actual current behavior, refer to the other markdown files in the `docs/` directory.
 
 ## Executive Summary
 

@@ -51,6 +51,9 @@ export class PostgresEngine implements EQueryEngine {
           break;
         }
         case "findRelations": {
+          if (!request.subjectId && !request.objectId) {
+            throw new Error("findRelations requires at least subjectId or objectId");
+          }
           let queryText = "SELECT * FROM e_relations WHERE 1=1";
           const params: any[] = [];
           
@@ -117,8 +120,11 @@ export class PostgresEngine implements EQueryEngine {
           break;
         }
         case "traverse": {
-          result.metadata.warnings = ["Traverse is not fully implemented in PostgresEngine"];
+          result.metadata.warnings = ["Traverse is not implemented"];
           break;
+        }
+        default: {
+          throw new Error(`Unknown query type: ${(request as any).type}`);
         }
       }
     } catch (e: any) {

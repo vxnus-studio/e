@@ -12,14 +12,15 @@ E utilizes a minimalistic core model to represent knowledge across any domain.
 2. **Alias**
    - **Purpose:** Allows resolving entities by alternative names or identifiers.
    - **Identity:** Bound to an `entityId`.
+   - **Note:** The current implementation only stores `id`, `entityId`, and `alias`. Advanced alias scoping (e.g., by language or context) is a future proposal.
 
 3. **Relation**
    - **Purpose:** A directed edge between two entities.
    - **Properties:** `subjectId`, `predicate`, `objectId`.
 
-4. **Claim (and Evidence)**
+4. **Claim**
    - **Purpose:** Decouples subjective or evolving facts from the core entity.
-   - **Properties:** `entityId`, `statement`, `confidence`, `source`. E does not assert universal truth; it asserts that a source made a claim.
+   - **Properties:** `entityId`, `statement`, `confidence`, `source`. E does not assert universal truth; it asserts that a source made a claim. Advanced provenance or claims about relations are future proposals.
 
 5. **Document**
    - **Purpose:** Long-form text attached to an entity, intended for semantic retrieval (RAG).

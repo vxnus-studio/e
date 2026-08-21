@@ -137,7 +137,13 @@ export function runBehavioralTests(
       
       // 14. Unsupported Traversal & Warnings
       const traverseRes = await engine.query({ type: "traverse", startId: "e-1" } as any);
-      expect(traverseRes.metadata.warnings?.length).toBeGreaterThan(0);
+      expect(traverseRes.metadata.warnings?.[0]).toBe("Traverse is not implemented");
+
+      // 15. Invalid findRelations (neither subjectId nor objectId)
+      await expect(engine.query({ type: "findRelations" } as any)).rejects.toThrow(/requires at least subjectId or objectId/);
+
+      // 16. Unknown query type
+      await expect(engine.query({ type: "unknown" } as any)).rejects.toThrow(/Unknown query type/);
 
       await teardownFn();
     });

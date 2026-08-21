@@ -70,6 +70,9 @@ export class InMemoryEngine implements EQueryEngine {
         break;
       }
       case "findRelations": {
+        if (!request.subjectId && !request.objectId) {
+          throw new Error("findRelations requires at least subjectId or objectId");
+        }
         const matchingRelations = this.relations.filter(
           (r) =>
             (!request.subjectId || r.subjectId === request.subjectId) &&
@@ -127,8 +130,11 @@ export class InMemoryEngine implements EQueryEngine {
       }
       case "traverse": {
         // Stub for graph traversal
-        result.metadata.warnings = ["Traverse is not fully implemented in InMemoryEngine"];
+        result.metadata.warnings = ["Traverse is not implemented"];
         break;
+      }
+      default: {
+        throw new Error(`Unknown query type: ${(request as any).type}`);
       }
     }
 

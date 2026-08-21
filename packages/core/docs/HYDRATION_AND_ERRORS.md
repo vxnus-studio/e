@@ -16,6 +16,10 @@ If a relation is found between entity A (subject) and entity B (object):
 * The engine MAY omit an entity if it cannot be loaded (e.g., deleted or soft-deleted), but MUST still return the relation edge if the edge itself remains valid in the underlying storage.
 * Consumers MUST NOT assume that all related entities are fully hydrated (e.g. for performance reasons on massive queries, an engine might truncate the hydration list). Consumers should fall back to `getEntity` if a required entity ID is found in a relation but missing from the `entities` array.
 
+### For `findClaims` and `findDocuments`
+* The engine MUST return the matching claims or documents.
+* The engine MUST NOT automatically hydrate the associated entity into the `entities` array, as the consumer already provided the `entityId` in the request and can fetch it separately if needed.
+
 ### For `resolve`
 * The engine MUST return the resolved canonical entity in the `entities` array.
 * If multiple entities match the alias (e.g., across different namespaces when no namespace is provided), the engine MUST return all matching entities.

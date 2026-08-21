@@ -23,6 +23,7 @@ A `QueryRequest` is a discriminated union of query intents:
    - `limit` omitted or `undefined`: Returns all matching entities.
    - `limit <= 0`: Immediately returns an empty result `[]`.
    - `limit > 0`: Returns up to the specified number of entities.
+   *Note: Case-insensitive search is guaranteed for ASCII characters. Full Unicode case-insensitivity depends on the backend engine (e.g., supported by `PostgresEngine`, but not by default in `SqliteEngine`).*
 7. **Traverse:** Recursive traversal starting from an ID (currently optional/unsupported by default reference engines).
 
 ## Result Contract
