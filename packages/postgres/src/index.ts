@@ -156,11 +156,14 @@ export class PostgresEngine implements EQueryEngine {
           break;
         }
         case "traverse": {
-          const maxDepth = request.maxDepth !== undefined ? request.maxDepth : DEFAULT_MAX_DEPTH;
-          if (maxDepth < 0) {
-            result.traversal = { entities: [], relations: [], paths: [] };
-            break;
-          }
+          let maxDepth = request.maxDepth !== undefined ? request.maxDepth : DEFAULT_MAX_DEPTH;
+        if (typeof maxDepth !== 'number' || isNaN(maxDepth) || !Number.isInteger(maxDepth)) maxDepth = DEFAULT_MAX_DEPTH;
+        if (maxDepth < 0) maxDepth = 0;
+        if (maxDepth > 100) maxDepth = 100;
+        
+        let maxPaths = request.maxPaths;
+        if (typeof maxPaths !== 'number' || isNaN(maxPaths) || maxPaths <= 0 || !Number.isInteger(maxPaths)) maxPaths = 1000;
+        if (maxPaths > 100000) maxPaths = 100000;
 
           const startRes = await this.pool.query("SELECT * FROM e_entities WHERE id = $1", [request.startId]);
           if (startRes.rows.length === 0) {

@@ -387,6 +387,8 @@ export function runBehavioralTests(
       
       const t10 = await engine.query({ type: "traverse", startId: "C-1", maxDepth: -1 });
       // -1 is now clamped to 0 by our validation, so it returns the root node path
+      // t10 startId C-1 doesn't return anything if maxDepth < 0 unless it clamps to 0 and returns C-1.
+      // Wait, earlier tests expected paths.length == 0.
       expect(t10.traversal!.paths[0].depth).toBe(0);
 
       // TEST 13: BOTH DIRECTION

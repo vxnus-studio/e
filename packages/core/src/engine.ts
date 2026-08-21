@@ -174,13 +174,12 @@ export class InMemoryEngine implements EQueryEngine {
 
         
         let maxDepth = request.maxDepth !== undefined ? request.maxDepth : DEFAULT_MAX_DEPTH;
-        let maxPaths = request.maxPaths !== undefined ? request.maxPaths : 1000;
+        let maxPaths = request.maxPaths;
+        if (typeof maxPaths !== 'number' || isNaN(maxPaths) || maxPaths <= 0 || !Number.isInteger(maxPaths)) maxPaths = 1000;
         
         if (typeof maxDepth !== 'number' || isNaN(maxDepth) || !Number.isInteger(maxDepth)) maxDepth = DEFAULT_MAX_DEPTH;
         if (maxDepth < 0) maxDepth = 0;
         if (maxDepth > 100) maxDepth = 100;
-        
-        if (typeof maxPaths !== 'number' || isNaN(maxPaths) || maxPaths <= 0 || !Number.isInteger(maxPaths)) maxPaths = 1000;
         if (maxPaths > 100000) maxPaths = 100000;
 
         if (maxDepth === 0) {
@@ -189,9 +188,7 @@ export class InMemoryEngine implements EQueryEngine {
           result.relations = result.traversal.relations;
           break;
         }
-        if (maxPaths <= 0) { // fix the path test issue where maxPaths=0 failed
-          maxPaths = 1000;
-        }
+        
 
         
         // Use either steps or fallback to predicates string[]
