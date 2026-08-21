@@ -47,6 +47,8 @@ export type QueryRequest =
   | { type: "search"; query: string; namespace?: string; limit?: number }
   | { type: "traverse"; startId: string; maxDepth?: number; predicates?: string[] };
 
+export const DEFAULT_MAX_DEPTH = 5;
+
 export interface QueryMetadata {
   timeMs: number;
   warnings?: string[];

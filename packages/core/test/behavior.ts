@@ -52,6 +52,23 @@ export function runBehavioralTests(
       expect(resolveRes.entities.length).toBe(1);
       expect(resolveRes.entities[0].id).toBe("e-1");
 
+      // 2.5 Alias Collision Across Namespaces
+      await insertFixtures({
+        entities: [
+          { id: "e-foo-A", namespace: "A", kind: "test", slug: "foo-a", name: "Foo A", data: {} },
+          { id: "e-foo-B", namespace: "B", kind: "test", slug: "foo-b", name: "Foo B", data: {} },
+        ],
+        aliases: [
+          { id: "a-foo-1", entityId: "e-foo-A", alias: "foo" },
+          { id: "a-foo-2", entityId: "e-foo-B", alias: "foo" },
+        ],
+        relations: [], claims: [], documents: []
+      });
+      const resolveFoo = await engine.query({ type: "resolve", alias: "foo" });
+      const fooIds = resolveFoo.entities.map(e => e.id).sort();
+      expect(fooIds.length).toBe(2);
+      expect(fooIds).toEqual(["e-foo-A", "e-foo-B"]);
+
       // 3. Forward Relations
       const fwdRes = await engine.query({ type: "findRelations", subjectId: "e-1" });
       expect(fwdRes.relations.length).toBe(1);
@@ -135,10 +152,46 @@ export function runBehavioralTests(
       const emptyQuery = await engine.query({ type: "search", query: "" });
       expect(emptyQuery.entities.length).toBeGreaterThan(0); // Should match everything, restricted by whatever is in db
       
-      // 14. Unsupported Traversal & Warnings
-      const traverseRes = await engine.query({ type: "traverse", startId: "e-1" } as any);
-      expect(traverseRes.metadata.warnings?.[0]).toBe("Traverse is not implemented");
+      // 14. Traversal
+      await insertFixtures({
+        entities: [
+          { id: "T-A", namespace: "traverse", kind: "node", slug: "ta", name: "TA", data: {} },
+          { id: "T-B", namespace: "traverse", kind: "node", slug: "tb", name: "TB", data: {} },
+          { id: "T-C", namespace: "traverse", kind: "node", slug: "tc", name: "TC", data: {} },
+          { id: "T-D", namespace: "traverse", kind: "node", slug: "td", name: "TD", data: {} },
+          { id: "T-E", namespace: "traverse", kind: "node", slug: "te", name: "TE", data: {} },
+        ],
+        aliases: [],
+        relations: [
+          { id: "tr1", subjectId: "T-A", predicate: "knows", objectId: "T-B" },
+          { id: "tr2", subjectId: "T-A", predicate: "likes", objectId: "T-C" },
+          { id: "tr3", subjectId: "T-B", predicate: "knows", objectId: "T-D" },
+          { id: "tr4", subjectId: "T-C", predicate: "knows", objectId: "T-D" }, // convergence
+          { id: "tr5", subjectId: "T-C", predicate: "knows", objectId: "T-E" },
+          { id: "tr6", subjectId: "T-D", predicate: "knows", objectId: "T-A" }, // cycle
+        ],
+        claims: [], documents: []
+      });
 
+      const travDepth0 = await engine.query({ type: "traverse", startId: "T-A", maxDepth: 0 });
+      expect(travDepth0.entities.map(e => e.id)).toEqual(["T-A"]);
+
+      const travDepth1 = await engine.query({ type: "traverse", startId: "T-A", maxDepth: 1 });
+      expect(travDepth1.entities.map(e => e.id)).toEqual(["T-A", "T-B", "T-C"]);
+
+      const travDepth2 = await engine.query({ type: "traverse", startId: "T-A", maxDepth: 2 });
+      expect(travDepth2.entities.map(e => e.id)).toEqual(["T-A", "T-B", "T-C", "T-D", "T-E"]);
+
+      const travMissing = await engine.query({ type: "traverse", startId: "MISSING", maxDepth: 1 });
+      expect(travMissing.entities.length).toBe(0);
+
+      const travPredicate = await engine.query({ type: "traverse", startId: "T-A", maxDepth: 2, predicates: ["likes"] });
+      expect(travPredicate.entities.map(e => e.id)).toEqual(["T-A", "T-C"]);
+
+      const travEmptyPred = await engine.query({ type: "traverse", startId: "T-A", maxDepth: 2, predicates: ["unknown_pred"] });
+      expect(travEmptyPred.entities.map(e => e.id)).toEqual(["T-A"]);
+
+      
       // 15. Invalid findRelations (neither subjectId nor objectId)
       await expect(engine.query({ type: "findRelations" } as any)).rejects.toThrow(/requires at least subjectId or objectId/);
 

@@ -28,13 +28,18 @@ If a relation is found between entity A (subject) and entity B (object):
 * The engine MUST return all matching entities in the `entities` array, up to the optional `limit`.
 * The engine MAY return associated documents or claims if the implementation's search spans those models.
 
+### For `traverse`
+* The engine MUST return a deduplicated set of entities visited during traversal, starting with the `startId`.
+* If the start entity is not found, the `entities` array MUST be empty.
+* Cycles MUST terminate. Outgoing edges MUST be explored breadth-first, ordered deterministically by `object_id`.
+
 ## Error and Empty-Result Behavior
 
 E prefers returning empty results over throwing exceptions for missing data.
 
 * **Entity Not Found:** If a query yields no results (e.g., `getEntity` for a non-existent ID, or `findRelations` for an isolated node), the engine MUST return a successful `KnowledgeResult` with empty arrays (`entities: []`, `relations: []`). It MUST NOT throw an error.
 * **Invalid Query:** If a query provides invalid or conflicting parameters (e.g., missing both `subjectId` and `objectId` in `findRelations`), the compiler will block it. However, if bypassed at runtime, the engine SHOULD throw a standard Error.
-* **Unsupported Query Capability:** If an engine does not support a specific query intent (e.g., `traverse` is unimplemented), it MUST return an empty result and append a string to `metadata.warnings` explaining the limitation (e.g., `"Traverse is not implemented"`).
+* **Unsupported Query Capability:** If an engine does not support a specific query intent, it MUST return an empty result and append a string to `metadata.warnings` explaining the limitation.
 * **Internal Failure:** If the underlying storage fails (e.g., database connection lost), the engine MUST throw the underlying Error.
 
 This simple, deterministic contract ensures AI consumers do not have to write complex `try/catch` logic for standard graph exploration.

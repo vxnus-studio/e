@@ -20,3 +20,18 @@ psql -d my_database -f node_modules/@e/postgres/schema.sql
 ```
 
 The adapter itself performs no implicit migrations or schema syncing on startup. It strictly relies on the schema being present.
+
+## Usage
+
+```typescript
+import { Pool } from "pg";
+import { PostgresEngine } from "@e/postgres";
+
+const pool = new Pool({ connectionString: "postgres://..." });
+const engine = new PostgresEngine(pool);
+
+const result = await engine.query({
+  type: "traverse",
+  startId: "some_id"
+});
+```

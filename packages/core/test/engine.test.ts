@@ -29,12 +29,6 @@ describe("InMemoryEngine Contract Tests", () => {
     await expect(engine.query({ type: "unknown" } as any)).rejects.toThrow("Unknown query type: unknown");
   });
 
-  test("traverse returns warning", async () => {
-    const engine = new InMemoryEngine();
-    const result = await engine.query({ type: "traverse" } as any);
-    expect(result.metadata.warnings).toContain("Traverse is not implemented");
-  });
-
   test("search with limit = 0 returns empty", async () => {
     const engine = new InMemoryEngine();
     engine.insertEntity({ id: "1", namespace: "ns", kind: "test", slug: "test", name: "test", data: {} });

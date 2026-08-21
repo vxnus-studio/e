@@ -2,7 +2,7 @@
 BAD_IMPORTS="e-teyvat siduri postgres drizzle neon next express http"
 FAILED=0
 for bad in $BAD_IMPORTS; do
-  if grep -riq "$bad" packages/core/src/; then
+  if grep -riqE "(from|import|require)\s*\(?['\"]$bad(/.*)?['\"]\)?" packages/core/src/; then
     echo "ERROR: Found illegal dependency '$bad' in packages/core/src/"
     FAILED=1
   fi

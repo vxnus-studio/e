@@ -1,8 +1,8 @@
-# E Architecture Proposal (Historical / Future)
+# E Architecture Proposal
 
-> [!WARNING]
-> **Historical / Proposal Notice**
-> This document contains historical proposals, future architectural plans, and speculative semantics (such as language-scoped aliases and advanced Evidence/Provenance models for Claims). It does **not** strictly describe the current implemented contract. For the actual current behavior, refer to the other markdown files in the `docs/` directory.
+> **STATUS: PROPOSAL / FUTURE ARCHITECTURE**
+> 
+> The repository now contains a working implementation. This document describes proposed/future extensions where applicable, and retains historical context. Where proposal features have since been implemented (like the graph traversal), the current implementation in `QUERY.md` and `HYDRATION_AND_ERRORS.md` takes precedence.
 
 ## Executive Summary
 

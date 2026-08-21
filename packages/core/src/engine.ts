@@ -9,6 +9,8 @@ import type {
   EQueryEngine,
 } from "./types.js";
 
+import { DEFAULT_MAX_DEPTH } from "./types.js";
+
 export class InMemoryEngine implements EQueryEngine {
   private entities: Map<string, Entity> = new Map();
   private aliases: Alias[] = [];
@@ -129,8 +131,59 @@ export class InMemoryEngine implements EQueryEngine {
         break;
       }
       case "traverse": {
-        // Stub for graph traversal
-        result.metadata.warnings = ["Traverse is not implemented"];
+        const startEntity = this.entities.get(request.startId);
+        if (!startEntity) {
+          break; // missing start entity yields empty result
+        }
+
+        const maxDepth = request.maxDepth !== undefined ? request.maxDepth : DEFAULT_MAX_DEPTH;
+        if (maxDepth < 0) {
+          break; // return empty
+        }
+
+        const visited = new Set<string>();
+        let frontier: string[] = [request.startId];
+        const resultEntities: Entity[] = [];
+
+        visited.add(request.startId);
+        let currentDepth = 0;
+
+        while (frontier.length > 0 && currentDepth <= maxDepth) {
+          for (const id of frontier) {
+            const ent = this.entities.get(id);
+            if (ent) {
+              resultEntities.push(ent);
+            }
+          }
+
+          if (currentDepth >= maxDepth) {
+            break;
+          }
+
+          const newFrontier: string[] = [];
+          for (const parentId of frontier) {
+            const outgoing = this.relations.filter((r) => r.subjectId === parentId);
+            
+            let filteredEdges = outgoing;
+            if (request.predicates && request.predicates.length > 0) {
+              const predSet = new Set(request.predicates);
+              filteredEdges = outgoing.filter((r) => predSet.has(r.predicate));
+            }
+
+            filteredEdges.sort((a, b) => (a.objectId < b.objectId ? -1 : a.objectId > b.objectId ? 1 : 0));
+
+            for (const edge of filteredEdges) {
+              if (!visited.has(edge.objectId)) {
+                visited.add(edge.objectId);
+                newFrontier.push(edge.objectId);
+              }
+            }
+          }
+          frontier = newFrontier;
+          currentDepth++;
+        }
+
+        result.entities = resultEntities;
         break;
       }
       default: {

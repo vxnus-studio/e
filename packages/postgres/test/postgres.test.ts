@@ -44,6 +44,9 @@ if (testDbUrl) {
     return { engine, insertFixtures, teardown };
   });
 } else {
+  if (process.env.CI) {
+    throw new Error("TEST_DATABASE_URL is required in CI but was not set.");
+  }
   describe.skip("PostgresEngine", () => {
     test("skipped because TEST_DATABASE_URL is not set", () => {});
   });

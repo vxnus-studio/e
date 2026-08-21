@@ -8,5 +8,5 @@ E Core will remain purely a contract layer with an in-memory reference implement
 
 ## Consequences
 - `e` is highly stable and lightweight.
-- Projects implementing `e` (like `e-teyvat`) must build their own storage adapters that conform to the `EQueryEngine` interface.
-- This guarantees `e` can be repurposed for entirely different domains (e.g. software architecture mapping) without dragging along Genshin-specific logic or heavy database clients.
+- Projects implementing `e` can use the provided generic adapters (e.g., `@e/postgres`, `@e/sqlite`) or build their own storage adapters that conform to the `EQueryEngine` interface.
+- This guarantees `e` can be repurposed for entirely different domains (e.g. software architecture mapping) without dragging along Genshin-specific logic or heavy database clients in the core package.

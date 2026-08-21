@@ -1,5 +1,8 @@
 # E-Teyvat Architecture Investigation
 
+> **STATUS: HISTORICAL**
+> *Note: This document contains the initial investigation of migrating e-teyvat to E Core. It reflects the state of the codebase at that specific time and is retained for historical context.*
+
 ## Executive Summary
 This document analyzes the current `e-teyvat` repository to determine how it can eventually implement the `E Core` contract without contaminating the pure `E` architecture. E-Teyvat currently operates as a monolith (Next.js + Drizzle + Neon) containing both generic knowledge tables and Teyvat-specific logic.
 

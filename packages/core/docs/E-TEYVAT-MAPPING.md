@@ -1,5 +1,8 @@
 # E-Teyvat Mapping
 
+> **STATUS: HISTORICAL**
+> *Note: This document maps e-teyvat concepts to E Core conceptually. It is retained for historical context.*
+
 This document maps the concepts in the existing `e-teyvat` implementation to the new `E Core` architecture.
 
 ## Boundary Definitions

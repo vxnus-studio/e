@@ -9,6 +9,8 @@ import type {
   KnowledgeResult,
   EQueryEngine,
 } from "e";
+import { DEFAULT_MAX_DEPTH } from "e";
+
 
 export class SqliteEngine implements EQueryEngine {
   private db: SqliteDatabase;
@@ -177,7 +179,73 @@ export class SqliteEngine implements EQueryEngine {
           break;
         }
         case "traverse": {
-          result.metadata.warnings = ["Traverse is not implemented"];
+          const maxDepth = request.maxDepth !== undefined ? request.maxDepth : DEFAULT_MAX_DEPTH;
+          if (maxDepth < 0) {
+            break;
+          }
+
+          const visited = new Set<string>();
+          let frontier: string[] = [request.startId];
+          const resultEntities: Entity[] = [];
+          let currentDepth = 0;
+
+          visited.add(request.startId);
+
+          while (frontier.length > 0 && currentDepth <= maxDepth) {
+            const placeholders = frontier.map(() => '?').join(',');
+            const entRows = this.db.prepare(`SELECT * FROM e_entities WHERE id IN (${placeholders})`).all(...frontier) as any[];
+            
+            const entMap = new Map<string, Entity>();
+            for (const r of entRows) {
+              entMap.set(r.id, this.mapEntity(r));
+            }
+            
+            for (const id of frontier) {
+              const ent = entMap.get(id);
+              if (ent) {
+                resultEntities.push(ent);
+              }
+            }
+
+            if (currentDepth >= maxDepth) {
+              break;
+            }
+
+            let relQuery = `SELECT * FROM e_relations WHERE subject_id IN (${placeholders})`;
+            const relParams: any[] = [...frontier];
+            
+            if (request.predicates && request.predicates.length > 0) {
+              const predPlaceholders = request.predicates.map(() => '?').join(',');
+              relQuery += ` AND predicate IN (${predPlaceholders})`;
+              relParams.push(...request.predicates);
+            }
+            relQuery += ` ORDER BY object_id COLLATE BINARY ASC`;
+            
+            const edges = this.db.prepare(relQuery).all(...relParams) as any[];
+            
+            const edgesBySubject = new Map<string, any[]>();
+            for (const edge of edges) {
+              if (!edgesBySubject.has(edge.subject_id)) {
+                edgesBySubject.set(edge.subject_id, []);
+              }
+              edgesBySubject.get(edge.subject_id)!.push(edge);
+            }
+
+            const newFrontier: string[] = [];
+            for (const parentId of frontier) {
+              const outgoing = edgesBySubject.get(parentId) || [];
+              for (const edge of outgoing) {
+                if (!visited.has(edge.object_id)) {
+                  visited.add(edge.object_id);
+                  newFrontier.push(edge.object_id);
+                }
+              }
+            }
+            
+            frontier = newFrontier;
+            currentDepth++;
+          }
+          result.entities = resultEntities;
           break;
         }
         default: {

@@ -8,6 +8,9 @@ try {
   new Database(":memory:");
 } catch (e) {
   canRun = false;
+  if (process.env.CI) {
+    throw new Error("better-sqlite3 native bindings could not be loaded in CI.");
+  }
   console.warn("Skipping SqliteEngine tests because better-sqlite3 native bindings could not be loaded.");
 }
 
