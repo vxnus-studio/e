@@ -210,7 +210,7 @@ export class InMemoryEngine implements EQueryEngine {
         let frontier: FrontierItem[] = [{ entityId: request.startId, pathEdges: [], depth: 0 }];
 
         // Prevent infinite loops / unbounded expansion
-        const pathLimit = request.maxPaths !== undefined ? request.maxPaths : 1000;
+        const pathLimit = maxPaths;
         let pathCount = 0;
 
         while (frontier.length > 0 && pathCount < pathLimit) {
