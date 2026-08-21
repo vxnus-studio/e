@@ -142,6 +142,9 @@ export type QueryRequest =
   | { type: "getCapabilities" };
 
 export const DEFAULT_MAX_DEPTH = 5;
+export const DEFAULT_MAX_PATHS = 1000;
+export const MAX_SAFE_DEPTH = 100;
+export const MAX_SAFE_PATHS = 100000;
 
 export interface QueryMetadata {
   timeMs: number;

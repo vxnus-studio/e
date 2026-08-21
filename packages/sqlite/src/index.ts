@@ -324,10 +324,15 @@ export class SqliteEngine implements EQueryEngine {
             }
 
             if (missingEntityIds.size > 0) {
-              const placeholders = Array.from(missingEntityIds).map(() => '?').join(',');
-              const entRows = this.db.prepare(`SELECT * FROM e_entities WHERE id IN (${placeholders})`).all(Array.from(missingEntityIds));
-              for (const row of entRows as any[]) {
-                visitedEntities.set(row.id, this.mapEntity(row));
+              const ids = Array.from(missingEntityIds);
+              const chunkSize = 500;
+              for (let i = 0; i < ids.length; i += chunkSize) {
+                const chunk = ids.slice(i, i + chunkSize);
+                const placeholders = chunk.map(() => '?').join(',');
+                const entRows = this.db.prepare(`SELECT * FROM e_entities WHERE id IN (${placeholders})`).all(chunk);
+                for (const row of entRows as any[]) {
+                  visitedEntities.set(row.id, this.mapEntity(row));
+                }
               }
             }
 
@@ -408,6 +413,7 @@ export class SqliteEngine implements EQueryEngine {
             const aStr = a.edges.map(e => e.relationId).join(",");
             const bStr = b.edges.map(e => e.relationId).join(",");
             if (aStr !== bStr) return aStr < bStr ? -1 : 1;
+            if (a.endId !== b.endId) return a.endId < b.endId ? -1 : 1;
             return 0;
           });
 

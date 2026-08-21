@@ -386,7 +386,8 @@ export function runBehavioralTests(
       expect(t9.traversal!.paths[0].edges.length).toBe(0);
       
       const t10 = await engine.query({ type: "traverse", startId: "C-1", maxDepth: -1 });
-      expect(t10.traversal!.paths.length).toBe(0);
+      // -1 is now clamped to 0 by our validation, so it returns the root node path
+      expect(t10.traversal!.paths[0].depth).toBe(0);
 
       // TEST 13: BOTH DIRECTION
       const t13 = await engine.query({ type: "traverse", startId: "C-2", maxDepth: 1, steps: [{ direction: "both" }] });
@@ -405,6 +406,51 @@ export function runBehavioralTests(
       });
       const tExp = await engine.query({ type: "traverse", startId: "E-0", maxDepth: 3 });
       expect(tExp.traversal!.paths.length).toBe(8);
+
+      // PHASE 2.5: BOUNDARY AND VALIDATION
+
+      // TEST 18: maxDepth boundary cases
+      const td1 = await engine.query({ type: "traverse", startId: "C-1", maxDepth: NaN });
+      // NaN falls back to DEFAULT (5), so it traverses the whole chain (length 4)
+      expect(td1.traversal!.paths[0].depth).toBe(4);
+
+      const td2 = await engine.query({ type: "traverse", startId: "C-1", maxDepth: 1000 });
+      // maxDepth should be clamped to 100
+      expect(td2.traversal!.paths.length).toBe(1); // chain length is only 4 anyway
+
+      const td3 = await engine.query({ type: "traverse", startId: "C-1", maxDepth: 1.5 });
+      expect(td3.traversal!.paths[0].depth).toBe(4); // non-integer falls back to DEFAULT (5), which hits end of chain at 4
+
+      // TEST 19: maxPaths boundary cases
+      const tp1 = await engine.query({ type: "traverse", startId: "E-0", maxDepth: 3, maxPaths: 0 });
+      // 0 clamped to 1000, so it returns all 8
+      expect(tp1.traversal!.paths.length).toBe(8);
+
+      const tp2 = await engine.query({ type: "traverse", startId: "E-0", maxDepth: 3, maxPaths: 2 });
+      // Valid limit
+      expect(tp2.traversal!.paths.length).toBe(2);
+      expect(tp2.metadata.partial).toBe(true);
+
+      const tp3 = await engine.query({ type: "traverse", startId: "E-0", maxDepth: 3, maxPaths: 1000000 });
+      // Clamped to 100000
+      expect(tp3.traversal!.paths.length).toBe(8);
+
+      // TEST 20: Steps semantics
+      const ts1 = await engine.query({ 
+        type: "traverse", startId: "C-1", maxDepth: 3, 
+        steps: [{ direction: "out" }] // only one step provided
+      });
+      // Subsequent steps fallback to default out
+      expect(ts1.traversal!.paths[0].depth).toBe(3);
+      expect(ts1.traversal!.paths[0].endId).toBe("C-4");
+
+      // TEST 21: Contradictory Predicates
+      const tp_pred = await engine.query({
+        type: "traverse", startId: "C-1", maxDepth: 1,
+        predicates: ["wrong"], // request-level
+        steps: [{ direction: "out", predicates: ["next"] }] // step-level should override
+      });
+      expect(tp_pred.traversal!.paths[0].depth).toBe(1); // step-level wins
 
       await teardownFn();
     });

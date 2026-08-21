@@ -329,6 +329,7 @@ export class PostgresEngine implements EQueryEngine {
             const aStr = a.edges.map((e: any) => e.relationId).join(",");
             const bStr = b.edges.map((e: any) => e.relationId).join(",");
             if (aStr !== bStr) return aStr < bStr ? -1 : 1;
+            if (a.endId !== b.endId) return a.endId < b.endId ? -1 : 1;
             return 0;
           });
 

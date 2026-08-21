@@ -172,11 +172,24 @@ export class InMemoryEngine implements EQueryEngine {
           break; // missing start entity yields empty result
         }
 
-        const maxDepth = request.maxDepth !== undefined ? request.maxDepth : DEFAULT_MAX_DEPTH;
-        if (maxDepth < 0) {
-          result.traversal = { entities: [], relations: [], paths: [] };
-          break; // return empty
+        
+        let maxDepth = request.maxDepth !== undefined ? request.maxDepth : DEFAULT_MAX_DEPTH;
+        let maxPaths = request.maxPaths !== undefined ? request.maxPaths : 1000;
+        
+        if (typeof maxDepth !== 'number' || isNaN(maxDepth) || !Number.isInteger(maxDepth)) maxDepth = DEFAULT_MAX_DEPTH;
+        if (maxDepth < 0) maxDepth = 0;
+        if (maxDepth > 100) maxDepth = 100;
+        
+        if (typeof maxPaths !== 'number' || isNaN(maxPaths) || maxPaths <= 0 || !Number.isInteger(maxPaths)) maxPaths = 1000;
+        if (maxPaths > 100000) maxPaths = 100000;
+
+        if (maxDepth === 0) {
+          result.traversal = { entities: [startEntity], relations: [], paths: [{ startId: request.startId, endId: request.startId, edges: [], depth: 0 }] };
+          result.entities = result.traversal.entities;
+          result.relations = result.traversal.relations;
+          break;
         }
+
         
         // Use either steps or fallback to predicates string[]
         const steps = request.steps || (request.predicates ? [{ predicates: request.predicates, direction: "out" as const }] : []);
@@ -303,6 +316,7 @@ export class InMemoryEngine implements EQueryEngine {
           const aStr = a.edges.map(e => e.relationId).join(",");
           const bStr = b.edges.map(e => e.relationId).join(",");
           if (aStr !== bStr) return aStr < bStr ? -1 : 1;
+          if (a.endId !== b.endId) return a.endId < b.endId ? -1 : 1;
           return 0;
         });
 
