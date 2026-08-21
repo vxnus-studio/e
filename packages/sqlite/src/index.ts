@@ -426,6 +426,12 @@ export class SqliteEngine implements EQueryEngine {
             relations: Array.from(visitedRelations.values()),
             paths: paths
           };
+          if (pathCount >= pathLimit) {
+            if (!result.metadata) result.metadata = {};
+            result.metadata.partial = true;
+            result.metadata.warnings = result.metadata.warnings || [];
+            result.metadata.warnings.push("Traversal reached maxPaths limit");
+          }
           result.entities = result.traversal.entities;
           result.relations = result.traversal.relations;
           break;
