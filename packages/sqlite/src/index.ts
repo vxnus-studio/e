@@ -13,7 +13,7 @@ import type {
   TraversalPath,
   TraversalPathEdge,
 } from "e";
-import { DEFAULT_MAX_DEPTH, ConstraintError, QueryError, UnsupportedOperationError } from "e";
+import { DEFAULT_MAX_DEPTH, ConstraintError, QueryError, UnsupportedOperationError, MAX_SAFE_SEARCH_LIMIT, MAX_SAFE_SEARCH_QUERY_LENGTH } from "e";
 
 
 export class SqliteEngine implements EQueryEngine, EFixtureMutator {
@@ -191,10 +191,19 @@ export class SqliteEngine implements EQueryEngine, EFixtureMutator {
           if (sq.mode && sq.mode !== "lexical") {
             throw new UnsupportedOperationError(`Search mode '${sq.mode}' is not supported by this engine.`);
           }
-          if (sq.limit !== undefined && sq.limit <= 0) {
-            result.search = { entities: [], matches: [] };
-            break;
+          if (sq.query && sq.query.length > MAX_SAFE_SEARCH_QUERY_LENGTH) {
+            throw new QueryError(`Query length exceeds maximum allowed length of ${MAX_SAFE_SEARCH_QUERY_LENGTH}`);
           }
+          if (sq.limit !== undefined) {
+            if (!Number.isInteger(sq.limit) || sq.limit < 0) {
+              throw new QueryError(`Invalid limit: ${sq.limit}`);
+            }
+            if (sq.limit === 0) {
+              result.search = { entities: [], matches: [] };
+              break;
+            }
+          }
+          const effectiveLimit = Math.min(sq.limit ?? MAX_SAFE_SEARCH_LIMIT, MAX_SAFE_SEARCH_LIMIT);
           const escapedQuery = sq.query.replace(/\\/g, '\\\\').replace(/%/g, '\\%').replace(/_/g, '\\_');
           const params: any[] = [`%${escapedQuery}%`, `%${escapedQuery}%`];
           let queryText = `SELECT * FROM e_entities WHERE (name LIKE ? ESCAPE '\\' OR slug LIKE ? ESCAPE '\\')`;
@@ -207,10 +216,8 @@ export class SqliteEngine implements EQueryEngine, EFixtureMutator {
             params.push(sq.kind);
           }
           queryText += ` ORDER BY id COLLATE BINARY ASC`; // deterministic binary ordering
-          if (sq.limit !== undefined) {
-            queryText += ` LIMIT ?`;
-            params.push(sq.limit);
-          }
+          queryText += ` LIMIT ?`;
+          params.push(effectiveLimit);
           const rows = this.db.prepare(queryText).all(params);
           const entities = rows.map(r => this.mapEntity(r));
           result.entities = entities;

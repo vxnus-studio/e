@@ -77,8 +77,19 @@ All queries accept a discriminated union `QueryRequest` and return a unified `Kn
   - `lexical`: Supported. Performs a substring/`LIKE` match on entity `name` and `slug`.
   - `semantic`: Unsupported. Must explicitly throw an `Error("Search mode 'semantic' is not supported")`.
   - `hybrid`: Unsupported. Must throw.
-- **Scores**: Fake scores (e.g., `1.0` for all matches) are an implementation detail and are **not** contractually meaningful.
-- **Ordering**: **Contractually Ordered**. Implementations must sort by `id` ascending (Binary/ASCII) before slicing to `limit` to guarantee deterministic pagination.
+- **Fields Searched**: Only `name` and `slug` are searched. `alias`, `kind`, `namespace`, and `data` are not searched (though `namespace` and `kind` act as exact-match `AND` filters).
+- **Semantics**:
+  - **Case-Sensitivity**: 
+    - JavaScript (InMemory) and Postgres (`ILIKE`) do full Unicode case-folding.
+    - SQLite (`LIKE`) performs ASCII-only case-folding (unless compiled with ICU). Users should not rely on SQLite for Unicode case-insensitive search.
+  - **Empty Query (`""`)**: Returns all entities matching the filters, up to the limit.
+  - **Whitespace Query (`"   "`)**: Returns only entities whose `name` or `slug` literally contain that whitespace.
+  - **Wildcards**: `%` and `_` are escaped explicitly. A query for `%` matches the literal character `%`, not everything.
+  - **Duplicates**: An entity can only appear once in the results, even if both its `name` and `slug` match.
+- **Filters**: `namespace` and `kind` are strictly applied as `AND` filters.
+- **Scores**: No score is provided. `matches` arrays will only specify `matchReason: "lexical"`.
+- **Limits**: `limit` must be a non-negative integer. If `limit=0`, the query immediately returns empty. Maximum search limit is `10000`. Exceeding it clamps to `10000`. Invalid values (`< 0` or decimal/NaN) will throw a `QueryError`.
+- **Ordering**: **Contractually Ordered**. Implementations must sort by `id` ascending before slicing to `limit` to guarantee deterministic pagination. Note: JavaScript (InMemory) sorts by UTF-16 code units (`<`), whereas SQL engines sort by UTF-8 bytes (`COLLATE "C"` or `BINARY`). Ordering is guaranteed identically across backends for BMP characters, but diverges for characters outside the BMP (e.g., Emoji).
 
 ### 4.6. `traverse`
 - **Input**: `startId: string`, `steps?: TraversalStep[]`, `maxDepth?: number`, `maxPaths?: number`, `predicates?: string[]`.

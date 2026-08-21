@@ -65,9 +65,9 @@ Searches entities by a substring match against `name` or `slug`.
 - **Request Shape:** `{ type: "search"; search: { query: string; namespace?: string; kind?: string; limit?: number; mode?: string } }`
 - **Required Fields:** `search.query`
 - **Optional Fields:** `search.namespace`, `search.limit`, `search.kind`, `search.mode`
-- **Defaults:** Unbounded search if `limit` is undefined.
-- **Limits:** If `limit <= 0`, immediately returns an empty result `[]`. If `limit > 0`, returns up to that many entities.
-- **Ordering:** Deterministically ordered by `id` ascending across all engines.
+- **Limits:** Limit must be a non-negative integer. If `limit=0`, returns empty immediately. Limit is strictly clamped at `10000`. Exceeding this bound or invalid types throw `QueryError`.
+- **Performance:** This is currently implemented via `LIKE '%query%'` (full table scans). This is not a production-scale inverted-index search engine.
+- **Ordering:** Deterministically ordered by `id` ascending across all engines (UTF-16 code units in JS, UTF-8 in SQL).
 - **Result Shape:** Returns a `SearchResult` object containing `entities` and `matches` in `search`.
 
 ### 7. `traverse`

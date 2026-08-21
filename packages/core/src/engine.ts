@@ -12,7 +12,7 @@ import type {
   TraversalPathEdge,
 } from "./types.js";
 
-import { DEFAULT_MAX_DEPTH } from "./types.js";
+import { DEFAULT_MAX_DEPTH, MAX_SAFE_SEARCH_LIMIT, MAX_SAFE_SEARCH_QUERY_LENGTH } from "./types.js";
 import { ConstraintError, QueryError, UnsupportedOperationError } from "./errors.js";
 
 export class InMemoryEngine implements EQueryEngine, EFixtureMutator {
@@ -165,10 +165,19 @@ export class InMemoryEngine implements EQueryEngine, EFixtureMutator {
         if (sq.mode && sq.mode !== "lexical") {
           throw new UnsupportedOperationError(`Search mode '${sq.mode}' is not supported by this engine.`);
         }
-        if (sq.limit !== undefined && sq.limit <= 0) {
-          result.search = { entities: [], matches: [] };
-          break;
+        if (sq.query && sq.query.length > MAX_SAFE_SEARCH_QUERY_LENGTH) {
+          throw new QueryError(`Query length exceeds maximum allowed length of ${MAX_SAFE_SEARCH_QUERY_LENGTH}`);
         }
+        if (sq.limit !== undefined) {
+          if (!Number.isInteger(sq.limit) || sq.limit < 0) {
+            throw new QueryError(`Invalid limit: ${sq.limit}`);
+          }
+          if (sq.limit === 0) {
+            result.search = { entities: [], matches: [] };
+            break;
+          }
+        }
+        const effectiveLimit = Math.min(sq.limit ?? MAX_SAFE_SEARCH_LIMIT, MAX_SAFE_SEARCH_LIMIT);
         const q = sq.query.toLowerCase();
         for (const entity of this.entities.values()) {
           if (
@@ -181,8 +190,8 @@ export class InMemoryEngine implements EQueryEngine, EFixtureMutator {
         }
         // Deterministic ordering by id (Binary / ASCII order)
         result.entities!.sort((a, b) => a.id < b.id ? -1 : a.id > b.id ? 1 : 0);
-        if (sq.limit !== undefined && result.entities!.length > sq.limit) {
-          result.entities = result.entities!.slice(0, sq.limit);
+        if (result.entities!.length > effectiveLimit) {
+          result.entities = result.entities!.slice(0, effectiveLimit);
         }
         
         result.search = {

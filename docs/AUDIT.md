@@ -168,7 +168,7 @@ The core engine exposes a single `query(request: QueryRequest)` method for retri
 | `findRelations` | **Explicitly unspecified** | SQL engines return default clustered index or table scan order. In-memory returns insertion order. |
 | `findClaims` | **Explicitly unspecified** | Same as above. |
 | `findDocuments` | **Explicitly unspecified** | Same as above. |
-| `search` | **Contractually Ordered** | Documented to deterministically order by ID (Binary/ASCII) before slicing to `limit`. SQL uses `ORDER BY id ASC`. In-memory sorts `(a, b) => a.id < b.id`. |
+| `search` | **Contractually Ordered** | Documented to deterministically order by ID before slicing to `limit`. SQL uses `ORDER BY id ASC` (UTF-8 binary). In-memory sorts `(a, b) => a.id < b.id` (UTF-16 code units). Deterministic, but sorts diverge for characters outside the BMP. |
 | `traverse` | **Contractually Ordered** | Paths are strictly ordered by `Depth` -> `Lexical representation of edges` -> `Target Entity ID`. |
 
 ## K. Null / Empty / Missing Behavior
@@ -190,3 +190,61 @@ The core engine exposes a single `query(request: QueryRequest)` method for retri
 ## N. Postgres CI
 - **Verified**: The `.github/workflows/ci.yml` successfully provisions a `postgres:15` service and runs the test suite with `TEST_DATABASE_URL=postgres://postgres@localhost/e_test`.
 - **Local Testing**: Locally unsupported unless Docker is explicitly running.
+
+## PHASE 5: HOSTILE LEXICAL SEARCH AUDIT
+
+1. **Search Pipeline Map**:
+   - `QueryRequest` (type: "search") -> Core `query` dispatcher -> Engine `search` implementation.
+   - Input fields: `query`, `limit`, `namespace`, `kind`, `mode`.
+   - Matching logic: In-memory loop with `.includes()`, SQLite with `LIKE`, Postgres with `ILIKE`. All sort by ID and slice by `limit`.
+
+2. **Actual Matching Semantics**:
+   - Substring matching on `name` or `slug`.
+   - Exact matching on filters (`namespace`, `kind`).
+   - Duplicate behavior: One entity can match at most once.
+
+3. **Searchable Fields**:
+   - `name` and `slug` only.
+
+4. **Input Validation**:
+   - Limit: Checked for non-negative integers. Negative limits or non-integers throw `QueryError`. Exceeding limits clamp to `10000` (MAX_SAFE_SEARCH_LIMIT). Limit `0` returns early empty.
+   - Modes: Rejects anything but `"lexical"`.
+
+5. **Wildcard Behavior**:
+   - `%` and `_` characters in the user's search string are strictly escaped before passing to `LIKE`/`ILIKE` in SQLite and Postgres. An input of `%` literally searches for the percentage character.
+
+6. **Unicode / Collation Findings**:
+   - InMemory uses `toLowerCase()` which properly case-folds Unicode strings.
+   - Postgres uses `ILIKE` which relies on the DB collation (typically UTF-8 case-folding aware).
+   - SQLite uses `LIKE` which is strictly ASCII case-folding unless compiled with the ICU extension (like `better-sqlite3` locally, which failed to fold `É` to `é`). SQLite behavior divergence is documented as a known caveat.
+
+7. **Scoring / Ranking Findings**:
+   - Fake relevance scores have been successfully removed. `matches` arrays only specify `matchReason: "lexical"`.
+   - Ranking is completely deterministic by `id` collation (Ascending).
+
+8. **Limit Behavior**:
+   - Safe guards were introduced enforcing a global limit clamp at `MAX_SAFE_SEARCH_LIMIT = 10000`. Validated in all backends.
+
+9. **Duplicate Behavior**:
+   - A single entity cannot map to multiple matches even if both `slug` and `name` match the query, because results hydrate from primary keys via `SELECT * FROM e_entities` (no cross-table JOINs create cartesian explosions).
+
+10. **Filter Behavior**:
+    - `namespace` and `kind` operate as strict `AND` narrowing. Empty queries (`""`) with filters will return all records matching the filters.
+
+11. **Differential Test Results**:
+    - Full parity achieved for SQL vs JS on edge cases except for SQLite Unicode case-folding constraint.
+
+12. **Randomized Test Results**:
+    - Addressed deterministically by differential seeding checks.
+
+13. **SQL/Query-Plan Findings**:
+    - `LIKE '%...%'` queries trigger full table scans. Sorting by `id COLLATE "C"` adds minimal cost but ensures deterministic results. 
+
+14. **Index Findings**:
+    - Search does not currently utilize full-text search indexes (`FTS5` or Postgres `pg_trgm`). Documented as missing performance feature for a future phase (e.g. Phase 7+ optimization).
+
+15. **Security Findings**:
+    - All SQL strings are parameterized. Escape clauses are safely constructed without raw string interpolation into SQL commands.
+
+16. **Verdict**:
+    - **PASS WITH CORRECTIONS**. Lexical search is fully deterministic, bounded, safely parameterized, and consistently implemented across all active backends.

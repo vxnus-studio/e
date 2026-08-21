@@ -12,7 +12,7 @@ import type {
   TraversalPath,
   TraversalPathEdge,
 } from "e";
-import { DEFAULT_MAX_DEPTH, ConstraintError, QueryError, UnsupportedOperationError } from "e";
+import { DEFAULT_MAX_DEPTH, ConstraintError, QueryError, UnsupportedOperationError, MAX_SAFE_SEARCH_LIMIT, MAX_SAFE_SEARCH_QUERY_LENGTH } from "e";
 
 
 export class PostgresEngine implements EQueryEngine, EFixtureMutator {
@@ -125,10 +125,19 @@ export class PostgresEngine implements EQueryEngine, EFixtureMutator {
           if (sq.mode && sq.mode !== "lexical") {
             throw new UnsupportedOperationError(`Search mode '${sq.mode}' is not supported by this engine.`);
           }
-          if (sq.limit !== undefined && sq.limit <= 0) {
-            result.search = { entities: [], matches: [] };
-            break;
+          if (sq.query && sq.query.length > MAX_SAFE_SEARCH_QUERY_LENGTH) {
+            throw new QueryError(`Query length exceeds maximum allowed length of ${MAX_SAFE_SEARCH_QUERY_LENGTH}`);
           }
+          if (sq.limit !== undefined) {
+            if (!Number.isInteger(sq.limit) || sq.limit < 0) {
+              throw new QueryError(`Invalid limit: ${sq.limit}`);
+            }
+            if (sq.limit === 0) {
+              result.search = { entities: [], matches: [] };
+              break;
+            }
+          }
+          const effectiveLimit = Math.min(sq.limit ?? MAX_SAFE_SEARCH_LIMIT, MAX_SAFE_SEARCH_LIMIT);
           const escapedQuery = sq.query.replace(/\\/g, '\\\\').replace(/%/g, '\\%').replace(/_/g, '\\_');
           const params: any[] = [`%${escapedQuery}%`];
           let queryText = `SELECT * FROM e_entities WHERE (name ILIKE $1 ESCAPE '\\' OR slug ILIKE $1 ESCAPE '\\')`;
@@ -141,10 +150,8 @@ export class PostgresEngine implements EQueryEngine, EFixtureMutator {
             queryText += ` AND kind = $${params.length}`;
           }
           queryText += ` ORDER BY id COLLATE "C" ASC`; // deterministic binary ordering
-          if (sq.limit !== undefined) {
-            params.push(sq.limit);
-            queryText += ` LIMIT $${params.length}`;
-          }
+          params.push(effectiveLimit);
+          queryText += ` LIMIT $${params.length}`;
           const res = await this.pool.query(queryText, params);
           const entities = res.rows.map((row) => this.mapEntity(row));
           result.search = {
