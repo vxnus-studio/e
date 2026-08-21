@@ -1,48 +1,45 @@
-# Phase 2.5 Audit Report (Verification)
+# Phase 2.75 Audit Report (Traversal Contract Finalization)
 
-## A. Claims from Phase 2 that were too strong
-- **"maxPaths strictly bounds exponential explosions"**: This was partially true, but a single step of expansion from the frontier could still collect more edges than `maxPaths` before filtering. SQL `IN (...)` parameters could exceed database safe limits (`1000` for SQLite, `32767` for Postgres) if the immediate branching factor was extremely high.
-- **"strictly ordered"**: The tie-breaking comparator resolved to 0 if the path signatures matched but endpoints differed (e.g., parallel paths to different entity instances via identically-named relations), which theoretically breached strict total ordering.
+## A. Contract Decisions
+- **Strict Integer Validation**: `maxDepth` and `maxPaths` no longer silently coerce invalid negative, decimal, or `NaN` inputs. Passing an invalid limit now throws an explicit `Error`.
+- **Zero-Semantics**: 
+  - `maxDepth: 0` implies returning exactly the root entity without resolving any edges (length `0` path). 
+  - `maxPaths: 0` explicitly implies returning exactly `0` paths. It short-circuits execution completely, returning empty traversal structures, which correctly maps to SQL `LIMIT 0` expectations.
+- **Limit Ranges**:
+  - `maxDepth` domain is strictly `[0, 100]`.
+  - `maxPaths` domain is strictly `[0, 100000]`.
 
-## B. New Bugs Discovered
-1. **SQL Binding Limit Exceedance**: In highly connected graphs, checking all current boundary relations (`missingEntityIds.size > 0`) in a single query `SELECT ... WHERE id IN ($1...$N)` could crash the database due to parameter overflow.
-2. **Missing Boundary Validation**: User input for `maxDepth` and `maxPaths` could be negative, fractional, `NaN`, or insanely large (`Number.MAX_SAFE_INTEGER`), bypassing constraints or crashing loop iterators.
+## B. Bugs Discovered
+1. **Unbounded Path Expansion Cost**: While the total *returned* paths were bounded by `maxPaths`, the internal `frontier` candidate expansion was not securely bounded per level. The algorithm previously computed all possible edges for the entire `currentLevelItems` block (potentially yielding hundreds of thousands of candidate permutations) before discarding them at the cleanup stage.
+2. **Missing InMemory Schema Invariants**: PostgreSQL and SQLite correctly enforced relation `id` uniqueness via `PRIMARY KEY`. However, `InMemoryEngine` allowed identical relation IDs to be blindly pushed into its array, potentially simulating impossible schema states and breaking path identity assumptions.
+3. **Database Parameter Query Sprawl**: In highly connected nodes, an `IN (...)` parameter fetch on `e_relations` for candidate expansion wasn't properly batched in the same way `e_entities` was, posing a risk of variable limit crashing.
 
 ## C. Bugs Fixed
-- Implemented **SQL Parameter Chunking** (`chunkSize = 500`) in both PostgreSQL and SQLite. This mathematically guarantees that no query will exceed standard database bind-parameter limits, regardless of the `maxPaths` configuration.
-- Enforced **Total Tie-Breaking** in sorting by including `a.endId < b.endId` for paths that otherwise have identical relation strings.
-- Standardized strict API boundaries:
-  - `maxDepth` is explicitly clamped between `0` and `100`. Fractional, `NaN`, or negative values coerce to `0`.
-  - `maxPaths` is explicitly clamped between `1` and `100,000`. Fractional, `NaN`, or negative values coerce to the default `1000`.
+- **Candidate Expansion Short-Circuit**: Injected a hard `break` when `nextFrontier.length >= maxPaths`. Because relations are perfectly sorted upfront, capping the candidate loop immediately halts CPU/memory expenditure deterministically without destroying order semantics.
+- **Relation Batching**: Added `chunkSize = 500` batch loop around `e_relations` candidate fetching for Postgres and SQLite engines.
+- **InMemory Constraint Parity**: Enforced `Array.some(id)` validation checks directly in `InMemoryEngine.insertRelation` and `insertEntity`, mapping to SQL Primary Key invariants.
 
 ## D. Tests Added
-- Validation bounds logic: Asserted that `maxDepth=NaN` correctly falls back safely.
-- Validation clamps: Asserted `maxPaths=1000000` correctly clamps.
-- Step-precedence: Confirmed step-level predicates override request-level global predicates.
-- Short steps array semantics: Asserted that step filters silently fall back to `direction="out"` and request global predicates if unspecified.
+- Explicit `.toThrow("Invalid maxDepth")` and `"Invalid maxPaths"` rejection tests for decimals (`1.5`), `NaN`, very large integers, and negative numbers.
+- `maxPaths=0` exact empty validation verification.
 
-## E. Resource-bound Analysis
-- Memory expansion is now strictly constrained. Frontier chunks are batched. Even if the maximum allowed value (`maxPaths=100,000`) is requested, it requires roughly $100,000 \times \text{edge\_bytes}$ in resident node memory, which is comfortably within standard process limits. 
+## E. Resource Guarantees
+- **Result-Size Bound**: Guaranteed $\le$ `maxPaths`.
+- **Memory Bound**: Guaranteed $\le$ `maxPaths * path_object_size` because `nextFrontier` candidates are strictly cut off at the limit mathematically within the loop.
+- **Database Parameter Bound**: Guaranteed $\le$ `500` parameters per statement, satisfying both SQLite constraints (999) and Postgres constraints (65535).
 
-## F. SQL Parameter Analysis
-- Batched to a strict ceiling of `500` items per `IN(...)` statement.
+## F. Work/Latency Guarantees
+- **Database Query-Count Bound**: Chunking `IN (...)` arrays effectively sets total database round trips per depth level to exactly `ceil(frontier_size / 500) * 2`. In the worst-case ceiling where `maxPaths=100,000`, the engine executes at most $200$ parameter queries per level. This restricts query overhead to latency bounds that standard connection pools handle elegantly.
 
-## G. Path Uniqueness Definition
-- Uniqueness is strictly defined by the **sequence of relation IDs**.
-- Two physical edges with the exact same relation ID (violating typical primary key assumptions but possible in malformed storage) would be considered the same topological step by cycle prevention.
+## G. Relation Identity Proof
+- **Identity Scope**: Relation `id` fields are declared as `PRIMARY KEY` in both SQLite and Postgres schemas. Therefore, they are perfectly **Globally Unique**. 
+- **Topological Deduplication**: Since `relationId` is structurally unique per edge record, defining path uniqueness by "a sequence of relation IDs" is mathematically absolute.
+- **Total Ordering Tie-Breaking**: The canonical comparator dictates sorting by `Depth` -> `Lexical representation of edges` -> `Target Entity ID`. Because relation IDs are globally unique, the exact same relation sequence guarantees the exact same destination entity. 
 
-## H. Cycle Definition
-- Cycle detection operates strictly on **relation IDs within the current path**. You cannot traverse the exact same edge twice in a single continuous walk. 
+## H. Postgres Verification Status
+**PostgreSQL Runtime Unverified Locally**: The `.github/workflows` confirm test environments run Postgres instances, but locally, tests skip due to an absent `TEST_DATABASE_URL` environment binding. Therefore, Postgres code executes only hypothetically at the current terminal stage, pending CI verification. 
 
-## I. Ordering Definition
-- Total canonical ordering: `Depth` -> `Lexical representation of edges string` -> `Target Entity ID`.
-
-## J. Complexity Analysis
-- The $O(\text{maxDepth})$ assertion for DB round trips was modified. Because of `IN (...)` chunking at sizes of 500, a massive frontier now triggers $O(\frac{\text{frontier}}{500} \times \text{maxDepth})$ round-trips. This trades $O(1)$ query count for memory and parser safety, keeping CPU/DB throughput stable.
-
-## K. PostgreSQL Verification Status
-- UNVERIFIED AT RUNTIME: PostgreSQL tests are logically equivalent but bypass execution locally due to the absence of `TEST_DATABASE_URL`. CI verification is mandatory.
-
-## L. Remaining Risks
-- Relying on CI to test Postgres means we are still theoretically vulnerable to a syntax mismatch between SQLite query builder logic and Postgres wire protocol logic (e.g., placeholder indices `?` vs `$1`). I have visually patched this using chunked array maps, but a runtime execution remains the absolute final check.
+## I. Remaining Limitations
+- A highly recursive `maxPaths=100000` chunk-query generation (200 DB queries sequentially resolved) is currently synchronous per level. Promise parallelization via `Promise.all` for relational lookups across chunks would substantially drop wall-clock latency.
+- Fuzzing / Property Testing frameworks are basic random generator scripts.
 

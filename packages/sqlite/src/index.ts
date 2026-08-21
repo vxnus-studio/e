@@ -230,14 +230,20 @@ export class SqliteEngine implements EQueryEngine {
           const startEntity = this.mapEntity(startEntityRow);
 
           let maxDepth = request.maxDepth !== undefined ? request.maxDepth : DEFAULT_MAX_DEPTH;
-        if (typeof maxDepth !== 'number' || isNaN(maxDepth) || !Number.isInteger(maxDepth)) maxDepth = DEFAULT_MAX_DEPTH;
-        if (maxDepth < 0) maxDepth = 0;
-        if (maxDepth > 100) maxDepth = 100;
+        if (typeof maxDepth !== 'number' || isNaN(maxDepth) || !Number.isInteger(maxDepth) || maxDepth < 0 || maxDepth > 100) {
+          throw new Error("Invalid maxDepth: must be an integer between 0 and 100");
+        }
         
         let maxPaths = request.maxPaths !== undefined ? request.maxPaths : 1000;
-        if (typeof maxPaths !== 'number' || isNaN(maxPaths) || !Number.isInteger(maxPaths)) maxPaths = 1000;
-        if (maxPaths <= 0) maxPaths = 1000;
-        if (maxPaths > 100000) maxPaths = 100000;
+        if (typeof maxPaths !== 'number' || isNaN(maxPaths) || !Number.isInteger(maxPaths) || maxPaths < 0 || maxPaths > 100000) {
+          throw new Error("Invalid maxPaths: must be an integer between 0 and 100000");
+        }
+        if (maxPaths === 0) {
+          result.traversal = { entities: [], relations: [], paths: [] };
+          result.entities = [];
+          result.relations = [];
+          break;
+        }
 
           const steps = request.steps || (request.predicates ? [{ predicates: request.predicates, direction: "out" as const }] : []);
 
@@ -287,25 +293,29 @@ export class SqliteEngine implements EQueryEngine {
 
             let relations: any[] = [];
             if (entityIds.length > 0) {
-              const placeholders = entityIds.map(() => '?').join(',');
-              const relParams: any[] = [];
-              
-              let queryParts = [];
-              
-              if (allowedDir === "out" || allowedDir === "both") {
-                let q = `SELECT 'out' as dir, * FROM e_relations WHERE subject_id IN (${placeholders})`;
-                queryParts.push(q);
-                relParams.push(...entityIds);
-              }
-              if (allowedDir === "in" || allowedDir === "both") {
-                let q = `SELECT 'in' as dir, * FROM e_relations WHERE object_id IN (${placeholders})`;
-                queryParts.push(q);
-                relParams.push(...entityIds);
-              }
+              const chunkSize = 500;
+              for (let i = 0; i < entityIds.length; i += chunkSize) {
+                const chunk = entityIds.slice(i, i + chunkSize);
+                const placeholders = chunk.map(() => '?').join(',');
+                const relParams: any[] = [];
+                let queryParts = [];
+                
+                if (allowedDir === "out" || allowedDir === "both") {
+                  let q = `SELECT 'out' as dir, * FROM e_relations WHERE subject_id IN (${placeholders})`;
+                  queryParts.push(q);
+                  relParams.push(...chunk);
+                }
+                if (allowedDir === "in" || allowedDir === "both") {
+                  let q = `SELECT 'in' as dir, * FROM e_relations WHERE object_id IN (${placeholders})`;
+                  queryParts.push(q);
+                  relParams.push(...chunk);
+                }
 
-              if (queryParts.length > 0) {
-                 const relQuery = queryParts.join(" UNION ALL ");
-                 relations = this.db.prepare(relQuery).all(...relParams) as any[];
+                if (queryParts.length > 0) {
+                   const relQuery = queryParts.join(" UNION ALL ");
+                   const chunkRelations = this.db.prepare(relQuery).all(...relParams) as any[];
+                   relations.push(...chunkRelations);
+                }
               }
             }
 

@@ -29,6 +29,9 @@ export class InMemoryEngine implements EQueryEngine {
   }
 
   insertRelation(relation: Relation) {
+    if (this.relations.some(r => r.id === relation.id)) {
+      throw new Error("Relation ID must be unique");
+    }
     this.relations.push(relation);
   }
 
@@ -174,15 +177,27 @@ export class InMemoryEngine implements EQueryEngine {
 
         
         let maxDepth = request.maxDepth !== undefined ? request.maxDepth : DEFAULT_MAX_DEPTH;
-        let maxPaths = request.maxPaths !== undefined ? request.maxPaths : 1000;
-        if (typeof maxPaths !== 'number' || isNaN(maxPaths) || !Number.isInteger(maxPaths)) maxPaths = 1000;
-        if (maxPaths <= 0) maxPaths = 1000;
+        if (typeof maxDepth !== 'number' || isNaN(maxDepth) || !Number.isInteger(maxDepth) || maxDepth < 0 || maxDepth > 100) {
+          throw new Error("Invalid maxDepth: must be an integer between 0 and 100");
+        }
         
-        if (typeof maxDepth !== 'number' || isNaN(maxDepth) || !Number.isInteger(maxDepth)) maxDepth = DEFAULT_MAX_DEPTH;
-        if (maxDepth < 0) maxDepth = 0;
-        if (maxDepth > 100) maxDepth = 100;
-        if (maxPaths > 100000) maxPaths = 100000;
+        let maxPaths = request.maxPaths !== undefined ? request.maxPaths : 1000;
+        if (typeof maxPaths !== 'number' || isNaN(maxPaths) || !Number.isInteger(maxPaths) || maxPaths < 0 || maxPaths > 100000) {
+          throw new Error("Invalid maxPaths: must be an integer between 0 and 100000");
+        }
+        if (maxPaths === 0) {
+          result.traversal = { entities: [], relations: [], paths: [] };
+          result.entities = [];
+          result.relations = [];
+          break;
+        }
 
+        if (maxPaths === 0) {
+          result.traversal = { entities: [], relations: [], paths: [] };
+          result.entities = [];
+          result.relations = [];
+          break;
+        }
         if (maxDepth === 0) {
           result.traversal = { entities: [startEntity], relations: [], paths: [{ startId: request.startId, endId: request.startId, edges: [], depth: 0 }] };
           result.entities = result.traversal.entities;

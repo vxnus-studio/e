@@ -157,14 +157,20 @@ export class PostgresEngine implements EQueryEngine {
         }
         case "traverse": {
           let maxDepth = request.maxDepth !== undefined ? request.maxDepth : DEFAULT_MAX_DEPTH;
-        if (typeof maxDepth !== 'number' || isNaN(maxDepth) || !Number.isInteger(maxDepth)) maxDepth = DEFAULT_MAX_DEPTH;
-        if (maxDepth < 0) maxDepth = 0;
-        if (maxDepth > 100) maxDepth = 100;
+        if (typeof maxDepth !== 'number' || isNaN(maxDepth) || !Number.isInteger(maxDepth) || maxDepth < 0 || maxDepth > 100) {
+          throw new Error("Invalid maxDepth: must be an integer between 0 and 100");
+        }
         
         let maxPaths = request.maxPaths !== undefined ? request.maxPaths : 1000;
-        if (typeof maxPaths !== 'number' || isNaN(maxPaths) || !Number.isInteger(maxPaths)) maxPaths = 1000;
-        if (maxPaths <= 0) maxPaths = 1000;
-        if (maxPaths > 100000) maxPaths = 100000;
+        if (typeof maxPaths !== 'number' || isNaN(maxPaths) || !Number.isInteger(maxPaths) || maxPaths < 0 || maxPaths > 100000) {
+          throw new Error("Invalid maxPaths: must be an integer between 0 and 100000");
+        }
+        if (maxPaths === 0) {
+          result.traversal = { entities: [], relations: [], paths: [] };
+          result.entities = [];
+          result.relations = [];
+          break;
+        }
 
           const startRes = await this.pool.query("SELECT * FROM e_entities WHERE id = $1", [request.startId]);
           if (startRes.rows.length === 0) {

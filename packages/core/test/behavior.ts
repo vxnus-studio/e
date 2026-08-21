@@ -385,11 +385,7 @@ export function runBehavioralTests(
       expect(t9.traversal!.paths[0].depth).toBe(0);
       expect(t9.traversal!.paths[0].edges.length).toBe(0);
       
-      const t10 = await engine.query({ type: "traverse", startId: "C-1", maxDepth: -1 });
-      // -1 is now clamped to 0 by our validation, so it returns the root node path
-      // t10 startId C-1 doesn't return anything if maxDepth < 0 unless it clamps to 0 and returns C-1.
-      // Wait, earlier tests expected paths.length == 0.
-      expect(t10.traversal!.paths[0].depth).toBe(0);
+      // (Removed t10 for maxDepth: -1 as it now explicitly throws)
 
       // TEST 13: BOTH DIRECTION
       const t13 = await engine.query({ type: "traverse", startId: "C-2", maxDepth: 1, steps: [{ direction: "both" }] });
@@ -412,30 +408,23 @@ export function runBehavioralTests(
       // PHASE 2.5: BOUNDARY AND VALIDATION
 
       // TEST 18: maxDepth boundary cases
-      const td1 = await engine.query({ type: "traverse", startId: "C-1", maxDepth: NaN });
-      // NaN falls back to DEFAULT (5), so it traverses the whole chain (length 4)
-      expect(td1.traversal!.paths[0].depth).toBe(4);
-
-      const td2 = await engine.query({ type: "traverse", startId: "C-1", maxDepth: 1000 });
-      // maxDepth should be clamped to 100
-      expect(td2.traversal!.paths.length).toBe(1); // chain length is only 4 anyway
-
-      const td3 = await engine.query({ type: "traverse", startId: "C-1", maxDepth: 1.5 });
-      expect(td3.traversal!.paths[0].depth).toBe(4); // non-integer falls back to DEFAULT (5), which hits end of chain at 4
+      await expect(engine.query({ type: "traverse", startId: "C-1", maxDepth: NaN })).rejects.toThrow("Invalid maxDepth");
+      await expect(engine.query({ type: "traverse", startId: "C-1", maxDepth: 1000 })).rejects.toThrow("Invalid maxDepth");
+      await expect(engine.query({ type: "traverse", startId: "C-1", maxDepth: 1.5 })).rejects.toThrow("Invalid maxDepth");
+      await expect(engine.query({ type: "traverse", startId: "C-1", maxDepth: -1 })).rejects.toThrow("Invalid maxDepth");
 
       // TEST 19: maxPaths boundary cases
       const tp1 = await engine.query({ type: "traverse", startId: "E-0", maxDepth: 3, maxPaths: 0 });
-      // 0 clamped to 1000, so it returns all 8
-      expect(tp1.traversal!.paths.length).toBe(8);
+      // 0 returns 0 paths
+      expect(tp1.traversal!.paths.length).toBe(0);
 
       const tp2 = await engine.query({ type: "traverse", startId: "E-0", maxDepth: 3, maxPaths: 2 });
       // Valid limit
       expect(tp2.traversal!.paths.length).toBe(2);
       expect(tp2.metadata.partial).toBe(true);
 
-      const tp3 = await engine.query({ type: "traverse", startId: "E-0", maxDepth: 3, maxPaths: 1000000 });
-      // Clamped to 100000
-      expect(tp3.traversal!.paths.length).toBe(8);
+      await expect(engine.query({ type: "traverse", startId: "E-0", maxDepth: 3, maxPaths: 1000000 })).rejects.toThrow("Invalid maxPaths");
+      await expect(engine.query({ type: "traverse", startId: "E-0", maxDepth: 3, maxPaths: 1.5 })).rejects.toThrow("Invalid maxPaths");
 
       // TEST 20: Steps semantics
       const ts1 = await engine.query({ 
