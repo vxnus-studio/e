@@ -382,6 +382,7 @@ export class SqliteEngine implements EQueryEngine, EFixtureMutator, EBatchMutato
                 break;
               }
 
+              const dbFetchLimit = remainingRelationBudget + 1;
               const chunkSize = 500;
               for (let i = 0; i < entityIds.length; i += chunkSize) {
                 const chunk = entityIds.slice(i, i + chunkSize);
@@ -389,19 +390,28 @@ export class SqliteEngine implements EQueryEngine, EFixtureMutator, EBatchMutato
                 const relParams: any[] = [];
                 let queryParts = [];
                 
+                let predClause = "";
+                let predParams: string[] = [];
+                if (allowedPreds) {
+                  predParams = Array.from(allowedPreds);
+                  const predPlaceholders = predParams.map(() => '?').join(',');
+                  predClause = ` AND predicate IN (${predPlaceholders})`;
+                }
+
                 if (allowedDir === "out" || allowedDir === "both") {
-                  let q = `SELECT 'out' as dir, * FROM e_relations WHERE subject_id IN (${placeholders})`;
+                  let q = `SELECT 'out' as dir, * FROM e_relations WHERE subject_id IN (${placeholders})${predClause}`;
                   queryParts.push(q);
-                  relParams.push(...chunk);
+                  relParams.push(...chunk, ...predParams);
                 }
                 if (allowedDir === "in" || allowedDir === "both") {
-                  let q = `SELECT 'in' as dir, * FROM e_relations WHERE object_id IN (${placeholders})`;
+                  let q = `SELECT 'in' as dir, * FROM e_relations WHERE object_id IN (${placeholders})${predClause}`;
                   queryParts.push(q);
-                  relParams.push(...chunk);
+                  relParams.push(...chunk, ...predParams);
                 }
 
                 if (queryParts.length > 0) {
-                   const relQuery = queryParts.join(" UNION ALL ");
+                   const relQuery = `${queryParts.join(" UNION ALL ")} ORDER BY id COLLATE BINARY ASC, dir ASC LIMIT ?`;
+                   relParams.push(dbFetchLimit);
                    const chunkRelations = this.db.prepare(relQuery).all(...relParams) as Record<string, any>[];
                    relations.push(...chunkRelations);
                    if (relations.length > remainingRelationBudget) {
@@ -409,10 +419,6 @@ export class SqliteEngine implements EQueryEngine, EFixtureMutator, EBatchMutato
                    }
                 }
               }
-            }
-
-            if (allowedPreds) {
-              relations = relations.filter(r => allowedPreds!.has(r.predicate));
             }
 
             relations.sort((a, b) => {

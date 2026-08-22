@@ -291,4 +291,58 @@ describe("Traversal Adversarial & Boundary Verification", () => {
       expect(resEnt5.traversal?.entities.length).toBeLessThanOrEqual(5);
     }
   });
+
+  test("Traversal parity on massive dense graph (>500 relations, maxRelationsExpanded < 500)", async () => {
+    // 600 relations from root
+    const bigRoot = createEntity("BIG-ROOT");
+    const bigEntities = [bigRoot];
+    const bigRelations: Relation[] = [];
+    for (let i = 0; i < 600; i++) {
+      const leaf = createEntity(`BIG-LEAF-${String(i).padStart(4, "0")}`);
+      bigEntities.push(leaf);
+      bigRelations.push({
+        id: `big-rel-${String(i).padStart(4, "0")}`,
+        subjectId: "BIG-ROOT",
+        predicate: i % 2 === 0 ? "even" : "odd",
+        objectId: leaf.id
+      });
+    }
+
+    const queryResults: any[] = [];
+
+    for (const e of engines) {
+      await e.insert({ entities: bigEntities, relations: bigRelations });
+
+      // Traversal with maxRelationsExpanded = 250 (less than 500 chunk size and total 600)
+      const res = await e.engine.query({
+        type: "traverse",
+        startId: "BIG-ROOT",
+        predicates: ["even"],
+        maxDepth: 1,
+        maxRelationsExpanded: 250,
+        maxPaths: 300
+      });
+
+      expect(res.traversal?.relations.length).toBe(250);
+      expect(res.traversal?.paths.length).toBe(250);
+      expect(res.metadata.partial).toBe(true);
+
+      queryResults.push({ name: e.name, res });
+    }
+
+    // Compare parity across engines
+    const baseline = queryResults[0].res;
+    for (let i = 1; i < queryResults.length; i++) {
+      const current = queryResults[i];
+      expect(
+        current.res.traversal?.paths.map((p: any) => p.endId),
+        `Engine ${current.name} paths mismatch against ${queryResults[0].name}`
+      ).toEqual(baseline.traversal?.paths.map((p: any) => p.endId));
+
+      expect(
+        current.res.traversal?.relations.map((r: any) => r.id),
+        `Engine ${current.name} relations mismatch against ${queryResults[0].name}`
+      ).toEqual(baseline.traversal?.relations.map((r: any) => r.id));
+    }
+  });
 });
