@@ -18,6 +18,7 @@ This document details concurrent reader-writer guarantees, connection pool safet
 - `PostgresEngine.close()` is idempotent and shares one shutdown promise when called concurrently.
 - Queries and mutations after close fail with `StorageError` using code `ENGINE_CLOSED`.
 - `pool.query()` operations return clients to the pool through node-postgres; batch transactions release their dedicated client in `finally`, including acquisition and rollback failures.
+- The adapter listens for node-postgres pool background errors, including idle-client disconnects, so they cannot become uncaught process-level events. The first subsequent operation fails with `StorageError(code=POOL_BACKGROUND_ERROR)` and preserves the driver error as `cause`.
 - E does not automatically retry operations. Callers must decide whether an ambiguous operation is safe to retry.
 
 Live PostgreSQL pool exhaustion, connection-acquisition failure, timeout, isolation, and serialization tests remain required before production readiness.

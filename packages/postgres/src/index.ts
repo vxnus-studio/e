@@ -43,9 +43,22 @@ export class PostgresEngine implements EQueryEngine, EFixtureMutator, EBatchMuta
   private pool: Pool;
   private closed = false;
   private closePromise?: Promise<void>;
+  private backgroundError?: StorageError;
+  private readonly poolErrorHandler: (error: Error) => void;
 
   constructor(config: PoolConfig) {
     this.pool = new Pool(config);
+    this.poolErrorHandler = (error) => {
+      this.backgroundError = new StorageError(
+        error.message || "PostgreSQL pool background failure",
+        error,
+        "POOL_BACKGROUND_ERROR",
+      );
+    };
+    // node-postgres emits idle-client and connection errors on the pool. A
+    // listener is mandatory: without one EventEmitter treats the event as an
+    // uncaught process-level exception.
+    this.pool.on("error", this.poolErrorHandler);
   }
 
   async close() {
@@ -54,11 +67,15 @@ export class PostgresEngine implements EQueryEngine, EFixtureMutator, EBatchMuta
       this.closePromise = this.pool.end();
     }
     await this.closePromise;
+    this.pool.removeListener("error", this.poolErrorHandler);
   }
 
   private assertOpen(): void {
     if (this.closed) {
       throw new StorageError("PostgreSQL engine is closed", undefined, "ENGINE_CLOSED");
+    }
+    if (this.backgroundError) {
+      throw this.backgroundError;
     }
   }
 
