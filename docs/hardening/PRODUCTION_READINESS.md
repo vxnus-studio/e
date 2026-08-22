@@ -25,7 +25,7 @@ Phase 0 established the current repository baseline without source changes. E is
 | 8. PostgreSQL schema / migrations | IN PROGRESS | Schema lifecycle: 4 SQLite tests passed; PostgreSQL lifecycle skipped | No migration-history/version runner; SQLite migration 001 is not replay-safe; live PostgreSQL verification pending |
 | 9. Batch ingestion | COMPLETE (local; PostgreSQL execution pending) | Atomic batch suite and batch-boundary test pass; PostgreSQL branches skipped locally | PostgreSQL batch cost remains N-round-trip and retry after ambiguous failure is caller-managed |
 | 10. Concurrency / connection safety | COMPLETE (local; PostgreSQL execution pending) | Pool lifecycle regression and workspace build pass; PostgreSQL concurrency branches skipped | Live pool exhaustion, connection acquisition failure, timeout, and isolation behavior remain unverified |
-| 11. Scale review | PENDING | Existing 1k-scale tests | 100k/1m behavior and actual query plans are not established |
+| 11. Scale review | COMPLETE (envelope documented; measurement incomplete) | Existing 1k-scale suite; complexity audit; build passed | No repeatable latency/memory/query-plan measurements; 100k/1m behavior remains outside verified envelope |
 | 12. Differential / adversarial testing | PENDING | 72 differential tests currently pass without PostgreSQL | Three-backend parity is incomplete locally because PostgreSQL is skipped |
 | 13. Current-head verification | PENDING | Not run | Final readiness cannot be assessed until all phases and live PostgreSQL verification complete |
 
@@ -199,6 +199,20 @@ Phase 0 established the current repository baseline without source changes. E is
 - documentation impact: Updated `docs/hardening/CONCURRENCY.md`, `docs/hardening/TRANSACTIONS.md`, and this document.
 - remaining risk: Live PostgreSQL verification of pool exhaustion, acquisition failure, timeouts, concurrent transactions, and isolation remains pending.
 
+### F-0013 (OPEN — Scale envelope)
+
+- ID: F-0013
+- severity: P1
+- subsystem: Scale and performance claims
+- problem: Existing scale documentation implied indexed or single-query behavior that is not guaranteed by the implementation, while 100k/1m capacity had not been measured.
+- root cause: Complexity descriptions were written as design intent rather than audited against actual query loops and substring predicates.
+- affected engines: InMemory, SQLite, PostgreSQL.
+- reproduction: Inspect PostgreSQL `ingestBatch()` and traversal loops, or run `%query%` lexical search; both perform linear/per-record work despite bounded output.
+- fix: Corrected `docs/hardening/SCALE.md` and `docs/hardening/SCALE-BENCHMARKS.md` with actual complexity, round-trip behavior, and an explicit 1k/100k/1m scale envelope.
+- regression test: Existing 1,000-entity and 600-node traversal scale tests; no benchmark assertion can establish unmeasured capacity.
+- documentation impact: Scale docs now distinguish behavioral regression coverage from capacity measurements.
+- remaining risk: A future scale phase requires repeatable benchmark data, PostgreSQL EXPLAIN plans, memory observations, and likely batch/search design work.
+
 ## Contract decisions
 
 No new semantic decisions were made in Phase 0. Existing documented decisions remain provisional until revalidated against current code and all backends, including:
@@ -239,7 +253,7 @@ Phase 1 decision: identifier-like and short textual storage fields have a 255-ch
 - [ ] Schema lifecycle is understood end-to-end
 - [ ] Migration lifecycle is safe and version-tracked
 - [x] Provenance/temporal semantics are documented as opaque persistence-only metadata
-- [ ] Scale envelope is documented
+- [x] Scale envelope is documented; measured capacity remains limited to local behavioral tests
 - [ ] Current HEAD passes the complete suite
 - [ ] Hardening documentation is up to date
 - [ ] No known P0 blockers remain
@@ -406,3 +420,21 @@ Failures and remaining risks:
 - Live PostgreSQL pool exhaustion, connection-acquisition failure, timeout, transaction isolation, and serialization behavior remain unverified.
 
 Phase 10 is complete for the lifecycle contract and locally testable behavior. It is not a claim of live PostgreSQL production verification.
+
+## Phase 11 record
+
+Files changed: `docs/hardening/SCALE.md`, `docs/hardening/SCALE-BENCHMARKS.md`, and this document.
+
+Tests and commands run:
+
+- `npm run test --workspace=@vxnus/differential -- --run test/scale_concurrency.test.ts` — 4 passed; PostgreSQL-only branches skipped.
+- `npm run build` — passed for all build-enabled workspaces.
+- `git diff --check` — passed.
+
+Findings:
+
+- Corrected complexity and round-trip claims for search, traversal, and batch ingestion.
+- Documented the verified 1k behavioral envelope and explicitly excluded 100k/1m capacity claims.
+- F-0013 remains open until repeatable latency, memory, query-plan, and throughput measurements exist.
+
+Phase 11 is complete as a scale-complexity review, not as a capacity benchmark.
