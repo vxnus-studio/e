@@ -53,7 +53,10 @@ All queries accept a discriminated union `QueryRequest` and return a unified `Kn
 - **Behavior**: Finds all entities that map to the given `alias`.
 - **Matches**: Exact string match, case-sensitive.
 - **Duplicate/Multiple Matches**: If multiple entities share the same alias, it returns all of them.
-- **Ordering**: Explicitly Unspecified.
+- **Semantics**: Resolution is alias-only. It does not search entity `name`, `slug`, or `identities`.
+- **Namespace**: When provided, namespace is an exact case-sensitive filter on the matched entities.
+- **Ambiguity**: Multiple matches are returned; the runtime never silently chooses one.
+- **Ordering**: Entity ID ascending.
 
 ### 4.2. `getEntity`
 - **Input**: `id: string`.

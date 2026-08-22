@@ -267,6 +267,25 @@ describe("Differential Cross-Backend Semantic Parity", () => {
         expect(resLower.entities?.length).toBe(0);
       }
     });
+
+    test("Resolution is alias-only, namespace-filtered, and ambiguity-preserving", async () => {
+      for (const e of engines) {
+        await e.insert({
+          entities: [
+            { id: "RES-A", namespace: "one", kind: "node", slug: "hidden-a", name: "Alias Name A", data: {}, identities: [{ provider: "p", externalId: "a" }] },
+            { id: "RES-B", namespace: "two", kind: "node", slug: "hidden-b", name: "Alias Name B", data: {} },
+          ],
+          aliases: [
+            { id: "RES-AL-A", entityId: "RES-A", alias: "shared" },
+            { id: "RES-AL-B", entityId: "RES-B", alias: "shared" },
+          ]
+        });
+        expect((await e.engine.query({ type: "resolve", alias: "shared" })).entities?.map((entity: any) => entity.id)).toEqual(["RES-A", "RES-B"]);
+        expect((await e.engine.query({ type: "resolve", alias: "shared", namespace: "one" })).entities?.map((entity: any) => entity.id)).toEqual(["RES-A"]);
+        expect((await e.engine.query({ type: "resolve", alias: "hidden-a" })).entities).toEqual([]);
+        expect((await e.engine.query({ type: "resolve", alias: "Alias Name A" })).entities).toEqual([]);
+      }
+    });
   });
 
   describe("4. Randomized Bounded Property Testing", () => {

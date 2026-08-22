@@ -10,7 +10,7 @@ This document tracks behavioral parity across all three supported backends: **In
 |---|---|---|---|---|---|
 | **Capabilities Query** | Report supported features | Exact Match | Exact Match | Exact Match | FULL PARITY |
 | **`getEntity`** | By exact ID | Supported | Supported | Supported | FULL PARITY |
-| **`resolve`** | Case-sensitive alias lookup | Supported | Supported | Supported | FULL PARITY |
+| **`resolve`** | Exact alias-only lookup; namespace filter; all collisions returned; entity ID ordering | Supported | Supported | Supported | FULL PARITY |
 | **`findRelations`** | Subject / Object / Predicate | Hydrates entities | Hydrates entities | Hydrates entities | FULL PARITY |
 | **`findClaims`** | Entity claims | Supported | Supported | Supported | FULL PARITY |
 | **`findDocuments`** | Entity documents | Supported | Supported | Supported | FULL PARITY |
