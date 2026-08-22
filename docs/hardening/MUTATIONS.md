@@ -20,3 +20,28 @@ This document details the mutation primitives, foreign key cascading behavior, a
 When inserting related data graphs, callers MUST supply records in dependency topological order:
 1. `Entity` records must be inserted prior to referencing `Alias`, `Claim`, `Document`, or `Relation` records.
 2. Both `subjectId` and `objectId` entities must be inserted prior to `Relation` creation.
+
+---
+
+## 3. Atomic Batch Ingestion (`EBatchMutator`)
+
+All three backends implement `EBatchMutator`:
+```typescript
+export interface EBatchMutator {
+  ingestBatch(dataset: BatchDataset): Promise<BatchIngestResult>;
+}
+```
+
+### 3.1 All-or-Nothing Transaction Semantics
+- **PostgreSQL (`PostgresEngine`)**:
+  - Connects a dedicated client from the connection pool.
+  - Issues `BEGIN`, iterates over entities, aliases, relations, claims, and documents.
+  - On any failure (foreign key constraint, uniqueness violation, syntax error), executes `ROLLBACK`, translates error to canonical `ConstraintError` / `QueryError`, and guarantees zero partial records remain committed.
+  - On success, issues `COMMIT` and releases client back to the pool.
+- **SQLite (`SqliteEngine`)**:
+  - Wraps batch ingestion in `this.db.transaction(() => { ... })()`.
+  - On any failure, better-sqlite3 automatically aborts and rolls back the transaction.
+- **InMemory (`InMemoryEngine`)**:
+  - Snapshots maps and arrays prior to mutation.
+  - On error, restores pre-transaction snapshot cleanly.
+

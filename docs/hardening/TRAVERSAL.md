@@ -20,20 +20,27 @@ This document defines the formal traversal execution model, boundary rules, cycl
 
 ## 2. Resource Bounding & Intermediate Frontier Safety
 
-### 2.1 Intermediate Frontier Capping
-To prevent unbounded memory growth on pathological high-fan-out graphs ($A \to B_{1..10000}$), intermediate candidate generation (`nextFrontier`) is bounded at the `maxPaths` safety limit ($O(\text{maxPaths})$ space bound):
+### 2.1 Intermediate Frontier & Expansion Bounding
+To prevent unbounded memory growth on pathological high-fan-out graphs ($A \to B_{1..10000}$), intermediate candidate generation, edge expansion, and entity hydration are bounded at configurable safety limits:
+- **`maxPaths`**: Capped at `MAX_SAFE_PATHS = 100,000` (default `1,000`).
+- **`maxRelationsExpanded`**: Hard limit on intermediate candidate relation edges evaluated during traversal (default `100,000`).
+- **`maxEntitiesHydrated`**: Hard limit on intermediate entity records hydrated during traversal (default `50,000`).
+
+Database fetch queries in `SqliteEngine` and `PostgresEngine` bound intermediate edge fetching to the remaining expansion budget (`remainingRelationBudget + 1`), preventing driver materialization of massive edge sets on high-degree nodes.
+
 ```typescript
-if (nextFrontier.length < pathLimit) {
-  nextFrontier.push(candidate);
-} else {
+if (totalRelationsExpanded >= maxRelationsExpanded) {
   truncationOccurred = true;
+  truncationReasons.push("maxRelationsExpanded limit reached");
+  break;
 }
 ```
 
 ### 2.2 `maxPaths` & Partial Semantics
 - **`maxPaths = 0`**: Returns `{ entities: [], relations: [], paths: [] }`.
 - **`maxPaths` Range**: Integer between $0$ and $100,000$ (default $1,000$).
-- **`metadata.partial` Invariant**: Set to `true` if and only if candidate expansion or path collection was truncated due to exceeding `maxPaths`. Exhausting depth within `maxDepth` on a finite graph does *not* set `partial: true`.
+- **`metadata.partial` Invariant**: Set to `true` if and only if candidate expansion, relation expansion, entity hydration, or path collection was truncated due to exceeding resource budgets. Exhausting depth within `maxDepth` on a finite graph does *not* set `partial: true`.
+- **Warnings**: `metadata.warnings` includes informative reason strings explaining which ceiling caused the truncation (e.g. `Traversal truncated: maxRelationsExpanded limit reached`, `Traversal reached maxPaths limit`).
 
 ---
 
@@ -48,6 +55,7 @@ All engines apply an identical canonical sort order to discovered paths:
 
 ## 4. Query Batching across Backends
 
-- **`InMemoryEngine`**: Synchronous in-memory BFS expansion.
-- **`SqliteEngine`**: Level-by-level batched `SELECT ... WHERE subject_id/object_id IN (...)` (chunked at 500 IDs).
-- **`PostgresEngine`**: Level-by-level batched `SELECT ... WHERE subject_id/object_id = ANY($1)`.
+- **`InMemoryEngine`**: Synchronous in-memory BFS expansion with bounded edge and entity evaluation.
+- **`SqliteEngine`**: Level-by-level batched `SELECT ... WHERE subject_id/object_id IN (...)` (chunked at 500 IDs with budget-aware limits).
+- **`PostgresEngine`**: Level-by-level batched `SELECT ... WHERE subject_id/object_id = ANY($1)` with `ORDER BY id ASC LIMIT $budget`.
+

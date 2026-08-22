@@ -142,4 +142,100 @@ describe("Mutation Atomicity & Failure Isolation", () => {
     // Verify client was released back to pool and pool is not exhausted
     expect(pool.totalCount).toBeLessThanOrEqual(pool.options.max || 10);
   });
+
+  test("Atomic multi-record batch ingestion: all-or-nothing rollback on mid-batch constraint failure", async () => {
+    for (const e of engines) {
+      // Clean isolated test entities
+      const batchEnt1 = createEntity("batch-rollback-1", "Batch 1");
+      const batchEnt2 = createEntity("batch-rollback-2", "Batch 2");
+      const batchEnt3 = createEntity("batch-rollback-3", "Batch 3");
+
+      const failingDataset = {
+        entities: [batchEnt1, batchEnt2, batchEnt3],
+        aliases: [
+          { id: "b-al-1", entityId: "batch-rollback-1", alias: "B1" },
+          // This alias has invalid entityId -> Foreign key failure midway through batch
+          { id: "b-al-fail", entityId: "nonexistent-entity-id", alias: "BFail" }
+        ],
+        relations: [
+          { id: "b-rel-1", subjectId: "batch-rollback-1", predicate: "connects", objectId: "batch-rollback-2" }
+        ]
+      };
+
+      // Batch ingestion must fail
+      await expect(async () => {
+        await e.engine.ingestBatch(failingDataset);
+      }).rejects.toThrow();
+
+      // Verify ZERO records from the batch remain committed (All-or-Nothing rollback)
+      const res1 = await e.engine.query({ type: "getEntity", id: "batch-rollback-1" });
+      const res2 = await e.engine.query({ type: "getEntity", id: "batch-rollback-2" });
+      const res3 = await e.engine.query({ type: "getEntity", id: "batch-rollback-3" });
+      const resA = await e.engine.query({ type: "resolve", alias: "B1" });
+
+      expect(res1.entities, `Engine ${e.name} should rollback batch-rollback-1`).toEqual([]);
+      expect(res2.entities, `Engine ${e.name} should rollback batch-rollback-2`).toEqual([]);
+      expect(res3.entities, `Engine ${e.name} should rollback batch-rollback-3`).toEqual([]);
+      expect(resA.entities, `Engine ${e.name} should rollback alias B1`).toEqual([]);
+    }
+  });
+
+  test("Successful multi-record batch ingestion commits all entity types atomically", async () => {
+    for (const e of engines) {
+      const entA = createEntity("batch-succ-A", "Succ A");
+      const entB = createEntity("batch-succ-B", "Succ B");
+
+      const validDataset = {
+        entities: [entA, entB],
+        aliases: [
+          { id: "b-succ-al-1", entityId: "batch-succ-A", alias: "SuccAliasA" },
+          { id: "b-succ-al-2", entityId: "batch-succ-B", alias: "SuccAliasB" }
+        ],
+        relations: [
+          { id: "b-succ-rel-1", subjectId: "batch-succ-A", predicate: "links", objectId: "batch-succ-B" }
+        ],
+        claims: [
+          { id: "b-succ-cl-1", entityId: "batch-succ-A", statement: "Is canon fact", confidence: "canon" as const, source: "Archon Quest" }
+        ],
+        documents: [
+          { id: "b-succ-doc-1", entityId: "batch-succ-B", content: "Document lore content" }
+        ]
+      };
+
+      const result = await e.engine.ingestBatch(validDataset);
+      expect(result.entitiesInserted).toBe(2);
+      expect(result.aliasesInserted).toBe(2);
+      expect(result.relationsInserted).toBe(1);
+      expect(result.claimsInserted).toBe(1);
+      expect(result.documentsInserted).toBe(1);
+      expect(result.timeMs).toBeGreaterThanOrEqual(0);
+
+      // Verify all records queryable
+      const resEnt = await e.engine.query({ type: "getEntity", id: "batch-succ-A" });
+      expect(resEnt.entities?.length).toBe(1);
+
+      const resAl = await e.engine.query({ type: "resolve", alias: "SuccAliasA" });
+      expect(resAl.entities?.length).toBe(1);
+
+      const resRel = await e.engine.query({ type: "findRelations", subjectId: "batch-succ-A" });
+      expect(resRel.relations?.length).toBe(1);
+
+      const resCl = await e.engine.query({ type: "findClaims", entityId: "batch-succ-A" });
+      expect(resCl.claims?.length).toBe(1);
+
+      const resDoc = await e.engine.query({ type: "findDocuments", entityId: "batch-succ-B" });
+      expect(resDoc.documents?.length).toBe(1);
+    }
+  });
+
+  test("Empty batch ingestion succeeds with zero counts", async () => {
+    for (const e of engines) {
+      const res = await e.engine.ingestBatch({});
+      expect(res.entitiesInserted).toBe(0);
+      expect(res.aliasesInserted).toBe(0);
+      expect(res.relationsInserted).toBe(0);
+      expect(res.claimsInserted).toBe(0);
+      expect(res.documentsInserted).toBe(0);
+    }
+  });
 });

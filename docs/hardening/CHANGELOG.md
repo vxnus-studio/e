@@ -4,6 +4,21 @@ All notable hardening changes across the E runtime are recorded in this document
 
 ---
 
+## [Phase 9] - Traversal Safety & Atomic Batch Ingestion Hardening
+- **P0-1: Traversal Resource Safety Remediation**:
+  - Bound intermediate candidate relation expansion (`maxRelationsExpanded`, default 100,000) and entity hydration (`maxEntitiesHydrated`, default 50,000) across InMemory, SQLite, and PostgreSQL.
+  - Implemented database-level `LIMIT` on intermediate edge fetch queries to protect memory on high-degree nodes.
+  - Standardized truncation warning reasons in `metadata.warnings`.
+  - Added adversarial resource bound tests in `packages/differential/test/traversal_adversarial.test.ts`.
+- **P0-2: Multi-Record Atomic Ingestion Remediation**:
+  - Defined `BatchDataset`, `BatchIngestResult`, and `EBatchMutator` in core domain types.
+  - Implemented atomic `ingestBatch` with rollback on error for `InMemoryEngine` (snapshot restoration), `SqliteEngine` (`db.transaction`), and `PostgresEngine` (`BEGIN ... COMMIT / ROLLBACK`).
+  - Added transactional rollback and multi-type atomic ingestion tests in `packages/differential/test/mutation_transaction.test.ts`.
+- **Documentation**:
+  - Authored `docs/hardening/PHASE-9.md`, updated `docs/hardening/TRAVERSAL.md`, `docs/hardening/MUTATIONS.md`, and `docs/hardening/ROADMAP.md`.
+
+---
+
 ## [Phase 8] - Scale, Performance & Concurrency Hardening
 - **Audited Scale Profiles & Concurrency Safety**:
   - Authored `docs/hardening/SCALE-BENCHMARKS.md` and `docs/hardening/CONCURRENCY.md`.

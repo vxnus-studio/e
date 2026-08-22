@@ -82,5 +82,6 @@ gantt
   - Scale tests for 1k–100k entities and relations.
   - Concurrency tests for parallel reads, writes, and traversal.
 
-### [Phase 9 — Final Hardening Review](./FINAL_AUDIT.md)
-- **Goal**: Complete re-audit, verify all invariants, produce final verdict and integration readiness guide.
+### [Phase 9 — Traversal Safety & Atomic Batch Ingestion](./PHASE-9.md)
+- **Goal**: Harden intermediate traversal candidate expansion/hydration and establish atomic multi-record batch ingestion with rollback across all engines.
+- **Status**: Completed. Resolved P0-1 (traversal resource safety) and P0-2 (transactional batch ingestion).

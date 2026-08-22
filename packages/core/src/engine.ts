@@ -8,11 +8,23 @@ import type {
   KnowledgeResult,
   EQueryEngine,
   EFixtureMutator,
+  EBatchMutator,
+  BatchDataset,
+  BatchIngestResult,
   TraversalPath,
   TraversalPathEdge,
 } from "./types.js";
 
-import { DEFAULT_MAX_DEPTH, MAX_SAFE_SEARCH_LIMIT, MAX_SAFE_SEARCH_QUERY_LENGTH } from "./types.js";
+import {
+  DEFAULT_MAX_DEPTH,
+  DEFAULT_MAX_PATHS,
+  DEFAULT_MAX_RELATIONS_EXPANDED,
+  DEFAULT_MAX_ENTITIES_HYDRATED,
+  MAX_SAFE_DEPTH,
+  MAX_SAFE_PATHS,
+  MAX_SAFE_SEARCH_LIMIT,
+  MAX_SAFE_SEARCH_QUERY_LENGTH,
+} from "./types.js";
 import { ConstraintError, QueryError, UnsupportedOperationError } from "./errors.js";
 
 function cloneValue<T>(val: T): T {
@@ -23,7 +35,7 @@ function cloneValue<T>(val: T): T {
   return JSON.parse(JSON.stringify(val));
 }
 
-export class InMemoryEngine implements EQueryEngine, EFixtureMutator {
+export class InMemoryEngine implements EQueryEngine, EFixtureMutator, EBatchMutator {
   private entities: Map<string, Entity> = new Map();
   private aliases: Alias[] = [];
   private relations: Relation[] = [];
@@ -75,6 +87,62 @@ export class InMemoryEngine implements EQueryEngine, EFixtureMutator {
       throw new ConstraintError(`FOREIGN KEY constraint failed: entityId ${doc.entityId} does not exist`, undefined, "FOREIGN_KEY_VIOLATION");
     }
     this.documents.push(cloneValue(doc));
+  }
+
+  async ingestBatch(dataset: BatchDataset): Promise<BatchIngestResult> {
+    const startTime = Date.now();
+    // Snapshot existing state for atomic rollback on failure
+    const prevEntities = new Map(this.entities);
+    const prevAliases = [...this.aliases];
+    const prevRelations = [...this.relations];
+    const prevClaims = [...this.claims];
+    const prevDocuments = [...this.documents];
+
+    try {
+      let entitiesCount = 0;
+      let aliasesCount = 0;
+      let relationsCount = 0;
+      let claimsCount = 0;
+      let documentsCount = 0;
+
+      for (const ent of dataset.entities || []) {
+        this.insertEntity(ent);
+        entitiesCount++;
+      }
+      for (const al of dataset.aliases || []) {
+        this.insertAlias(al);
+        aliasesCount++;
+      }
+      for (const rel of dataset.relations || []) {
+        this.insertRelation(rel);
+        relationsCount++;
+      }
+      for (const cl of dataset.claims || []) {
+        this.insertClaim(cl);
+        claimsCount++;
+      }
+      for (const doc of dataset.documents || []) {
+        this.insertDocument(doc);
+        documentsCount++;
+      }
+
+      return {
+        entitiesInserted: entitiesCount,
+        aliasesInserted: aliasesCount,
+        relationsInserted: relationsCount,
+        claimsInserted: claimsCount,
+        documentsInserted: documentsCount,
+        timeMs: Date.now() - startTime,
+      };
+    } catch (err) {
+      // Atomic Rollback: restore previous snapshot exactly
+      this.entities = prevEntities;
+      this.aliases = prevAliases;
+      this.relations = prevRelations;
+      this.claims = prevClaims;
+      this.documents = prevDocuments;
+      throw err;
+    }
   }
 
   async query(request: QueryRequest): Promise<KnowledgeResult> {
@@ -220,14 +288,29 @@ export class InMemoryEngine implements EQueryEngine, EFixtureMutator {
       }
       case "traverse": {
         let maxDepth = request.maxDepth !== undefined ? request.maxDepth : DEFAULT_MAX_DEPTH;
-        if (typeof maxDepth !== 'number' || isNaN(maxDepth) || !Number.isInteger(maxDepth) || maxDepth < 0 || maxDepth > 100) {
-          throw new QueryError("Invalid maxDepth: must be an integer between 0 and 100");
+        if (typeof maxDepth !== 'number' || isNaN(maxDepth) || !Number.isInteger(maxDepth) || maxDepth < 0 || maxDepth > MAX_SAFE_DEPTH) {
+          throw new QueryError(`Invalid maxDepth: must be an integer between 0 and ${MAX_SAFE_DEPTH}`);
         }
         
-        let maxPaths = request.maxPaths !== undefined ? request.maxPaths : 1000;
-        if (typeof maxPaths !== 'number' || isNaN(maxPaths) || !Number.isInteger(maxPaths) || maxPaths < 0 || maxPaths > 100000) {
-          throw new QueryError("Invalid maxPaths: must be an integer between 0 and 100000");
+        let maxPaths = request.maxPaths !== undefined ? request.maxPaths : DEFAULT_MAX_PATHS;
+        if (typeof maxPaths !== 'number' || isNaN(maxPaths) || !Number.isInteger(maxPaths) || maxPaths < 0 || maxPaths > MAX_SAFE_PATHS) {
+          throw new QueryError(`Invalid maxPaths: must be an integer between 0 and ${MAX_SAFE_PATHS}`);
         }
+
+        const maxRelationsExpanded = request.maxRelationsExpanded !== undefined
+          ? request.maxRelationsExpanded
+          : DEFAULT_MAX_RELATIONS_EXPANDED;
+        if (typeof maxRelationsExpanded !== 'number' || isNaN(maxRelationsExpanded) || !Number.isInteger(maxRelationsExpanded) || maxRelationsExpanded < 0) {
+          throw new QueryError("Invalid maxRelationsExpanded: must be a non-negative integer");
+        }
+
+        const maxEntitiesHydrated = request.maxEntitiesHydrated !== undefined
+          ? request.maxEntitiesHydrated
+          : DEFAULT_MAX_ENTITIES_HYDRATED;
+        if (typeof maxEntitiesHydrated !== 'number' || isNaN(maxEntitiesHydrated) || !Number.isInteger(maxEntitiesHydrated) || maxEntitiesHydrated < 0) {
+          throw new QueryError("Invalid maxEntitiesHydrated: must be a non-negative integer");
+        }
+
         if (maxPaths === 0) {
           result.traversal = { entities: [], relations: [], paths: [] };
           result.entities = [];
@@ -247,9 +330,7 @@ export class InMemoryEngine implements EQueryEngine, EFixtureMutator {
           result.relations = result.traversal.relations;
           break;
         }
-        
 
-        
         // Use either steps or fallback to predicates string[]
         const steps = request.steps || (request.predicates ? [{ predicates: request.predicates, direction: "out" as const }] : []);
 
@@ -268,7 +349,9 @@ export class InMemoryEngine implements EQueryEngine, EFixtureMutator {
         let frontier: FrontierItem[] = [{ entityId: request.startId, pathEdges: [], depth: 0 }];
         const pathLimit = maxPaths;
         let pathCount = 0;
+        let totalRelationsExpanded = 0;
         let truncationOccurred = false;
+        const truncationReasons: string[] = [];
 
         while (frontier.length > 0 && pathCount < pathLimit) {
           const currentDepth = frontier[0]!.depth;
@@ -289,6 +372,9 @@ export class InMemoryEngine implements EQueryEngine, EFixtureMutator {
                 pathCount++;
               } else {
                 truncationOccurred = true;
+                if (!truncationReasons.includes("maxPaths limit reached")) {
+                  truncationReasons.push("maxPaths limit reached");
+                }
               }
             }
             continue;
@@ -302,6 +388,11 @@ export class InMemoryEngine implements EQueryEngine, EFixtureMutator {
           let nextFrontier: FrontierItem[] = [];
 
           for (const current of currentLevelItems) {
+            if (pathCount >= pathLimit) {
+              truncationOccurred = true;
+              break;
+            }
+
             let foundAny = false;
 
             const outEdges = (allowedDir === "out" || allowedDir === "both") 
@@ -312,8 +403,12 @@ export class InMemoryEngine implements EQueryEngine, EFixtureMutator {
               ? this.relations.filter(r => r.objectId === current.entityId)
               : [];
 
-            const allEdges = [...outEdges.map(e => ({r: e, dir: "out" as const})), ...inEdges.map(e => ({r: e, dir: "in" as const}))];
+            let allEdges = [...outEdges.map(e => ({r: e, dir: "out" as const})), ...inEdges.map(e => ({r: e, dir: "in" as const}))];
             
+            if (allowedPreds) {
+              allEdges = allEdges.filter(e => allowedPreds!.has(e.r.predicate));
+            }
+
             // Deterministic sorting
             allEdges.sort((a, b) => {
               if (a.r.id !== b.r.id) return a.r.id < b.r.id ? -1 : 1;
@@ -322,9 +417,15 @@ export class InMemoryEngine implements EQueryEngine, EFixtureMutator {
             });
 
             for (const {r, dir} of allEdges) {
-              if (allowedPreds && !allowedPreds.has(r.predicate)) {
-                continue;
+              // Check resource budget for expanded relations
+              if (totalRelationsExpanded >= maxRelationsExpanded) {
+                truncationOccurred = true;
+                if (!truncationReasons.includes("maxRelationsExpanded limit reached")) {
+                  truncationReasons.push("maxRelationsExpanded limit reached");
+                }
+                break;
               }
+              totalRelationsExpanded++;
               
               // Cycle detection per path
               if (current.pathEdges.some(pe => pe.relationId === r.id)) {
@@ -336,7 +437,18 @@ export class InMemoryEngine implements EQueryEngine, EFixtureMutator {
               
               if (!nextEnt) continue;
 
-              visitedEntities.set(nextEnt.id, nextEnt);
+              // Check resource budget for hydrated entities
+              if (!visitedEntities.has(nextEnt.id)) {
+                if (visitedEntities.size >= maxEntitiesHydrated) {
+                  truncationOccurred = true;
+                  if (!truncationReasons.includes("maxEntitiesHydrated limit reached")) {
+                    truncationReasons.push("maxEntitiesHydrated limit reached");
+                  }
+                  break;
+                }
+                visitedEntities.set(nextEnt.id, nextEnt);
+              }
+
               visitedRelations.set(r.id, r);
 
               const newEdge: TraversalPathEdge = {
@@ -356,6 +468,9 @@ export class InMemoryEngine implements EQueryEngine, EFixtureMutator {
                 });
               } else {
                 truncationOccurred = true;
+                if (!truncationReasons.includes("maxPaths limit reached")) {
+                  truncationReasons.push("maxPaths limit reached");
+                }
               }
               foundAny = true;
             }
@@ -371,6 +486,9 @@ export class InMemoryEngine implements EQueryEngine, EFixtureMutator {
                 pathCount++;
               } else {
                 truncationOccurred = true;
+                if (!truncationReasons.includes("maxPaths limit reached")) {
+                  truncationReasons.push("maxPaths limit reached");
+                }
               }
             }
           }
@@ -393,6 +511,9 @@ export class InMemoryEngine implements EQueryEngine, EFixtureMutator {
               pathCount++;
             } else if (f.depth > 0) {
               truncationOccurred = true;
+              if (!truncationReasons.includes("maxPaths limit reached")) {
+                truncationReasons.push("maxPaths limit reached");
+              }
             }
           }
         }
@@ -416,7 +537,12 @@ export class InMemoryEngine implements EQueryEngine, EFixtureMutator {
         if (truncationOccurred) {
           result.metadata.partial = true;
           result.metadata.warnings = result.metadata.warnings || [];
-          result.metadata.warnings.push("Traversal reached maxPaths limit");
+          for (const reason of truncationReasons) {
+            result.metadata.warnings.push(`Traversal truncated: ${reason}`);
+          }
+          if (truncationReasons.length === 0 || truncationReasons.includes("maxPaths limit reached")) {
+            result.metadata.warnings.push("Traversal reached maxPaths limit");
+          }
         }
 
         result.entities = result.traversal.entities;
@@ -433,3 +559,4 @@ export class InMemoryEngine implements EQueryEngine, EFixtureMutator {
     return cloneValue(result);
   }
 }
+

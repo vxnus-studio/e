@@ -138,7 +138,16 @@ export type QueryRequest =
   | { type: "findClaims"; entityId: string }
   | { type: "findDocuments"; entityId: string }
   | { type: "search"; search: SearchQuery }
-  | { type: "traverse"; startId: string; steps?: TraversalStep[]; maxDepth?: number; maxPaths?: number; predicates?: string[] }
+  | {
+      type: "traverse";
+      startId: string;
+      steps?: TraversalStep[];
+      maxDepth?: number;
+      maxPaths?: number;
+      predicates?: string[];
+      maxRelationsExpanded?: number;
+      maxEntitiesHydrated?: number;
+    }
   | { type: "getCapabilities" };
 
 export const DEFAULT_MAX_DEPTH = 5;
@@ -147,6 +156,8 @@ export const MAX_SAFE_DEPTH = 100;
 export const MAX_SAFE_PATHS = 100000;
 export const MAX_SAFE_SEARCH_LIMIT = 10000;
 export const MAX_SAFE_SEARCH_QUERY_LENGTH = 10000;
+export const DEFAULT_MAX_RELATIONS_EXPANDED = 100000;
+export const DEFAULT_MAX_ENTITIES_HYDRATED = 50000;
 
 export interface QueryMetadata {
   timeMs: number;
@@ -175,4 +186,25 @@ export interface EFixtureMutator {
   insertRelation(relation: Relation): Promise<void> | void;
   insertClaim(claim: Claim): Promise<void> | void;
   insertDocument(doc: Document): Promise<void> | void;
+}
+
+export interface BatchDataset {
+  entities?: Entity[];
+  aliases?: Alias[];
+  relations?: Relation[];
+  claims?: Claim[];
+  documents?: Document[];
+}
+
+export interface BatchIngestResult {
+  entitiesInserted: number;
+  aliasesInserted: number;
+  relationsInserted: number;
+  claimsInserted: number;
+  documentsInserted: number;
+  timeMs: number;
+}
+
+export interface EBatchMutator {
+  ingestBatch(dataset: BatchDataset): Promise<BatchIngestResult>;
 }

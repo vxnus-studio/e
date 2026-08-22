@@ -154,6 +154,30 @@ describe("Traversal Adversarial & Boundary Verification", () => {
       expect(res.traversal?.paths.length).toBe(2);
       expect(res.metadata.partial).toBe(true);
       expect(res.metadata.warnings).toContain("Traversal reached maxPaths limit");
+
+      // Verify maxRelationsExpanded safety ceiling stops intermediate expansion
+      const boundedRelRes = await e.engine.query({
+        type: "traverse",
+        startId: "FAN-ROOT",
+        maxDepth: 1,
+        maxRelationsExpanded: 5,
+        maxPaths: 50
+      });
+      expect(boundedRelRes.metadata.partial).toBe(true);
+      expect(boundedRelRes.traversal?.relations.length).toBeLessThanOrEqual(5);
+      expect(boundedRelRes.metadata.warnings?.some((w: string) => w.includes("maxRelationsExpanded"))).toBe(true);
+
+      // Verify maxEntitiesHydrated safety ceiling stops intermediate entity hydration
+      const boundedEntRes = await e.engine.query({
+        type: "traverse",
+        startId: "FAN-ROOT",
+        maxDepth: 1,
+        maxEntitiesHydrated: 3,
+        maxPaths: 50
+      });
+      expect(boundedEntRes.metadata.partial).toBe(true);
+      expect(boundedEntRes.traversal?.entities.length).toBeLessThanOrEqual(3);
+      expect(boundedEntRes.metadata.warnings?.some((w: string) => w.includes("maxEntitiesHydrated"))).toBe(true);
     }
   });
 

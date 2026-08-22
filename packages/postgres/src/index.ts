@@ -1,4 +1,4 @@
-import { Pool, PoolConfig } from "pg";
+import { Pool, PoolClient, PoolConfig } from "pg";
 import type {
   Entity,
   Alias,
@@ -9,13 +9,27 @@ import type {
   KnowledgeResult,
   EQueryEngine,
   EFixtureMutator,
+  EBatchMutator,
+  BatchDataset,
+  BatchIngestResult,
   TraversalPath,
   TraversalPathEdge,
 } from "@vxnus/e";
-import { DEFAULT_MAX_DEPTH, ConstraintError, QueryError, UnsupportedOperationError, MAX_SAFE_SEARCH_LIMIT, MAX_SAFE_SEARCH_QUERY_LENGTH } from "@vxnus/e";
+import {
+  DEFAULT_MAX_DEPTH,
+  DEFAULT_MAX_PATHS,
+  DEFAULT_MAX_RELATIONS_EXPANDED,
+  DEFAULT_MAX_ENTITIES_HYDRATED,
+  MAX_SAFE_DEPTH,
+  MAX_SAFE_PATHS,
+  ConstraintError,
+  QueryError,
+  UnsupportedOperationError,
+  MAX_SAFE_SEARCH_LIMIT,
+  MAX_SAFE_SEARCH_QUERY_LENGTH,
+} from "@vxnus/e";
 
-
-export class PostgresEngine implements EQueryEngine, EFixtureMutator {
+export class PostgresEngine implements EQueryEngine, EFixtureMutator, EBatchMutator {
   private pool: Pool;
 
   constructor(config: PoolConfig) {
@@ -172,20 +186,35 @@ export class PostgresEngine implements EQueryEngine, EFixtureMutator {
         }
         case "traverse": {
           let maxDepth = request.maxDepth !== undefined ? request.maxDepth : DEFAULT_MAX_DEPTH;
-        if (typeof maxDepth !== 'number' || isNaN(maxDepth) || !Number.isInteger(maxDepth) || maxDepth < 0 || maxDepth > 100) {
-          throw new QueryError("Invalid maxDepth: must be an integer between 0 and 100");
-        }
-        
-        let maxPaths = request.maxPaths !== undefined ? request.maxPaths : 1000;
-        if (typeof maxPaths !== 'number' || isNaN(maxPaths) || !Number.isInteger(maxPaths) || maxPaths < 0 || maxPaths > 100000) {
-          throw new QueryError("Invalid maxPaths: must be an integer between 0 and 100000");
-        }
-        if (maxPaths === 0) {
-          result.traversal = { entities: [], relations: [], paths: [] };
-          result.entities = [];
-          result.relations = [];
-          break;
-        }
+          if (typeof maxDepth !== 'number' || isNaN(maxDepth) || !Number.isInteger(maxDepth) || maxDepth < 0 || maxDepth > MAX_SAFE_DEPTH) {
+            throw new QueryError(`Invalid maxDepth: must be an integer between 0 and ${MAX_SAFE_DEPTH}`);
+          }
+          
+          let maxPaths = request.maxPaths !== undefined ? request.maxPaths : DEFAULT_MAX_PATHS;
+          if (typeof maxPaths !== 'number' || isNaN(maxPaths) || !Number.isInteger(maxPaths) || maxPaths < 0 || maxPaths > MAX_SAFE_PATHS) {
+            throw new QueryError(`Invalid maxPaths: must be an integer between 0 and ${MAX_SAFE_PATHS}`);
+          }
+
+          const maxRelationsExpanded = request.maxRelationsExpanded !== undefined
+            ? request.maxRelationsExpanded
+            : DEFAULT_MAX_RELATIONS_EXPANDED;
+          if (typeof maxRelationsExpanded !== 'number' || isNaN(maxRelationsExpanded) || !Number.isInteger(maxRelationsExpanded) || maxRelationsExpanded < 0) {
+            throw new QueryError("Invalid maxRelationsExpanded: must be a non-negative integer");
+          }
+
+          const maxEntitiesHydrated = request.maxEntitiesHydrated !== undefined
+            ? request.maxEntitiesHydrated
+            : DEFAULT_MAX_ENTITIES_HYDRATED;
+          if (typeof maxEntitiesHydrated !== 'number' || isNaN(maxEntitiesHydrated) || !Number.isInteger(maxEntitiesHydrated) || maxEntitiesHydrated < 0) {
+            throw new QueryError("Invalid maxEntitiesHydrated: must be a non-negative integer");
+          }
+
+          if (maxPaths === 0) {
+            result.traversal = { entities: [], relations: [], paths: [] };
+            result.entities = [];
+            result.relations = [];
+            break;
+          }
 
           const startRes = await this.pool.query("SELECT * FROM e_entities WHERE id = $1", [request.startId]);
           if (startRes.rows.length === 0) {
@@ -193,6 +222,13 @@ export class PostgresEngine implements EQueryEngine, EFixtureMutator {
             break;
           }
           const startEntity = this.mapEntity(startRes.rows[0]);
+
+          if (maxDepth === 0) {
+            result.traversal = { entities: [startEntity], relations: [], paths: [{ startId: request.startId, endId: request.startId, edges: [], depth: 0 }] };
+            result.entities = result.traversal.entities;
+            result.relations = result.traversal.relations;
+            break;
+          }
 
           const steps = request.steps || (request.predicates ? [{ predicates: request.predicates, direction: "out" as const }] : []);
 
@@ -211,7 +247,9 @@ export class PostgresEngine implements EQueryEngine, EFixtureMutator {
           let frontier: FrontierItem[] = [{ entityId: request.startId, pathEdges: [], depth: 0 }];
           const pathLimit = maxPaths;
           let pathCount = 0;
+          let totalRelationsExpanded = 0;
           let truncationOccurred = false;
+          const truncationReasons: string[] = [];
 
           while (frontier.length > 0 && pathCount < pathLimit) {
             const currentDepth = frontier[0].depth;
@@ -232,6 +270,9 @@ export class PostgresEngine implements EQueryEngine, EFixtureMutator {
                   pathCount++;
                 } else {
                   truncationOccurred = true;
+                  if (!truncationReasons.includes("maxPaths limit reached")) {
+                    truncationReasons.push("maxPaths limit reached");
+                  }
                 }
               }
               continue;
@@ -246,23 +287,38 @@ export class PostgresEngine implements EQueryEngine, EFixtureMutator {
             let allEdges: { r: Relation, dir: "out" | "in" }[] = [];
 
             if (entityIds.length > 0) {
+              const remainingRelationBudget = Math.max(0, maxRelationsExpanded - totalRelationsExpanded);
+              if (remainingRelationBudget <= 0) {
+                truncationOccurred = true;
+                if (!truncationReasons.includes("maxRelationsExpanded limit reached")) {
+                  truncationReasons.push("maxRelationsExpanded limit reached");
+                }
+                break;
+              }
+
+              // Apply database-level safety limit bounded by remaining expansion budget + safety headroom
+              const dbFetchLimit = remainingRelationBudget + 1;
               const queries = [];
               if (allowedDir === "out" || allowedDir === "both") {
-                let q = "SELECT * FROM e_relations WHERE subject_id = ANY($1)";
+                let q = `SELECT * FROM e_relations WHERE subject_id = ANY($1)`;
                 const p: any[] = [entityIds];
                 if (allowedPreds) {
-                  q += " AND predicate = ANY($2)";
+                  q += ` AND predicate = ANY($2)`;
                   p.push(Array.from(allowedPreds));
                 }
+                q += ` ORDER BY id ASC LIMIT $${p.length + 1}`;
+                p.push(dbFetchLimit);
                 queries.push(this.pool.query(q, p).then(r => r.rows.map(row => ({ r: this.mapRelation(row), dir: "out" as const }))));
               }
               if (allowedDir === "in" || allowedDir === "both") {
-                let q = "SELECT * FROM e_relations WHERE object_id = ANY($1)";
+                let q = `SELECT * FROM e_relations WHERE object_id = ANY($1)`;
                 const p: any[] = [entityIds];
                 if (allowedPreds) {
-                  q += " AND predicate = ANY($2)";
+                  q += ` AND predicate = ANY($2)`;
                   p.push(Array.from(allowedPreds));
                 }
+                q += ` ORDER BY id ASC LIMIT $${p.length + 1}`;
+                p.push(dbFetchLimit);
                 queries.push(this.pool.query(q, p).then(r => r.rows.map(row => ({ r: this.mapRelation(row), dir: "in" as const }))));
               }
               const results = await Promise.all(queries);
@@ -288,16 +344,38 @@ export class PostgresEngine implements EQueryEngine, EFixtureMutator {
             }
 
             if (nextEntityIds.size > 0) {
-              const nextEntsRes = await this.pool.query("SELECT * FROM e_entities WHERE id = ANY($1)", [Array.from(nextEntityIds)]);
-              for (const row of nextEntsRes.rows) {
-                const ent = this.mapEntity(row);
-                visitedEntities.set(ent.id, ent);
+              const remainingEntityBudget = Math.max(0, maxEntitiesHydrated - visitedEntities.size);
+              if (remainingEntityBudget <= 0) {
+                truncationOccurred = true;
+                if (!truncationReasons.includes("maxEntitiesHydrated limit reached")) {
+                  truncationReasons.push("maxEntitiesHydrated limit reached");
+                }
+              } else {
+                const idsToHydrate = Array.from(nextEntityIds).slice(0, remainingEntityBudget);
+                if (idsToHydrate.length < nextEntityIds.size) {
+                  truncationOccurred = true;
+                  if (!truncationReasons.includes("maxEntitiesHydrated limit reached")) {
+                    truncationReasons.push("maxEntitiesHydrated limit reached");
+                  }
+                }
+                if (idsToHydrate.length > 0) {
+                  const nextEntsRes = await this.pool.query("SELECT * FROM e_entities WHERE id = ANY($1)", [idsToHydrate]);
+                  for (const row of nextEntsRes.rows) {
+                    const ent = this.mapEntity(row);
+                    visitedEntities.set(ent.id, ent);
+                  }
+                }
               }
             }
 
             let nextFrontier: FrontierItem[] = [];
 
             for (const current of currentLevelItems) {
+              if (pathCount >= pathLimit) {
+                truncationOccurred = true;
+                break;
+              }
+
               let foundAny = false;
               const relevantEdges = allEdges.filter(e =>
                 (e.dir === "out" && e.r.subjectId === current.entityId) ||
@@ -305,6 +383,15 @@ export class PostgresEngine implements EQueryEngine, EFixtureMutator {
               );
 
               for (const { r, dir } of relevantEdges) {
+                if (totalRelationsExpanded >= maxRelationsExpanded) {
+                  truncationOccurred = true;
+                  if (!truncationReasons.includes("maxRelationsExpanded limit reached")) {
+                    truncationReasons.push("maxRelationsExpanded limit reached");
+                  }
+                  break;
+                }
+                totalRelationsExpanded++;
+
                 if (current.pathEdges.some(pe => pe.relationId === r.id)) {
                   continue;
                 }
@@ -329,6 +416,9 @@ export class PostgresEngine implements EQueryEngine, EFixtureMutator {
                   });
                 } else {
                   truncationOccurred = true;
+                  if (!truncationReasons.includes("maxPaths limit reached")) {
+                    truncationReasons.push("maxPaths limit reached");
+                  }
                 }
                 foundAny = true;
               }
@@ -343,6 +433,9 @@ export class PostgresEngine implements EQueryEngine, EFixtureMutator {
                 pathCount++;
               } else if (!foundAny && current.depth > 0) {
                 truncationOccurred = true;
+                if (!truncationReasons.includes("maxPaths limit reached")) {
+                  truncationReasons.push("maxPaths limit reached");
+                }
               }
             }
 
@@ -363,6 +456,9 @@ export class PostgresEngine implements EQueryEngine, EFixtureMutator {
                 pathCount++;
               } else if (f.depth > 0) {
                 truncationOccurred = true;
+                if (!truncationReasons.includes("maxPaths limit reached")) {
+                  truncationReasons.push("maxPaths limit reached");
+                }
               }
             }
           }
@@ -385,7 +481,12 @@ export class PostgresEngine implements EQueryEngine, EFixtureMutator {
           if (truncationOccurred) {
             result.metadata.partial = true;
             result.metadata.warnings = result.metadata.warnings || [];
-            result.metadata.warnings.push("Traversal reached maxPaths limit");
+            for (const reason of truncationReasons) {
+              result.metadata.warnings.push(`Traversal truncated: ${reason}`);
+            }
+            if (truncationReasons.length === 0 || truncationReasons.includes("maxPaths limit reached")) {
+              result.metadata.warnings.push("Traversal reached maxPaths limit");
+            }
           }
 
           result.entities = result.traversal.entities;
@@ -541,5 +642,111 @@ export class PostgresEngine implements EQueryEngine, EFixtureMutator {
         ]
       );
     } catch (e: any) { this.handlePostgresError(e); }
+  }
+
+  // --- EBatchMutator Implementation (Atomic Transactions) ---
+  async ingestBatch(dataset: BatchDataset): Promise<BatchIngestResult> {
+    const startTime = Date.now();
+    const client = await this.pool.connect();
+    try {
+      await client.query("BEGIN");
+
+      let entitiesCount = 0;
+      let aliasesCount = 0;
+      let relationsCount = 0;
+      let claimsCount = 0;
+      let documentsCount = 0;
+
+      for (const entity of dataset.entities || []) {
+        await client.query(
+          `INSERT INTO e_entities (id, namespace, kind, slug, name, data, identities, provenance, temporal)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+          [
+            entity.id,
+            entity.namespace,
+            entity.kind,
+            entity.slug,
+            entity.name,
+            JSON.stringify(entity.data || {}),
+            entity.identities !== undefined ? JSON.stringify(entity.identities) : null,
+            entity.provenance !== undefined ? JSON.stringify(entity.provenance) : null,
+            entity.temporal !== undefined ? JSON.stringify(entity.temporal) : null
+          ]
+        );
+        entitiesCount++;
+      }
+
+      for (const alias of dataset.aliases || []) {
+        await client.query(
+          "INSERT INTO e_aliases (id, entity_id, alias) VALUES ($1, $2, $3)",
+          [alias.id, alias.entityId, alias.alias]
+        );
+        aliasesCount++;
+      }
+
+      for (const relation of dataset.relations || []) {
+        await client.query(
+          `INSERT INTO e_relations (id, subject_id, predicate, object_id, provenance, temporal, metadata)
+           VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+          [
+            relation.id,
+            relation.subjectId,
+            relation.predicate,
+            relation.objectId,
+            relation.provenance !== undefined ? JSON.stringify(relation.provenance) : null,
+            relation.temporal !== undefined ? JSON.stringify(relation.temporal) : null,
+            relation.metadata !== undefined ? JSON.stringify(relation.metadata) : null
+          ]
+        );
+        relationsCount++;
+      }
+
+      for (const claim of dataset.claims || []) {
+        await client.query(
+          `INSERT INTO e_claims (id, entity_id, statement, confidence, source, provenance, temporal)
+           VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+          [
+            claim.id,
+            claim.entityId,
+            claim.statement,
+            claim.confidence,
+            claim.source,
+            claim.provenance !== undefined ? JSON.stringify(claim.provenance) : null,
+            claim.temporal !== undefined ? JSON.stringify(claim.temporal) : null
+          ]
+        );
+        claimsCount++;
+      }
+
+      for (const doc of dataset.documents || []) {
+        await client.query(
+          `INSERT INTO e_documents (id, entity_id, content, provenance)
+           VALUES ($1, $2, $3, $4)`,
+          [
+            doc.id,
+            doc.entityId,
+            doc.content,
+            doc.provenance !== undefined ? JSON.stringify(doc.provenance) : null
+          ]
+        );
+        documentsCount++;
+      }
+
+      await client.query("COMMIT");
+
+      return {
+        entitiesInserted: entitiesCount,
+        aliasesInserted: aliasesCount,
+        relationsInserted: relationsCount,
+        claimsInserted: claimsCount,
+        documentsInserted: documentsCount,
+        timeMs: Date.now() - startTime,
+      };
+    } catch (e: any) {
+      await client.query("ROLLBACK");
+      this.handlePostgresError(e);
+    } finally {
+      client.release();
+    }
   }
 }
