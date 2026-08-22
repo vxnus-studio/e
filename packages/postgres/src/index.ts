@@ -211,6 +211,7 @@ export class PostgresEngine implements EQueryEngine, EFixtureMutator {
           let frontier: FrontierItem[] = [{ entityId: request.startId, pathEdges: [], depth: 0 }];
           const pathLimit = maxPaths;
           let pathCount = 0;
+          let truncationOccurred = false;
 
           while (frontier.length > 0 && pathCount < pathLimit) {
             const currentDepth = frontier[0].depth;
@@ -229,6 +230,8 @@ export class PostgresEngine implements EQueryEngine, EFixtureMutator {
                     depth: item.depth
                   });
                   pathCount++;
+                } else {
+                  truncationOccurred = true;
                 }
               }
               continue;
@@ -292,6 +295,8 @@ export class PostgresEngine implements EQueryEngine, EFixtureMutator {
               }
             }
 
+            let nextFrontier: FrontierItem[] = [];
+
             for (const current of currentLevelItems) {
               let foundAny = false;
               const relevantEdges = allEdges.filter(e =>
@@ -315,11 +320,16 @@ export class PostgresEngine implements EQueryEngine, EFixtureMutator {
                   direction: dir
                 };
 
-                frontier.push({
-                  entityId: nextId,
-                  pathEdges: [...current.pathEdges, newEdge],
-                  depth: current.depth + 1
-                });
+                // Intermediate frontier bounding: prevent runaway allocation
+                if (nextFrontier.length < pathLimit) {
+                  nextFrontier.push({
+                    entityId: nextId,
+                    pathEdges: [...current.pathEdges, newEdge],
+                    depth: current.depth + 1
+                  });
+                } else {
+                  truncationOccurred = true;
+                }
                 foundAny = true;
               }
 
@@ -331,7 +341,13 @@ export class PostgresEngine implements EQueryEngine, EFixtureMutator {
                   depth: current.depth
                 });
                 pathCount++;
+              } else if (!foundAny && current.depth > 0) {
+                truncationOccurred = true;
               }
+            }
+
+            for (const item of nextFrontier) {
+              frontier.push(item);
             }
           }
 
@@ -345,6 +361,8 @@ export class PostgresEngine implements EQueryEngine, EFixtureMutator {
                   depth: f.depth
                 });
                 pathCount++;
+              } else if (f.depth > 0) {
+                truncationOccurred = true;
               }
             }
           }
@@ -364,7 +382,7 @@ export class PostgresEngine implements EQueryEngine, EFixtureMutator {
             paths
           };
 
-          if (pathCount >= pathLimit) {
+          if (truncationOccurred) {
             result.metadata.partial = true;
             result.metadata.warnings = result.metadata.warnings || [];
             result.metadata.warnings.push("Traversal reached maxPaths limit");

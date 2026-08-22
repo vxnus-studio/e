@@ -266,107 +266,135 @@ export class InMemoryEngine implements EQueryEngine, EFixtureMutator {
         }
 
         let frontier: FrontierItem[] = [{ entityId: request.startId, pathEdges: [], depth: 0 }];
-
-        // Prevent infinite loops / unbounded expansion
         const pathLimit = maxPaths;
         let pathCount = 0;
+        let truncationOccurred = false;
 
         while (frontier.length > 0 && pathCount < pathLimit) {
-          const current = frontier.shift()!;
+          const currentDepth = frontier[0]!.depth;
+          const currentLevelItems: FrontierItem[] = [];
+          while (frontier.length > 0 && frontier[0]!.depth === currentDepth) {
+            currentLevelItems.push(frontier.shift()!);
+          }
 
-          if (current.depth >= maxDepth) {
-            paths.push({
-              startId: request.startId,
-              endId: current.entityId,
-              edges: current.pathEdges,
-              depth: current.depth
-            });
-            pathCount++;
+          if (currentDepth >= maxDepth) {
+            for (const item of currentLevelItems) {
+              if (pathCount < pathLimit) {
+                paths.push({
+                  startId: request.startId,
+                  endId: item.entityId,
+                  edges: item.pathEdges,
+                  depth: item.depth
+                });
+                pathCount++;
+              } else {
+                truncationOccurred = true;
+              }
+            }
             continue;
           }
-          
-          let stepFilter = steps[current.depth];
+
+          let stepFilter = steps[currentDepth];
           let allowedDir = stepFilter ? stepFilter.direction : "out";
           let allowedPreds = stepFilter && stepFilter.predicates ? new Set(stepFilter.predicates) : 
                              (request.predicates ? new Set(request.predicates) : null);
 
-          let foundAny = false;
+          let nextFrontier: FrontierItem[] = [];
 
-          const outEdges = (allowedDir === "out" || allowedDir === "both") 
-            ? this.relations.filter(r => r.subjectId === current.entityId)
-            : [];
-          
-          const inEdges = (allowedDir === "in" || allowedDir === "both")
-            ? this.relations.filter(r => r.objectId === current.entityId)
-            : [];
+          for (const current of currentLevelItems) {
+            let foundAny = false;
 
-          const allEdges = [...outEdges.map(e => ({r: e, dir: "out" as const})), ...inEdges.map(e => ({r: e, dir: "in" as const}))];
-          
-          // Deterministic sorting
-          allEdges.sort((a, b) => {
-            if (a.r.id !== b.r.id) return a.r.id < b.r.id ? -1 : 1;
-            if (a.dir !== b.dir) return a.dir < b.dir ? -1 : 1;
-            return 0;
-          });
-
-          for (const {r, dir} of allEdges) {
-            if (allowedPreds && !allowedPreds.has(r.predicate)) {
-              continue;
-            }
+            const outEdges = (allowedDir === "out" || allowedDir === "both") 
+              ? this.relations.filter(r => r.subjectId === current.entityId)
+              : [];
             
-            // Cycle detection per path
-            if (current.pathEdges.some(pe => pe.relationId === r.id)) {
-              continue;
-            }
+            const inEdges = (allowedDir === "in" || allowedDir === "both")
+              ? this.relations.filter(r => r.objectId === current.entityId)
+              : [];
 
-            const nextId = dir === "out" ? r.objectId : r.subjectId;
-            const nextEnt = this.entities.get(nextId);
+            const allEdges = [...outEdges.map(e => ({r: e, dir: "out" as const})), ...inEdges.map(e => ({r: e, dir: "in" as const}))];
             
-            if (!nextEnt) continue;
-
-            visitedEntities.set(nextEnt.id, nextEnt);
-            visitedRelations.set(r.id, r);
-
-            const newEdge: TraversalPathEdge = {
-              relationId: r.id,
-              sourceId: dir === "out" ? current.entityId : nextId,
-              targetId: dir === "out" ? nextId : current.entityId,
-              predicate: r.predicate,
-              direction: dir
-            };
-
-            frontier.push({
-              entityId: nextId,
-              pathEdges: [...current.pathEdges, newEdge],
-              depth: current.depth + 1
+            // Deterministic sorting
+            allEdges.sort((a, b) => {
+              if (a.r.id !== b.r.id) return a.r.id < b.r.id ? -1 : 1;
+              if (a.dir !== b.dir) return a.dir < b.dir ? -1 : 1;
+              return 0;
             });
-            foundAny = true;
+
+            for (const {r, dir} of allEdges) {
+              if (allowedPreds && !allowedPreds.has(r.predicate)) {
+                continue;
+              }
+              
+              // Cycle detection per path
+              if (current.pathEdges.some(pe => pe.relationId === r.id)) {
+                continue;
+              }
+
+              const nextId = dir === "out" ? r.objectId : r.subjectId;
+              const nextEnt = this.entities.get(nextId);
+              
+              if (!nextEnt) continue;
+
+              visitedEntities.set(nextEnt.id, nextEnt);
+              visitedRelations.set(r.id, r);
+
+              const newEdge: TraversalPathEdge = {
+                relationId: r.id,
+                sourceId: dir === "out" ? current.entityId : nextId,
+                targetId: dir === "out" ? nextId : current.entityId,
+                predicate: r.predicate,
+                direction: dir
+              };
+
+              // Intermediate frontier bounding: prevent memory explosion
+              if (nextFrontier.length < pathLimit) {
+                nextFrontier.push({
+                  entityId: nextId,
+                  pathEdges: [...current.pathEdges, newEdge],
+                  depth: current.depth + 1
+                });
+              } else {
+                truncationOccurred = true;
+              }
+              foundAny = true;
+            }
+
+            if (!foundAny && current.depth > 0) {
+              if (pathCount < pathLimit) {
+                paths.push({
+                  startId: request.startId,
+                  endId: current.entityId,
+                  edges: current.pathEdges,
+                  depth: current.depth
+                });
+                pathCount++;
+              } else {
+                truncationOccurred = true;
+              }
+            }
           }
-          
-          if (!foundAny && current.depth > 0) {
-            paths.push({
-              startId: request.startId,
-              endId: current.entityId,
-              edges: current.pathEdges,
-              depth: current.depth
-            });
-            pathCount++;
+
+          for (const item of nextFrontier) {
+            frontier.push(item);
           }
         }
         
-        // Cleanup paths if they don't terminate or we hit limits
+        // Collect remaining leaves if frontier remains when pathCount < pathLimit
         if (frontier.length > 0) {
-           for(const f of frontier) {
-             if (f.depth > 0 && pathCount < pathLimit) {
-                paths.push({
-                  startId: request.startId,
-                  endId: f.entityId,
-                  edges: f.pathEdges,
-                  depth: f.depth
-                });
-                pathCount++;
-             }
-           }
+          for (const f of frontier) {
+            if (f.depth > 0 && pathCount < pathLimit) {
+              paths.push({
+                startId: request.startId,
+                endId: f.entityId,
+                edges: f.pathEdges,
+                depth: f.depth
+              });
+              pathCount++;
+            } else if (f.depth > 0) {
+              truncationOccurred = true;
+            }
+          }
         }
         
         // Sort paths deterministically
@@ -385,7 +413,7 @@ export class InMemoryEngine implements EQueryEngine, EFixtureMutator {
           paths: paths
         };
         
-        if (pathCount >= pathLimit) {
+        if (truncationOccurred) {
           result.metadata.partial = true;
           result.metadata.warnings = result.metadata.warnings || [];
           result.metadata.warnings.push("Traversal reached maxPaths limit");

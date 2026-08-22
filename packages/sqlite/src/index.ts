@@ -277,6 +277,7 @@ export class SqliteEngine implements EQueryEngine, EFixtureMutator {
           let frontier: FrontierItem[] = [{ entityId: request.startId, pathEdges: [], depth: 0 }];
           const pathLimit = maxPaths;
           let pathCount = 0;
+          let truncationOccurred = false;
 
           while (frontier.length > 0 && pathCount < pathLimit) {
             const currentDepth = frontier[0].depth;
@@ -287,14 +288,17 @@ export class SqliteEngine implements EQueryEngine, EFixtureMutator {
             
             if (currentDepth >= maxDepth) {
               for (const item of currentLevelItems) {
-                paths.push({
-                  startId: request.startId,
-                  endId: item.entityId,
-                  edges: item.pathEdges,
-                  depth: item.depth
-                });
-                pathCount++;
-                if (pathCount >= pathLimit) break;
+                if (pathCount < pathLimit) {
+                  paths.push({
+                    startId: request.startId,
+                    endId: item.entityId,
+                    edges: item.pathEdges,
+                    depth: item.depth
+                  });
+                  pathCount++;
+                } else {
+                  truncationOccurred = true;
+                }
               }
               continue;
             }
@@ -401,22 +405,31 @@ export class SqliteEngine implements EQueryEngine, EFixtureMutator {
                   direction: r.dir as "out" | "in"
                 };
 
-                nextFrontier.push({
-                  entityId: nextId,
-                  pathEdges: [...current.pathEdges, newEdge],
-                  depth: current.depth + 1
-                });
+                // Intermediate frontier bounding: prevent runaway allocation
+                if (nextFrontier.length < pathLimit) {
+                  nextFrontier.push({
+                    entityId: nextId,
+                    pathEdges: [...current.pathEdges, newEdge],
+                    depth: current.depth + 1
+                  });
+                } else {
+                  truncationOccurred = true;
+                }
                 foundAny = true;
               }
 
               if (!foundAny && current.depth > 0) {
-                paths.push({
-                  startId: request.startId,
-                  endId: current.entityId,
-                  edges: current.pathEdges,
-                  depth: current.depth
-                });
-                pathCount++;
+                if (pathCount < pathLimit) {
+                  paths.push({
+                    startId: request.startId,
+                    endId: current.entityId,
+                    edges: current.pathEdges,
+                    depth: current.depth
+                  });
+                  pathCount++;
+                } else {
+                  truncationOccurred = true;
+                }
               }
             }
 
@@ -426,17 +439,19 @@ export class SqliteEngine implements EQueryEngine, EFixtureMutator {
           }
 
           if (frontier.length > 0) {
-             for(const f of frontier) {
-               if (f.depth > 0 && pathCount < pathLimit) {
-                  paths.push({
-                    startId: request.startId,
-                    endId: f.entityId,
-                    edges: f.pathEdges,
-                    depth: f.depth
-                  });
-                  pathCount++;
-               }
-             }
+            for (const f of frontier) {
+              if (f.depth > 0 && pathCount < pathLimit) {
+                paths.push({
+                  startId: request.startId,
+                  endId: f.entityId,
+                  edges: f.pathEdges,
+                  depth: f.depth
+                });
+                pathCount++;
+              } else if (f.depth > 0) {
+                truncationOccurred = true;
+              }
+            }
           }
           
           paths.sort((a, b) => {
@@ -453,7 +468,7 @@ export class SqliteEngine implements EQueryEngine, EFixtureMutator {
             relations: Array.from(visitedRelations.values()),
             paths: paths
           };
-          if (pathCount >= pathLimit) {
+          if (truncationOccurred) {
             if (!result.metadata) result.metadata = { timeMs: 0 };
             result.metadata.partial = true;
             result.metadata.warnings = result.metadata.warnings || [];

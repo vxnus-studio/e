@@ -1,4 +1,4 @@
-# Forensic Audit Matrix (Phase 3 Update)
+# Forensic Audit Matrix (Phase 4 Update)
 
 ## Executive Summary
 
@@ -16,7 +16,7 @@ This forensic audit establishes the verified state of the `E` knowledge runtime 
 | **AUD-04** | **P1** | **Error Semantics** | Inconsistent error classes and validation ordering across engines on malformed inputs and unknown query types. | **RESOLVED (Phase 2)** | `packages/core/src/engine.ts`, `sqlite/src/index.ts`, `postgres/src/index.ts` | Callers received generic `Error` or mismatched ordering. | Normalized validation order and standardized `QueryError` / `UnsupportedOperationError` in Phase 2. |
 | **AUD-05** | **P1** | **Testing Integrity** | `search_audit.test.ts` only logged outputs without assertions. | **RESOLVED (Phase 1)** | `packages/differential/test/search_audit*.test.ts` | False confidence. | Converted to strict differential assertions in Phase 1. |
 | **AUD-06** | **P1** | **Search Parity** | SQLite `LIKE` operator is ASCII-only case folding; PostgreSQL and InMemory fold Unicode. | **DOCUMENTED PLATFORM LIMIT** | `test/search_audit_case.test.ts` | Non-ASCII search divergence on SQLite. | Documented in `CONTRACT.md` and `PARITY.md`. |
-| **AUD-07** | **P1** | **Traversal Safety** | Traversal intermediate candidate frontier expansion unbounded during step loop. | **OPEN (Slated Phase 4)** | `packages/core/src/engine.ts:266` | Memory spike on dense pathological graphs. | Bound intermediate candidate expansion in Phase 4. |
+| **AUD-07** | **P1** | **Traversal Safety** | Traversal intermediate candidate frontier expansion unbounded during step loop. | **RESOLVED (Phase 4)** | `packages/core/src/engine.ts`, `sqlite/src/index.ts`, `postgres/src/index.ts` | Memory spikes and non-uniform partial flags on dense graphs. | Bounded intermediate level expansion to `maxPaths` across all engines. |
 | **AUD-08** | **P1** | **Transactions / Mutations** | `EFixtureMutator` lacks atomic batch or rollback abstraction. | **OPEN (Slated Phase 6)** | `packages/core/src/types.ts:172-178` | Partial-write corruption on batch loads. | Implement transaction abstraction in Phase 6. |
 | **AUD-09** | **P2** | **Ordering Collation Divergence** | Search ordering uses UTF-16 code units (JS) vs UTF-8 byte comparison (SQL). | **OPEN (Slated Phase 5)** | `engine.ts:199` vs `postgres/src/index.ts:158` | Divergence on non-BMP characters. | Harmonize or document boundary in Phase 5. |
 | **AUD-10** | **P2** | **Schema & Migrations** | Fresh schema vs incremental migrations equivalence unverified. | **OPEN (Slated Phase 7)** | `postgres/schema.sql` vs migrations | Schema drift risk. | Add replay test in Phase 7. |
