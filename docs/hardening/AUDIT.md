@@ -2,6 +2,8 @@
 
 ## Executive Summary
 
+This matrix contains historical findings and is reconciled against the current head below. AUD-10's original “no migration runner” status is superseded by the SQLite runner and PostgreSQL `PostgresEngine.open()`/`migrate()` lifecycle; live PostgreSQL execution and scale measurement remain verification blockers.
+
 This forensic audit reconciles all historical findings across the entire E runtime codebase (`@vxnus/e`, `@vxnus/e-sqlite`, `@vxnus/e-postgres`, and `@vxnus/differential`).
 
 ---
@@ -19,6 +21,6 @@ This forensic audit reconciles all historical findings across the entire E runti
 | **AUD-07** | Traversal intermediate candidate frontier expansion unbounded during step loop. | **P1** | **RESOLVED (Phase 4)** | `core/src/engine.ts`, `sqlite/src/index.ts`, `postgres/src/index.ts` | Enforced intermediate level-by-level BFS candidate bounding ($\le \text{maxPaths}$). |
 | **AUD-08** | `EFixtureMutator` individual mutation atomicity vs batch primitives. | **P1** | **RESOLVED & DOCUMENTED (Phase 6)** | `differential/test/mutation_transaction.test.ts` | Documented single-operation atomicity and connection lifecycle safety. |
 | **AUD-09** | Search ordering uses UTF-16 code units (JS) vs UTF-8 byte comparison (SQL). | **P2** | **RESOLVED & DOCUMENTED (Phase 5)** | `engine.ts`, `sqlite/src/index.ts`, `postgres/src/index.ts` | BMP collation parity verified; non-BMP ordering documented in `SEARCH.md`. |
-| **AUD-10** | Fresh schema vs incremental migrations equivalence and replay safety are incomplete. | **P1** | **OPEN (Phase 8)** | `packages/*/migrations/001_add_provenance_and_identities.sql` | PostgreSQL lifecycle tests are environment-gated; SQLite migration 001 is not replay-safe and no migration-history runner exists. |
+| **AUD-10** | Fresh schema vs incremental migrations equivalence and replay safety are incomplete. | **P1** | **IMPLEMENTED; LIVE VERIFICATION PENDING** | `packages/*/src/index.ts`, `packages/*/schema.sql` | Runtime version/history runners now exist for SQLite and PostgreSQL with transactional upgrade and concurrency policy; live PostgreSQL execution remains environment-gated outside local workspace. |
 | **AUD-11** | SQLite parameter limits on large batched traversal lookups. | **P2** | **RESOLVED (Phase 8)** | `differential/test/scale_concurrency.test.ts` | Verified 500-parameter chunking preventing SQLite variable overflow. |
 | **AUD-12** | Concurrent writer duplicate insertion races. | **P2** | **RESOLVED (Phase 8)** | `differential/test/scale_concurrency.test.ts` | Verified atomic constraint violation handling across concurrent writers. |

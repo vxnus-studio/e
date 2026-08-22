@@ -2,13 +2,19 @@
 
 ## Status
 
-- Current phase: Phase 13 local verification complete; Phase 8 migration lifecycle remains open
+- Current phase: post-Phase-13 hardening iterations complete locally; live PostgreSQL verification and scale evidence remain open
 - Overall status: HARDENING
 - Date: 2026-08-22
 - HEAD: current working HEAD; see git log for the phase commits
 - Scope: E only. `e-teyvat` is out of scope.
 
-Phase 0 established the current repository baseline without source changes. E is not production-ready: PostgreSQL behavior was not exercised in this environment, and the initial contract/storage audit found known constraint mismatches to resolve in Phase 1.
+E is not production-ready in this workspace: PostgreSQL is not running locally, so three-backend parity and operational failure behavior remain unverified. The current head does include versioned SQLite/PostgreSQL migration infrastructure, bounded canonical JSON, batched PostgreSQL traversal, zero-budget traversal enforcement, pool background-error handling, and fail-closed CI PostgreSQL gates.
+
+### Current-head blockers
+
+- Live PostgreSQL execution is unavailable locally (`localhost:5432` has no response), so CI/live evidence is still required for traversal, migrations, persistence, pool exhaustion, timeouts, and concurrency.
+- Lexical substring search intentionally remains an O(N) leading-wildcard scan; no indexed production-scale search capability is advertised.
+- 100k/1m scale, memory, latency, and query-plan measurements are not established.
 
 ## Hardening phases
 

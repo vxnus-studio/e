@@ -64,4 +64,4 @@ Short storage fields use a 255-character limit across the runtime validator, Pos
 
 ## 3. Lifecycle Boundary
 
-`schema.sql` is a fresh-install definition. The repository currently has no schema version table or automatic migration runner. PostgreSQL migration `001` is statement-level idempotent; SQLite migration `001` is not replay-safe. Upgrade safety therefore remains an operational responsibility until versioned migration infrastructure is introduced.
+`schema.sql` is a fresh-install definition. SQLite `SqliteEngine` and PostgreSQL `PostgresEngine.open()` provide versioned runtime lifecycle management through `e_schema_migrations`. SQLite upgrades use `BEGIN IMMEDIATE`; PostgreSQL upgrades use a transaction-scoped advisory lock. The SQL files under `packages/*/migrations` are manual/historical artifacts; production callers should use the runtime lifecycle APIs.
