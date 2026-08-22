@@ -21,7 +21,7 @@ Phase 0 established the current repository baseline without source changes. E is
 | 4. Result size / memory safety | COMPLETE (local; PostgreSQL execution pending) | Result-limit differential test: 10 passed; workspace: 89 passed, 1 skipped; build passed | PostgreSQL runtime result-limit execution remains unverified; pagination beyond limit is not yet cursor-based |
 | 5. Search | COMPLETE (semantics; scale blocker remains) | Search adversarial/audit: 17 passed; build passed | Lexical substring search remains O(N); PostgreSQL execution remains unverified |
 | 6. Resolution | COMPLETE (local; PostgreSQL execution pending) | Differential resolution suite: 12 passed; PostgreSQL branch skipped locally | PostgreSQL runtime resolution remains unverified |
-| 7. Claims / documents / provenance / temporal | PENDING | Existing tests only | Persistence is tested in selected paths, but temporal query semantics and limits are not established |
+| 7. Claims / documents / provenance / temporal | COMPLETE (persistence semantics) | Persistence round-trip suite: existing metadata tests pass; PostgreSQL execution pending | No temporal/provenance query capability; semantics are intentionally persistence-only |
 | 8. PostgreSQL schema / migrations | PENDING | Existing tests only; PostgreSQL skipped locally | Migration files are not visibly tracked by a migration table; fresh/upgrade/replay behavior requires live PostgreSQL verification |
 | 9. Batch ingestion | PENDING | Existing tests only | Atomicity exists in code/tests, but batching cost, size bounds, retry, and idempotency semantics remain open |
 | 10. Concurrency / connection safety | PENDING | Existing tests only | PostgreSQL pool and failure behavior are unverified without a live database |
@@ -143,6 +143,20 @@ Phase 0 established the current repository baseline without source changes. E is
 - documentation impact: Updated `docs/CONTRACT.md`, `docs/hardening/PARITY.md`, and this document.
 - remaining risk: PostgreSQL runtime execution remains gated.
 
+### F-0009 (RESOLVED in Phase 7)
+
+- ID: F-0009
+- severity: P2
+- subsystem: Claims/documents/provenance/temporal semantics
+- problem: Persistence round-trip coverage existed, but the public contract did not clearly distinguish stored metadata from queryable temporal/provenance semantics.
+- root cause: Capability flags and field types existed without a consolidated semantic boundary.
+- affected engines: InMemory, SQLite, PostgreSQL.
+- reproduction: Supply timestamp strings with offsets or domain-specific temporal labels; values round-trip, but no temporal filtering or normalization occurs.
+- fix: Confirmed and documented exact opaque-string persistence, strict claim confidence, required claim source, document ownership lookup, and absence of temporal/provenance query behavior.
+- regression test: Existing persistence round-trip coverage for entity/relation/claim/document metadata; PostgreSQL branch remains gated locally.
+- documentation impact: Updated `docs/CONTRACT.md`, `docs/hardening/PERSISTENCE.md`, and this document.
+- remaining risk: Consumers needing temporal reasoning or provenance ranking require a future explicit capability and contract extension.
+
 ## Contract decisions
 
 No new semantic decisions were made in Phase 0. Existing documented decisions remain provisional until revalidated against current code and all backends, including:
@@ -182,7 +196,7 @@ Phase 1 decision: identifier-like and short textual storage fields have a 255-ch
 - [ ] Connection/pool lifecycle is safe
 - [ ] Schema lifecycle is understood
 - [ ] Migration lifecycle is safe
-- [ ] Provenance/temporal semantics are documented
+- [x] Provenance/temporal semantics are documented as opaque persistence-only metadata
 - [ ] Scale envelope is documented
 - [ ] Current HEAD passes the complete suite
 - [ ] Hardening documentation is up to date
@@ -295,3 +309,15 @@ Tests and commands run:
 Remaining risk: PostgreSQL resolution execution remains unverified because `TEST_DATABASE_URL` is unset.
 
 Phase 6 is complete for locally available engines.
+
+## Phase 7 record
+
+Files changed: `docs/CONTRACT.md`, `docs/hardening/PERSISTENCE.md`, and this document.
+
+Tests and commands run:
+
+- Existing persistence round-trip suite is the regression basis for all first-class metadata fields; PostgreSQL branches remain environment-gated.
+
+Remaining risk: temporal/provenance query capabilities are intentionally absent and must not be advertised by current engines.
+
+Phase 7 is complete as a persistence and contract audit.

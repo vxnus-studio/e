@@ -106,8 +106,10 @@ All queries accept a discriminated union `QueryRequest` and return a unified `Kn
 - **Ordering**: **Contractually Ordered**. Paths are sorted deterministically by: `Depth` -> `Lexical representation of edges` -> `Target Entity ID`.
 
 ## 5. Temporal and Provenance Semantics
-- **Temporal**: Supported fields (`observedAt`, `validFrom`, etc.) are currently inert metadata. The engine does not perform temporal filtering or interval intersections.
-- **Provenance**: Opaque JSON metadata. The engine does not evaluate confidence or derive facts from provenance during queries.
+- **Temporal**: Supported fields (`observedAt`, `publishedAt`, `validFrom`, `validUntil`) are opaque strings persisted exactly as supplied. The engine does not parse, normalize, infer timezone semantics, perform temporal filtering, or compute interval intersections. `temporalQueries` is therefore `false` for all current engines.
+- **Provenance**: Opaque validated metadata persisted and returned on round-trip. The engine does not evaluate confidence, derive facts, or rank results from provenance during queries.
+- **Claims**: `confidence` is a strict enum and `source` is required; claim filtering beyond owning `entityId` is not implemented.
+- **Documents**: `content` is persisted as supplied and retrieved by owning `entityId`; full-text document search is not implemented.
 
 ## 6. Error Model
 - **Generic Errors**: Currently, the API emits generic JavaScript `Error` objects for unsupported modes or constraint failures.

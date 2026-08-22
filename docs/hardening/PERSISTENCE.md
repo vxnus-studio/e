@@ -54,3 +54,7 @@ This document establishes the end-to-end field persistence and memory isolation 
 1. **JSON Serialization in SQLite**: SQLite stores JSON as text. Optional JSON fields serialize to `null` if omitted or undefined, and deserializers reconstruct them into plain JavaScript objects.
 2. **Native JSONB in PostgreSQL**: PostgreSQL columns are typed as `JSONB`. Mappers directly receive parsed JSON objects from `pg`.
 3. **Complex JSON Integrity**: Booleans (`true`/`false`), zero numbers (`0`), empty strings (`""`), empty objects (`{}`), empty arrays (`[]`), nested objects, and explicit `null` values survive round-trip storage across all engines identically.
+
+## 4. Temporal and Provenance Query Boundary
+
+Temporal fields are stored as opaque strings and returned byte-for-byte at the API level. E does not currently define date parsing, timezone normalization, temporal filtering, interval intersection, or temporal ordering. Provenance is similarly persisted opaque metadata; its confidence and lineage fields do not affect query ranking or filtering. These are intentional persistence semantics, not incomplete hidden query behavior.
