@@ -112,7 +112,7 @@ All queries accept a discriminated union `QueryRequest` and return a unified `Kn
 - **Documents**: `content` is persisted as supplied and retrieved by owning `entityId`; full-text document search is not implemented.
 
 ## 6. Error Model
-- **Generic Errors**: Currently, the API emits generic JavaScript `Error` objects for unsupported modes or constraint failures.
+- **Error taxonomy**: Malformed requests use `QueryError`, unsupported capabilities use `UnsupportedOperationError`, integrity violations use `ConstraintError`, and backend/driver failures use `StorageError` with the adapter error preserved as `cause` for diagnostics.
 - **Constraint Errors**: Throw when attempting to insert orphaned relations/aliases or duplicate IDs.
 - **Limit Errors**: Throw on invalid traversal limits (e.g. negative depth).
 

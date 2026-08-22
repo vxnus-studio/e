@@ -36,7 +36,7 @@ export interface EBatchMutator {
 - **PostgreSQL (`PostgresEngine`)**:
   - Connects a dedicated client from the connection pool.
   - Issues `BEGIN`, iterates over entities, aliases, relations, claims, and documents.
-  - On any failure (foreign key constraint, uniqueness violation, syntax error), executes `ROLLBACK`, translates error to canonical `ConstraintError` / `QueryError`, and guarantees zero partial records remain committed.
+  - On any failure (foreign key constraint, uniqueness violation, syntax error), executes `ROLLBACK`, translates the failure to the canonical `ConstraintError` / `StorageError` taxonomy, and guarantees zero partial records remain committed.
   - On success, issues `COMMIT` and releases client back to the pool.
 - **SQLite (`SqliteEngine`)**:
   - Wraps batch ingestion in `this.db.transaction(() => { ... })()`.

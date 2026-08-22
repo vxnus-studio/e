@@ -2,10 +2,10 @@
 
 ## Status
 
-- Current phase: Phase 0 complete; Phase 1 ready to begin
+- Current phase: Phase 10 complete locally; Phase 8 migration lifecycle remains open
 - Overall status: HARDENING
 - Date: 2026-08-22
-- HEAD: `a3fec09` (`hardening(p0-4): validate query inputs at runtime`)
+- HEAD: `456bb34` (`hardening: bound batch ingestion`)
 - Scope: E only. `e-teyvat` is out of scope.
 
 Phase 0 established the current repository baseline without source changes. E is not production-ready: PostgreSQL behavior was not exercised in this environment, and the initial contract/storage audit found known constraint mismatches to resolve in Phase 1.
@@ -24,7 +24,7 @@ Phase 0 established the current repository baseline without source changes. E is
 | 7. Claims / documents / provenance / temporal | COMPLETE (persistence semantics) | Persistence round-trip suite: existing metadata tests pass; PostgreSQL execution pending | No temporal/provenance query capability; semantics are intentionally persistence-only |
 | 8. PostgreSQL schema / migrations | IN PROGRESS | Schema lifecycle: 4 SQLite tests passed; PostgreSQL lifecycle skipped | No migration-history/version runner; SQLite migration 001 is not replay-safe; live PostgreSQL verification pending |
 | 9. Batch ingestion | COMPLETE (local; PostgreSQL execution pending) | Atomic batch suite and batch-boundary test pass; PostgreSQL branches skipped locally | PostgreSQL batch cost remains N-round-trip and retry after ambiguous failure is caller-managed |
-| 10. Concurrency / connection safety | PENDING | Existing tests only | PostgreSQL pool and failure behavior are unverified without a live database |
+| 10. Concurrency / connection safety | COMPLETE (local; PostgreSQL execution pending) | Pool lifecycle regression and workspace build pass; PostgreSQL concurrency branches skipped | Live pool exhaustion, connection acquisition failure, timeout, and isolation behavior remain unverified |
 | 11. Scale review | PENDING | Existing 1k-scale tests | 100k/1m behavior and actual query plans are not established |
 | 12. Differential / adversarial testing | PENDING | 72 differential tests currently pass without PostgreSQL | Three-backend parity is incomplete locally because PostgreSQL is skipped |
 | 13. Current-head verification | PENDING | Not run | Final readiness cannot be assessed until all phases and live PostgreSQL verification complete |
@@ -185,6 +185,20 @@ Phase 0 established the current repository baseline without source changes. E is
 - documentation impact: Updated `docs/hardening/MUTATIONS.md` and this document.
 - remaining risk: PostgreSQL currently executes one SQL statement per row; no automatic retry is provided.
 
+### F-0012 (RESOLVED locally in Phase 10)
+
+- ID: F-0012
+- severity: P1
+- subsystem: PostgreSQL connection lifecycle and error translation
+- problem: `ingestBatch()` acquired a pool client outside its error boundary, so connection-acquisition failures could escape as raw driver errors. Repeated `close()` calls also had no explicit idempotency contract.
+- root cause: Transaction setup and shutdown behavior were not treated as part of the adapter lifecycle contract.
+- affected engines: PostgreSQL.
+- reproduction: Force pool connection acquisition to fail, or call `close()` more than once; prior behavior was not guaranteed to use the canonical storage error or stable shutdown semantics.
+- fix: Guarded the PostgreSQL engine lifecycle, made `close()` idempotent, rejected operations after close with `StorageError(code=ENGINE_CLOSED)`, and moved client acquisition into the batch error boundary with conditional rollback/release.
+- regression test: `packages/postgres/test/lifecycle.test.ts`.
+- documentation impact: Updated `docs/hardening/CONCURRENCY.md`, `docs/hardening/TRANSACTIONS.md`, and this document.
+- remaining risk: Live PostgreSQL verification of pool exhaustion, acquisition failure, timeouts, concurrent transactions, and isolation remains pending.
+
 ## Contract decisions
 
 No new semantic decisions were made in Phase 0. Existing documented decisions remain provisional until revalidated against current code and all backends, including:
@@ -205,9 +219,9 @@ Phase 1 decision: identifier-like and short textual storage fields have a 255-ch
 | Foreign-key integrity | Explicit checks | Foreign keys | Foreign keys | Intended yes | Partial | P1 |
 | Lexical search | In-memory scan | `ILIKE` scan | `LIKE` scan | Documented Unicode divergence | Partial | P1 |
 | Traversal | Bounded BFS | Bounded SQL-backed BFS | Bounded SQL-backed BFS | Not yet proven at current HEAD | Partial | P1 |
-| Claims/documents result size | No explicit query limit | No explicit query limit | No explicit query limit | Yes, but potentially unbounded | No adversarial limit audit | P1 |
-| Batch ingestion | Snapshot rollback | SQL transaction | SQL transaction | Intended atomicity | Partial | P1 |
-| PostgreSQL connection failures | N/A | Not locally exercised | N/A | Not applicable | No | P1 |
+| Claims/documents result size | Default 1,000; caller limit capped at 10,000 | Default 1,000; caller limit capped at 10,000 | Default 1,000; caller limit capped at 10,000 | Yes for documented limits | Partial | PostgreSQL execution pending |
+| Batch ingestion | Snapshot rollback | SQL transaction | SQL transaction | Intended atomicity; replay is not idempotent | Partial | PostgreSQL throughput and failure paths pending |
+| PostgreSQL connection lifecycle | N/A | Idempotent close; pool query/release; StorageError on lifecycle failure | N/A | PostgreSQL-specific | Partial | Live database required |
 
 ## Production readiness checklist
 
@@ -219,9 +233,9 @@ Phase 1 decision: identifier-like and short textual storage fields have a 255-ch
 - [x] Search semantics are explicit; arbitrary substring search remains an O(N) documented limitation
 - [x] Resolution semantics are explicit and ambiguity-preserving; PostgreSQL runtime verification pending
 - [x] Error taxonomy is useful for locally tested adapters; PostgreSQL runtime verification remains pending
-- [ ] Batch writes are atomic
+- [x] Batch writes are atomic for locally tested engines; PostgreSQL runtime verification pending
 - [x] Batch writes have defined retry/idempotency behavior; PostgreSQL throughput remains a scale risk
-- [ ] Connection/pool lifecycle is safe
+- [x] Connection/pool lifecycle contract is explicit and locally regression-tested; live PostgreSQL stress verification pending
 - [ ] Schema lifecycle is understood end-to-end
 - [ ] Migration lifecycle is safe and version-tracked
 - [x] Provenance/temporal semantics are documented as opaque persistence-only metadata
@@ -233,8 +247,9 @@ Phase 1 decision: identifier-like and short textual storage fields have a 255-ch
 ## Remaining blockers
 
 1. PostgreSQL cannot be considered verified until the suite runs against a live `TEST_DATABASE_URL`.
-2. Field-length semantics are inconsistent between validation, SQLite, and PostgreSQL.
-3. The complete hardening program has not yet audited all result-size, traversal-work, error, migration, batch, concurrency, and scale contracts at this HEAD.
+2. Migration lifecycle is not version-tracked or replay-safe for SQLite (F-0010).
+3. Search remains an O(N) substring scan at scale (F-0007).
+4. Scale review, complete differential/adversarial coverage, and current-head verification remain outstanding.
 
 ## Phase 0 record
 
@@ -372,3 +387,22 @@ Tests and commands run:
 Remaining risk: PostgreSQL batch ingestion uses one round trip per row and requires future measured optimization; retries remain intentionally caller-controlled.
 
 Phase 9 is complete for the contract and local validation behavior.
+
+## Phase 10 record
+
+Files changed: `packages/postgres/src/index.ts`, `packages/postgres/test/lifecycle.test.ts`, `docs/hardening/CONCURRENCY.md`, `docs/hardening/TRANSACTIONS.md`, `docs/hardening/MUTATIONS.md`, `docs/CONTRACT.md`, and this document.
+
+Tests and commands run:
+
+- PostgreSQL lifecycle regression — 1 passed without requiring a live database.
+- `npm run build` — passed for all build-enabled workspaces.
+- `npm test` — core 15 passed, differential 75 passed, SQLite 4 passed, PostgreSQL 1 skipped; dependency check passed.
+- `git diff --check` — passed.
+
+Failures and remaining risks:
+
+- No local test failures.
+- Vitest poolOptions and Vite ESM/CommonJS warnings remain tracked as F-0003.
+- Live PostgreSQL pool exhaustion, connection-acquisition failure, timeout, transaction isolation, and serialization behavior remain unverified.
+
+Phase 10 is complete for the lifecycle contract and locally testable behavior. It is not a claim of live PostgreSQL production verification.

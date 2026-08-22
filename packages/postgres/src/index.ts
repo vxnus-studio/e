@@ -41,17 +41,30 @@ import {
 
 export class PostgresEngine implements EQueryEngine, EFixtureMutator, EBatchMutator {
   private pool: Pool;
+  private closed = false;
+  private closePromise?: Promise<void>;
 
   constructor(config: PoolConfig) {
     this.pool = new Pool(config);
   }
 
   async close() {
-    await this.pool.end();
+    if (!this.closePromise) {
+      this.closed = true;
+      this.closePromise = this.pool.end();
+    }
+    await this.closePromise;
+  }
+
+  private assertOpen(): void {
+    if (this.closed) {
+      throw new StorageError("PostgreSQL engine is closed", undefined, "ENGINE_CLOSED");
+    }
   }
 
   async query(request: QueryRequest): Promise<KnowledgeResult> {
     validateQueryRequest(request);
+    this.assertOpen();
     const startTime = Date.now();
     const result: KnowledgeResult = {
       entities: [],
@@ -616,6 +629,7 @@ export class PostgresEngine implements EQueryEngine, EFixtureMutator, EBatchMuta
 
   async insertEntity(entity: Entity): Promise<void> {
     validateEntity(entity);
+    this.assertOpen();
     try {
       await this.pool.query(
         `INSERT INTO e_entities (id, namespace, kind, slug, name, data, identities, provenance, temporal)
@@ -637,6 +651,7 @@ export class PostgresEngine implements EQueryEngine, EFixtureMutator, EBatchMuta
 
   async insertAlias(alias: Alias): Promise<void> {
     validateAlias(alias);
+    this.assertOpen();
     try {
       await this.pool.query(
         "INSERT INTO e_aliases (id, entity_id, alias) VALUES ($1, $2, $3)",
@@ -647,6 +662,7 @@ export class PostgresEngine implements EQueryEngine, EFixtureMutator, EBatchMuta
 
   async insertRelation(relation: Relation): Promise<void> {
     validateRelation(relation);
+    this.assertOpen();
     try {
       await this.pool.query(
         `INSERT INTO e_relations (id, subject_id, predicate, object_id, provenance, temporal, metadata)
@@ -666,6 +682,7 @@ export class PostgresEngine implements EQueryEngine, EFixtureMutator, EBatchMuta
 
   async insertClaim(claim: Claim): Promise<void> {
     validateClaim(claim);
+    this.assertOpen();
     try {
       await this.pool.query(
         `INSERT INTO e_claims (id, entity_id, statement, confidence, source, provenance, temporal)
@@ -685,6 +702,7 @@ export class PostgresEngine implements EQueryEngine, EFixtureMutator, EBatchMuta
 
   async insertDocument(doc: Document): Promise<void> {
     validateDocument(doc);
+    this.assertOpen();
     try {
       await this.pool.query(
         `INSERT INTO e_documents (id, entity_id, content, provenance)
@@ -702,9 +720,11 @@ export class PostgresEngine implements EQueryEngine, EFixtureMutator, EBatchMuta
   // --- EBatchMutator Implementation (Atomic Transactions) ---
   async ingestBatch(dataset: BatchDataset): Promise<BatchIngestResult> {
     validateBatchDataset(dataset);
+    this.assertOpen();
     const startTime = Date.now();
-    const client = await this.pool.connect();
+    let client: PoolClient | undefined;
     try {
+      client = await this.pool.connect();
       await client.query("BEGIN");
 
       let entitiesCount = 0;
@@ -800,7 +820,7 @@ export class PostgresEngine implements EQueryEngine, EFixtureMutator, EBatchMuta
       };
     } catch (e: any) {
       try {
-        await client.query("ROLLBACK");
+        if (client) await client.query("ROLLBACK");
       } catch (rollbackError) {
         throw new StorageError(
           "PostgreSQL transaction rollback failed",
@@ -808,9 +828,9 @@ export class PostgresEngine implements EQueryEngine, EFixtureMutator, EBatchMuta
           "TRANSACTION_ROLLBACK_FAILED",
         );
       }
-      this.handlePostgresError(e);
+      return this.handlePostgresError(e);
     } finally {
-      client.release();
+      client?.release();
     }
   }
 }

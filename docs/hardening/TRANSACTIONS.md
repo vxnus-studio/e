@@ -20,4 +20,7 @@ Currently, `EFixtureMutator` executes mutations sequentially. Individual operati
 ## 2. PostgreSQL Connection Pool Lifecycle Invariants
 
 1. **Connection Safety**: PostgreSQL pool queries utilize single parameterized statements through `pool.query()`, ensuring automatic return of client connections to the pool upon completion or rejection.
-2. **Leak Prevention**: Errors thrown during insertion or querying release the allocated connection immediately without exhausting `pool.totalCount`.
+2. **Leak Prevention**: Errors thrown during insertion or querying release the allocated connection immediately without exhausting `pool.totalCount`; batch clients are released in `finally`.
+3. **Acquisition failures**: A failure before a batch client is acquired is translated to `StorageError`; rollback is attempted only after acquisition succeeds.
+4. **Shutdown**: `PostgresEngine.close()` is idempotent. Operations submitted after shutdown receive `StorageError(code=ENGINE_CLOSED)`.
+5. **Retry policy**: E does not automatically retry transactions or mutations. Batch replay is caller-managed and is not idempotent.
