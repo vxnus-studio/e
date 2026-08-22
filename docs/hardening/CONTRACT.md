@@ -12,9 +12,9 @@ This document defines the strict, authoritative semantic contract for `@vxnus/e`
 - **`kind`** (`string`, Non-empty): Entity type/category.
 - **`slug`** (`string`, Non-empty): URL-safe human identifier.
 - **`name`** (`string`): Display name.
-- **`data`** (`CanonicalJsonObject`): Canonical structured JSON object. Must only contain canonical JSON primitives (strings, finite numbers, booleans, nulls), arrays, and plain objects. Rejects `undefined`, `NaN`, `Infinity`, `BigInt`, `Date`, `Map`, `Set`, cyclic structures, and custom class instances with `ConstraintError (VALIDATION_ERROR)`.
-- **`identities`** (`IdentityMapping[]`, Optional): External provider identifiers (`provider`, `externalId`).
-- **`provenance`** (`Provenance`, Optional): Source lineage metadata (`provider`, `source`, `confidence`, etc.).
+- **`data`** (`CanonicalJsonObject`): Canonical structured JSON object. Must only contain canonical JSON primitives (strings, finite numbers, booleans, nulls), arrays, and plain objects. Rejects `undefined`, `NaN`, `Infinity`, `BigInt`, `Date`, `Map`, `Set`, cyclic structures, and custom class instances with `ConstraintError (VALIDATION_ERROR)`. The validator is iterative and enforces a maximum depth of 64, array length of 10,000, object key count of 10,000, string length of 1,000,000 characters, and serialized payload length of 4,000,000 characters.
+- **`identities`** (`IdentityMapping[]`, Optional): External provider identifiers (`provider`, `externalId`), bounded to 1,000 mappings per entity.
+- **`provenance`** (`Provenance`, Optional): Source lineage metadata (`provider`, `source`, `confidence`, etc.). `derivedFrom` is bounded to 1,000 identifier strings.
 - **`temporal`** (`TemporalSemantics`, Optional): Validity and observation timestamps.
 
 ### 1.2 `Alias`

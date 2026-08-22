@@ -24,6 +24,13 @@ import {
   MAX_PROVENANCE_EXTRACTED_VIA_LENGTH,
   MAX_IDENTITY_EXTERNAL_ID_LENGTH,
   MAX_SAFE_BATCH_ITEMS,
+  MAX_SAFE_JSON_DEPTH,
+  MAX_SAFE_JSON_ARRAY_LENGTH,
+  MAX_SAFE_JSON_OBJECT_KEYS,
+  MAX_SAFE_JSON_STRING_LENGTH,
+  MAX_SAFE_JSON_SERIALIZED_LENGTH,
+  MAX_SAFE_IDENTITY_MAPPINGS,
+  MAX_SAFE_PROVENANCE_LINEAGE,
 } from "./types.js";
 
 const VALID_CONFIDENCE_LEVELS = new Set(["canon", "theory", "outdated", "unverified"]);
@@ -76,10 +83,14 @@ export function validateProvenance(prov: unknown): void {
     if (!Array.isArray(p.derivedFrom)) {
       throw new ConstraintError("Invalid provenance.derivedFrom: must be an array of strings", undefined, "VALIDATION_ERROR");
     }
+    if (p.derivedFrom.length > MAX_SAFE_PROVENANCE_LINEAGE) {
+      throw new ConstraintError(`Invalid provenance.derivedFrom: exceeds maximum allowed length of ${MAX_SAFE_PROVENANCE_LINEAGE}`, undefined, "VALIDATION_ERROR");
+    }
     for (const item of p.derivedFrom) {
       if (typeof item !== "string") {
         throw new ConstraintError("Invalid provenance.derivedFrom element: must be a string", undefined, "VALIDATION_ERROR");
       }
+      validateOptionalString(item, "provenance.derivedFrom element", MAX_STORAGE_IDENTIFIER_LENGTH);
     }
   }
 }
@@ -101,6 +112,9 @@ export function validateIdentities(identities: unknown): void {
   if (!Array.isArray(identities)) {
     throw new ConstraintError("Invalid identities: must be an array", undefined, "VALIDATION_ERROR");
   }
+  if (identities.length > MAX_SAFE_IDENTITY_MAPPINGS) {
+    throw new ConstraintError(`Invalid identities: exceeds maximum allowed length of ${MAX_SAFE_IDENTITY_MAPPINGS}`, undefined, "VALIDATION_ERROR");
+  }
   for (const idm of identities) {
     if (!idm || typeof idm !== "object" || Array.isArray(idm)) {
       throw new ConstraintError("Invalid identity mapping: must be an object", undefined, "VALIDATION_ERROR");
@@ -115,86 +129,80 @@ export function validateCanonicalJson(
   fieldName: string,
   seen: Set<unknown> = new Set()
 ): void {
-  if (val === null) {
-    return;
-  }
-  const t = typeof val;
-  if (t === "string" || t === "boolean") {
-    return;
-  }
-  if (t === "number") {
-    if (!Number.isFinite(val)) {
-      throw new ConstraintError(
-        `Invalid ${fieldName}: number values must be finite (received ${val})`,
-        undefined,
-        "VALIDATION_ERROR"
-      );
-    }
-    return;
-  }
-  if (t === "undefined") {
-    throw new ConstraintError(
-      `Invalid ${fieldName}: undefined is not allowed in canonical JSON`,
-      undefined,
-      "VALIDATION_ERROR"
-    );
-  }
-  if (t === "bigint" || t === "symbol" || t === "function") {
-    throw new ConstraintError(
-      `Invalid ${fieldName}: type '${t}' is not supported in canonical JSON`,
-      undefined,
-      "VALIDATION_ERROR"
-    );
-  }
-  if (t === "object") {
-    if (seen.has(val)) {
-      throw new ConstraintError(
-        `Invalid ${fieldName}: cyclic structures are not allowed`,
-        undefined,
-        "VALIDATION_ERROR"
-      );
-    }
-    seen.add(val);
+  type Frame = { value: unknown; path: string; depth: number; exit?: boolean };
+  const stack: Frame[] = [{ value: val, path: fieldName, depth: 0 }];
+  const active = seen;
 
-    if (Array.isArray(val)) {
-      for (let i = 0; i < val.length; i++) {
-        validateCanonicalJson(val[i], `${fieldName}[${i}]`, seen);
+  while (stack.length > 0) {
+    const frame = stack.pop()!;
+    if (frame.exit) {
+      active.delete(frame.value);
+      continue;
+    }
+    const current = frame.value;
+    if (current === null || typeof current === "boolean") continue;
+    if (typeof current === "string") {
+      if ([...current].length > MAX_SAFE_JSON_STRING_LENGTH) {
+        throw new ConstraintError(`Invalid ${frame.path}: string exceeds maximum allowed length of ${MAX_SAFE_JSON_STRING_LENGTH}`, undefined, "VALIDATION_ERROR");
       }
-      seen.delete(val);
-      return;
+      continue;
+    }
+    if (typeof current === "number") {
+      if (!Number.isFinite(current)) {
+        throw new ConstraintError(`Invalid ${frame.path}: number values must be finite (received ${current})`, undefined, "VALIDATION_ERROR");
+      }
+      continue;
+    }
+    if (typeof current === "undefined" || typeof current === "bigint" || typeof current === "symbol" || typeof current === "function") {
+      throw new ConstraintError(`Invalid ${frame.path}: type '${typeof current}' is not supported in canonical JSON`, undefined, "VALIDATION_ERROR");
+    }
+    if (frame.depth > MAX_SAFE_JSON_DEPTH) {
+      throw new ConstraintError(`Invalid ${frame.path}: nesting exceeds maximum depth of ${MAX_SAFE_JSON_DEPTH}`, undefined, "VALIDATION_ERROR");
+    }
+    if (active.has(current)) {
+      throw new ConstraintError(`Invalid ${frame.path}: cyclic structures are not allowed`, undefined, "VALIDATION_ERROR");
+    }
+    active.add(current);
+    stack.push({ value: current, path: frame.path, depth: frame.depth, exit: true });
+
+    if (Array.isArray(current)) {
+      if (current.length > MAX_SAFE_JSON_ARRAY_LENGTH) {
+        throw new ConstraintError(`Invalid ${frame.path}: array exceeds maximum allowed length of ${MAX_SAFE_JSON_ARRAY_LENGTH}`, undefined, "VALIDATION_ERROR");
+      }
+      for (let i = current.length - 1; i >= 0; i--) {
+        stack.push({ value: current[i], path: `${frame.path}[${i}]`, depth: frame.depth + 1 });
+      }
+      continue;
     }
 
-    const obj = val as Record<string, unknown>;
+    const obj = current as Record<string, unknown>;
     const proto = Object.getPrototypeOf(obj);
     if (proto !== null && proto !== Object.prototype) {
       const ctorName = (obj as any).constructor?.name || "non-plain object";
-      throw new ConstraintError(
-        `Invalid ${fieldName}: custom class or non-plain object instance (${ctorName}) is not allowed in canonical JSON`,
-        undefined,
-        "VALIDATION_ERROR"
-      );
+      throw new ConstraintError(`Invalid ${frame.path}: custom class or non-plain object instance (${ctorName}) is not allowed in canonical JSON`, undefined, "VALIDATION_ERROR");
     }
-
-    for (const key of Object.keys(obj)) {
-      const childVal = obj[key];
-      if (childVal === undefined) {
-        throw new ConstraintError(
-          `Invalid ${fieldName}.${key}: undefined object properties are not allowed in canonical JSON`,
-          undefined,
-          "VALIDATION_ERROR"
-        );
+    const keys = Object.keys(obj);
+    if (keys.length > MAX_SAFE_JSON_OBJECT_KEYS) {
+      throw new ConstraintError(`Invalid ${frame.path}: object exceeds maximum key count of ${MAX_SAFE_JSON_OBJECT_KEYS}`, undefined, "VALIDATION_ERROR");
+    }
+    for (let i = keys.length - 1; i >= 0; i--) {
+      const key = keys[i]!;
+      if (obj[key] === undefined) {
+        throw new ConstraintError(`Invalid ${frame.path}.${key}: undefined object properties are not allowed in canonical JSON`, undefined, "VALIDATION_ERROR");
       }
-      validateCanonicalJson(childVal, `${fieldName}.${key}`, seen);
+      stack.push({ value: obj[key], path: `${frame.path}.${key}`, depth: frame.depth + 1 });
     }
-    seen.delete(val);
-    return;
   }
 
-  throw new ConstraintError(
-    `Invalid ${fieldName}: unsupported value of type '${t}'`,
-    undefined,
-    "VALIDATION_ERROR"
-  );
+  let serialized: string;
+  try {
+    serialized = JSON.stringify(val);
+  } catch (error) {
+    throw new ConstraintError(`Invalid ${fieldName}: could not serialize canonical JSON`, error, "VALIDATION_ERROR");
+  }
+  if (serialized.length > MAX_SAFE_JSON_SERIALIZED_LENGTH) {
+    throw new ConstraintError(`Invalid ${fieldName}: serialized JSON exceeds maximum length of ${MAX_SAFE_JSON_SERIALIZED_LENGTH}`, undefined, "VALIDATION_ERROR");
+  }
 }
 
 export function validateEntity(entity: unknown): asserts entity is Entity {

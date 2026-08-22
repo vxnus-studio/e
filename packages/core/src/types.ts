@@ -185,6 +185,17 @@ export const MAX_PROVENANCE_OBSERVED_AT_LENGTH = 100;
 export const MAX_PROVENANCE_EXTRACTED_VIA_LENGTH = 500;
 export const MAX_IDENTITY_EXTERNAL_ID_LENGTH = 1000;
 
+// Canonical JSON is persisted as one bounded payload. These limits are large
+// enough for normal knowledge records while preventing recursive validation,
+// driver payloads, and lineage arrays from becoming unbounded resources.
+export const MAX_SAFE_JSON_DEPTH = 64;
+export const MAX_SAFE_JSON_ARRAY_LENGTH = 10_000;
+export const MAX_SAFE_JSON_OBJECT_KEYS = 10_000;
+export const MAX_SAFE_JSON_STRING_LENGTH = 1_000_000;
+export const MAX_SAFE_JSON_SERIALIZED_LENGTH = 4_000_000;
+export const MAX_SAFE_IDENTITY_MAPPINGS = 1_000;
+export const MAX_SAFE_PROVENANCE_LINEAGE = 1_000;
+
 export interface QueryMetadata {
   timeMs: number;
   warnings?: string[];
