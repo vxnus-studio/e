@@ -29,6 +29,10 @@ To prevent unbounded memory growth on pathological high-fan-out graphs ($A \to B
 
 Database fetch queries in `SqliteEngine` and `PostgresEngine` bound intermediate edge fetching to the remaining expansion budget (`remainingRelationBudget + 1`), preventing driver materialization of massive edge sets on high-degree nodes. Rows fetched beyond remaining budgets are strictly excluded from returned entities, visited relations, path expansion, and result counters.
 
+The remaining relation budget is allocated deterministically across the entities in the current frontier (`floor(remainingBudget / frontierEntityCount)`, with the remainder assigned to the earliest frontier entities). SQL adapters issue bounded per-frontier-entity fetches rather than one global `LIMIT`, so a high-degree entity cannot consume the entire fetch budget and starve later frontier entities. InMemory uses the same round-robin edge expansion order.
+
+If a bounded per-entity fetch returns exactly its allocation, traversal reports `partial: true` because additional matching rows may have been suppressed by that allocation. This conservative signal avoids claiming completeness when the bounded query cannot prove that no rows remain.
+
 ```typescript
 if (totalRelationsExpanded >= maxRelationsExpanded) {
   truncationOccurred = true;
@@ -59,4 +63,3 @@ All engines apply an identical canonical sort order to discovered paths:
 - **`InMemoryEngine`**: Synchronous in-memory BFS expansion with bounded edge and entity evaluation.
 - **`SqliteEngine`**: Level-by-level batched `SELECT ... WHERE subject_id/object_id IN (...)` (chunked at 500 IDs with budget-aware limits).
 - **`PostgresEngine`**: Level-by-level batched `SELECT ... WHERE subject_id/object_id = ANY($1)` with `ORDER BY id ASC LIMIT $budget`.
-

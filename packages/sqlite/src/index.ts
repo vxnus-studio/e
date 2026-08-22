@@ -382,41 +382,35 @@ export class SqliteEngine implements EQueryEngine, EFixtureMutator, EBatchMutato
                 break;
               }
 
-              const dbFetchLimit = remainingRelationBudget + 1;
-              const chunkSize = 500;
-              for (let i = 0; i < entityIds.length; i += chunkSize) {
-                const chunk = entityIds.slice(i, i + chunkSize);
-                const placeholders = chunk.map(() => '?').join(',');
+              // Allocate the fetch budget across frontier entities so one high-degree
+              // entity cannot starve the rest of the frontier.
+              const baseBudget = Math.floor(remainingRelationBudget / entityIds.length);
+              let extraBudget = remainingRelationBudget % entityIds.length;
+              for (const entityId of entityIds) {
+                const entityBudget = baseBudget + (extraBudget-- > 0 ? 1 : 0);
+                if (entityBudget === 0) break;
+                const queryParts: string[] = [];
                 const relParams: any[] = [];
-                let queryParts = [];
-                
-                let predClause = "";
-                let predParams: string[] = [];
-                if (allowedPreds) {
-                  predParams = Array.from(allowedPreds);
-                  const predPlaceholders = predParams.map(() => '?').join(',');
-                  predClause = ` AND predicate IN (${predPlaceholders})`;
-                }
-
+                const predicates = allowedPreds ? Array.from(allowedPreds) : [];
+                const predPlaceholders = predicates.map(() => '?').join(',');
+                const predClause = allowedPreds ? ` AND predicate IN (${predPlaceholders})` : "";
                 if (allowedDir === "out" || allowedDir === "both") {
-                  let q = `SELECT 'out' as dir, * FROM e_relations WHERE subject_id IN (${placeholders})${predClause}`;
-                  queryParts.push(q);
-                  relParams.push(...chunk, ...predParams);
+                  queryParts.push(`SELECT 'out' as dir, * FROM e_relations WHERE subject_id = ?${predClause}`);
+                  relParams.push(entityId, ...predicates);
                 }
                 if (allowedDir === "in" || allowedDir === "both") {
-                  let q = `SELECT 'in' as dir, * FROM e_relations WHERE object_id IN (${placeholders})${predClause}`;
-                  queryParts.push(q);
-                  relParams.push(...chunk, ...predParams);
+                  queryParts.push(`SELECT 'in' as dir, * FROM e_relations WHERE object_id = ?${predClause}`);
+                  relParams.push(entityId, ...predicates);
                 }
-
-                if (queryParts.length > 0) {
-                   const relQuery = `${queryParts.join(" UNION ALL ")} ORDER BY id COLLATE BINARY ASC, dir ASC LIMIT ?`;
-                   relParams.push(dbFetchLimit);
-                   const chunkRelations = this.db.prepare(relQuery).all(...relParams) as Record<string, any>[];
-                   relations.push(...chunkRelations);
-                   if (relations.length > remainingRelationBudget) {
-                     break;
-                   }
+                relParams.push(entityBudget);
+                const relQuery = `${queryParts.join(" UNION ALL ")} ORDER BY id COLLATE BINARY ASC, dir ASC LIMIT ?`;
+                const entityRelations = this.db.prepare(relQuery).all(...relParams) as Record<string, any>[];
+                relations.push(...entityRelations);
+                if (entityRelations.length >= entityBudget) {
+                  truncationOccurred = true;
+                  if (!truncationReasons.includes("maxRelationsExpanded limit reached")) {
+                    truncationReasons.push("maxRelationsExpanded limit reached");
+                  }
                 }
               }
             }
@@ -473,16 +467,17 @@ export class SqliteEngine implements EQueryEngine, EFixtureMutator, EBatchMutato
 
             let nextFrontier: FrontierItem[] = [];
 
-            for (const current of currentLevelItems) {
-              if (pathCount >= pathLimit) {
-                truncationOccurred = true;
-                break;
-              }
-
-              const outEdges = edgesBySource.get(current.entityId) || [];
-              let foundAny = false;
-
-              for (const r of outEdges) {
+            const edgeQueues = currentLevelItems.map(current => ({ current, edges: [...(edgesBySource.get(current.entityId) || [])] }));
+            const foundAny = edgeQueues.map(() => false);
+            let madeProgress = true;
+            while (madeProgress && pathCount < pathLimit) {
+              madeProgress = false;
+              for (let i = 0; i < edgeQueues.length; i++) {
+                const queue = edgeQueues[i]!;
+                const r = queue.edges.shift();
+                if (!r) continue;
+                madeProgress = true;
+                const current = queue.current;
                 if (totalRelationsExpanded >= maxRelationsExpanded) {
                   truncationOccurred = true;
                   if (!truncationReasons.includes("maxRelationsExpanded limit reached")) {
@@ -524,10 +519,13 @@ export class SqliteEngine implements EQueryEngine, EFixtureMutator, EBatchMutato
                     truncationReasons.push("maxPaths limit reached");
                   }
                 }
-                foundAny = true;
+                foundAny[i] = true;
               }
+            }
 
-              if (!foundAny && current.depth > 0) {
+            for (let i = 0; i < currentLevelItems.length; i++) {
+              const current = currentLevelItems[i]!;
+              if (!foundAny[i] && current.depth > 0) {
                 if (pathCount < pathLimit) {
                   paths.push({
                     startId: request.startId,

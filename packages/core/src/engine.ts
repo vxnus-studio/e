@@ -420,36 +420,32 @@ export class InMemoryEngine implements EQueryEngine, EFixtureMutator, EBatchMuta
 
           let nextFrontier: FrontierItem[] = [];
 
-          for (const current of currentLevelItems) {
-            if (pathCount >= pathLimit) {
-              truncationOccurred = true;
-              break;
-            }
-
-            let foundAny = false;
-
-            const outEdges = (allowedDir === "out" || allowedDir === "both") 
+          const edgeQueues = currentLevelItems.map((current) => {
+            const outEdges = (allowedDir === "out" || allowedDir === "both")
               ? this.relations.filter(r => r.subjectId === current.entityId)
               : [];
-            
             const inEdges = (allowedDir === "in" || allowedDir === "both")
               ? this.relations.filter(r => r.objectId === current.entityId)
               : [];
-
-            let allEdges = [...outEdges.map(e => ({r: e, dir: "out" as const})), ...inEdges.map(e => ({r: e, dir: "in" as const}))];
-            
-            if (allowedPreds) {
-              allEdges = allEdges.filter(e => allowedPreds!.has(e.r.predicate));
-            }
-
-            // Deterministic sorting
-            allEdges.sort((a, b) => {
-              if (a.r.id !== b.r.id) return a.r.id < b.r.id ? -1 : 1;
-              if (a.dir !== b.dir) return a.dir < b.dir ? -1 : 1;
-              return 0;
-            });
-
-            for (const {r, dir} of allEdges) {
+            let edges = [
+              ...outEdges.map(r => ({ r, dir: "out" as const })),
+              ...inEdges.map(r => ({ r, dir: "in" as const })),
+            ];
+            if (allowedPreds) edges = edges.filter(e => allowedPreds!.has(e.r.predicate));
+            edges.sort((a, b) => a.r.id === b.r.id ? a.dir.localeCompare(b.dir) : a.r.id.localeCompare(b.r.id));
+            return { current, edges };
+          });
+          const foundAny = edgeQueues.map(() => false);
+          let madeProgress = true;
+          while (madeProgress && pathCount < pathLimit) {
+            madeProgress = false;
+            for (let i = 0; i < edgeQueues.length; i++) {
+              const queue = edgeQueues[i]!;
+              const next = queue.edges.shift();
+              if (!next) continue;
+              madeProgress = true;
+              const current = queue.current;
+              const { r, dir } = next;
               // Check resource budget for expanded relations
               if (totalRelationsExpanded >= maxRelationsExpanded) {
                 truncationOccurred = true;
@@ -505,10 +501,20 @@ export class InMemoryEngine implements EQueryEngine, EFixtureMutator, EBatchMuta
                   truncationReasons.push("maxPaths limit reached");
                 }
               }
-              foundAny = true;
+              foundAny[i] = true;
             }
+          }
 
-            if (!foundAny && current.depth > 0) {
+          if (edgeQueues.some(queue => queue.edges.length > 0)) {
+            truncationOccurred = true;
+            if (!truncationReasons.includes("maxRelationsExpanded limit reached")) {
+              truncationReasons.push("maxRelationsExpanded limit reached");
+            }
+          }
+
+          for (let i = 0; i < currentLevelItems.length; i++) {
+            const current = currentLevelItems[i]!;
+            if (!foundAny[i] && current.depth > 0) {
               if (pathCount < pathLimit) {
                 paths.push({
                   startId: request.startId,
@@ -592,4 +598,3 @@ export class InMemoryEngine implements EQueryEngine, EFixtureMutator, EBatchMuta
     return cloneValue(result);
   }
 }
-

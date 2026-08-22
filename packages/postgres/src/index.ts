@@ -316,30 +316,39 @@ export class PostgresEngine implements EQueryEngine, EFixtureMutator, EBatchMuta
                 break;
               }
 
-              // Apply database-level safety limit bounded by remaining expansion budget + safety headroom
-              const dbFetchLimit = remainingRelationBudget + 1;
+              // Allocate the fetch budget across frontier entities so one high-degree
+              // entity cannot starve the rest of the frontier.
+              const baseBudget = Math.floor(remainingRelationBudget / entityIds.length);
+              let extraBudget = remainingRelationBudget % entityIds.length;
               const queries = [];
-              if (allowedDir === "out" || allowedDir === "both") {
-                let q = `SELECT * FROM e_relations WHERE subject_id = ANY($1)`;
-                const p: any[] = [entityIds];
-                if (allowedPreds) {
-                  q += ` AND predicate = ANY($2)`;
-                  p.push(Array.from(allowedPreds));
+              for (const entityId of entityIds) {
+                const entityBudget = baseBudget + (extraBudget-- > 0 ? 1 : 0);
+                if (entityBudget === 0) break;
+                const p: any[] = [entityId];
+                const queryParts: string[] = [];
+                const predicateParam = allowedPreds ? 2 : undefined;
+                if (allowedDir === "out" || allowedDir === "both") {
+                  let q = `SELECT 'out' as dir, * FROM e_relations WHERE subject_id = $1`;
+                  if (allowedPreds) { q += ` AND predicate = ANY($${predicateParam})`; p.push(Array.from(allowedPreds)); }
+                  queryParts.push(q);
                 }
-                q += ` ORDER BY id ASC LIMIT $${p.length + 1}`;
-                p.push(dbFetchLimit);
-                queries.push(this.pool.query(q, p).then(r => r.rows.map(row => ({ r: this.mapRelation(row), dir: "out" as const }))));
-              }
-              if (allowedDir === "in" || allowedDir === "both") {
-                let q = `SELECT * FROM e_relations WHERE object_id = ANY($1)`;
-                const p: any[] = [entityIds];
-                if (allowedPreds) {
-                  q += ` AND predicate = ANY($2)`;
-                  p.push(Array.from(allowedPreds));
+                if (allowedDir === "in" || allowedDir === "both") {
+                  let q = `SELECT 'in' as dir, * FROM e_relations WHERE object_id = $1`;
+                  if (allowedPreds) { q += ` AND predicate = ANY($${predicateParam})`; if (!allowedDir || allowedDir === "in") p.push(Array.from(allowedPreds)); }
+                  queryParts.push(q);
                 }
-                q += ` ORDER BY id ASC LIMIT $${p.length + 1}`;
-                p.push(dbFetchLimit);
-                queries.push(this.pool.query(q, p).then(r => r.rows.map(row => ({ r: this.mapRelation(row), dir: "in" as const }))));
+                const limitParam = p.length + 1;
+                p.push(entityBudget);
+                const q = `${queryParts.join(" UNION ALL ")} ORDER BY id ASC, dir ASC LIMIT $${limitParam}`;
+                queries.push(this.pool.query(q, p).then(r => {
+                  if (r.rows.length >= entityBudget) {
+                    truncationOccurred = true;
+                    if (!truncationReasons.includes("maxRelationsExpanded limit reached")) {
+                      truncationReasons.push("maxRelationsExpanded limit reached");
+                    }
+                  }
+                  return r.rows.map(row => ({ r: this.mapRelation(row), dir: row.dir as "out" | "in" }));
+                }));
               }
               const results = await Promise.all(queries);
               for (const res of results) {
@@ -389,19 +398,24 @@ export class PostgresEngine implements EQueryEngine, EFixtureMutator, EBatchMuta
 
             let nextFrontier: FrontierItem[] = [];
 
-            for (const current of currentLevelItems) {
-              if (pathCount >= pathLimit) {
-                truncationOccurred = true;
-                break;
-              }
-
-              let foundAny = false;
-              const relevantEdges = allEdges.filter(e =>
+            const edgeQueues = currentLevelItems.map(current => ({
+              current,
+              edges: allEdges.filter(e =>
                 (e.dir === "out" && e.r.subjectId === current.entityId) ||
                 (e.dir === "in" && e.r.objectId === current.entityId)
-              );
-
-              for (const { r, dir } of relevantEdges) {
+              ),
+            }));
+            const foundAny = edgeQueues.map(() => false);
+            let madeProgress = true;
+            while (madeProgress && pathCount < pathLimit) {
+              madeProgress = false;
+              for (let i = 0; i < edgeQueues.length; i++) {
+                const queue = edgeQueues[i]!;
+                const next = queue.edges.shift();
+                if (!next) continue;
+                madeProgress = true;
+                const current = queue.current;
+                const { r, dir } = next;
                 if (totalRelationsExpanded >= maxRelationsExpanded) {
                   truncationOccurred = true;
                   if (!truncationReasons.includes("maxRelationsExpanded limit reached")) {
@@ -443,10 +457,13 @@ export class PostgresEngine implements EQueryEngine, EFixtureMutator, EBatchMuta
                     truncationReasons.push("maxPaths limit reached");
                   }
                 }
-                foundAny = true;
+                foundAny[i] = true;
               }
+            }
 
-              if (!foundAny && current.depth > 0 && pathCount < pathLimit) {
+            for (let i = 0; i < currentLevelItems.length; i++) {
+              const current = currentLevelItems[i]!;
+              if (!foundAny[i] && current.depth > 0 && pathCount < pathLimit) {
                 paths.push({
                   startId: request.startId,
                   endId: current.entityId,
@@ -454,7 +471,7 @@ export class PostgresEngine implements EQueryEngine, EFixtureMutator, EBatchMuta
                   depth: current.depth
                 });
                 pathCount++;
-              } else if (!foundAny && current.depth > 0) {
+              } else if (!foundAny[i] && current.depth > 0) {
                 truncationOccurred = true;
                 if (!truncationReasons.includes("maxPaths limit reached")) {
                   truncationReasons.push("maxPaths limit reached");

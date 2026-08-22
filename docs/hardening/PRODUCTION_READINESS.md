@@ -17,7 +17,7 @@ Phase 0 established the current repository baseline without source changes. E is
 | 0. Baseline | COMPLETE | `npm test`: 78 passed, 1 skipped; `npm run build`: passed | PostgreSQL suite skipped locally; baseline has Vitest deprecation warnings and known schema/validator length mismatches |
 | 1. Contract ↔ storage parity | COMPLETE (local; PostgreSQL execution pending) | Boundary suite: 9 passed; workspace: 88 passed, 1 skipped; build passed | Live PostgreSQL boundary execution remains unavailable locally; JSON/provenance field limits remain validator-level |
 | 2. Error model | COMPLETE (local; PostgreSQL execution pending) | Workspace: 88 passed, 1 skipped; closed SQLite database test passed; build passed | Live PostgreSQL outage/rollback-failure tests remain unavailable |
-| 3. Traversal hardening | IN PROGRESS | Existing adversarial suite passes locally; new starvation finding under audit | SQL global fetch limits can starve later frontier nodes; fair bounded expansion contract is not implemented yet |
+| 3. Traversal hardening | COMPLETE (local; PostgreSQL execution pending) | Traversal adversarial: 9 passed; focused differential traversal: 20 passed; workspace: 87 passed, 1 skipped; build passed | PostgreSQL runtime traversal remains unverified; conservative partial signaling may over-report when an allocation is exactly full |
 | 4. Result size / memory safety | PENDING | Existing tests only | Claims, documents, relations, and search result materialization need explicit limits/pagination review |
 | 5. Search | PENDING | Existing tests only | SQLite Unicode folding and cross-backend collation differences remain documented divergences; scale claims need verification |
 | 6. Resolution | PENDING | Existing tests only | Alias/name/slug/identity semantics need an explicit current contract and collision tests |
@@ -87,19 +87,19 @@ Phase 0 established the current repository baseline without source changes. E is
 - documentation impact: Updated `docs/hardening/ERRORS.md` and this document.
 - remaining risk: PostgreSQL connection, SQL, and rollback-failure behavior requires live backend execution.
 
-### F-0005 (OPEN — Phase 3)
+### F-0005 (RESOLVED in Phase 3)
 
 - ID: F-0005
 - severity: P1
 - subsystem: Traversal resource budgeting
-- problem: PostgreSQL and SQLite traversal fetch a whole frontier level with one global SQL `LIMIT` based on the remaining relation budget. A high-degree earlier node can consume that limit and starve later frontier nodes, suppressing otherwise valid paths. InMemory expands frontier items serially, so it does not currently define a fair cross-backend contract either.
+- problem: PostgreSQL and SQLite traversal fetched a whole frontier level with one global SQL `LIMIT` based on the remaining relation budget. A high-degree earlier node could consume that limit and starve later frontier nodes, suppressing otherwise valid paths. InMemory expanded frontier items serially, so it did not define the same fairness contract.
 - root cause: Database row-fetch bounding was added as a global limit without a per-frontier allocation policy.
 - affected engines: InMemory, SQLite, PostgreSQL; the observable divergence is most direct in SQL-backed traversal.
 - reproduction: Create two frontier nodes, give the first node more matching relations than `maxRelationsExpanded`, give the second node one valid relation, and choose ordering so the first node's relations sort first. Traverse with the relation budget set below the first node's degree. The second node's edge is not fetched.
-- fix: Define deterministic round-robin/per-frontier allocation, keep fetched rows bounded by the total remaining budget, and preserve explicit partial metadata when work is truncated.
-- regression test: Required in `packages/differential/test/traversal_adversarial.test.ts` for InMemory, SQLite, and PostgreSQL when available.
-- documentation impact: Update `docs/hardening/TRAVERSAL.md` with the fairness and partial-result contract.
-- remaining risk: Until fixed, `maxRelationsExpanded` bounds returned work but can bias which frontier nodes receive work.
+- fix: Added deterministic per-frontier allocation in both SQL adapters and round-robin expansion in all engines. Fetched/expanded work remains bounded by the remaining relation budget, and bounded allocations produce explicit partial metadata.
+- regression test: `packages/differential/test/traversal_adversarial.test.ts` now verifies a high-degree frontier node cannot starve a later node.
+- documentation impact: Updated `docs/hardening/TRAVERSAL.md` with allocation, fairness, and conservative partial-result semantics.
+- remaining risk: PostgreSQL runtime execution remains gated; the conservative exact-allocation signal can report partial when no additional rows exist.
 
 ## Contract decisions
 
@@ -129,8 +129,8 @@ Phase 1 decision: identifier-like and short textual storage fields have a 255-ch
 
 - [ ] Contract and database constraints agree
 - [ ] All engines agree on documented semantics
-- [ ] Traversal is bounded and deterministic
-- [ ] Traversal resource limits bound actual work
+- [x] Traversal is bounded and deterministic for locally tested engines; PostgreSQL runtime verification pending
+- [x] Traversal resource limits bound actual work for locally tested engines; PostgreSQL runtime verification pending
 - [ ] Large result sets are controlled
 - [ ] Search semantics are explicit
 - [ ] Resolution semantics are explicit
@@ -190,4 +190,23 @@ Failures and remaining risks:
 
 Phase 2 is complete for the implementation and locally available backends. It is not evidence that PostgreSQL runtime failure paths have passed until `TEST_DATABASE_URL` is available.
 
-Phase 3 is in progress. Its first open finding is F-0005; no traversal implementation change is being claimed yet.
+Phase 3 was in progress during the traversal audit and is now complete for locally available engines after resolving F-0005.
+
+## Phase 3 record
+
+Files changed: `packages/core/src/engine.ts`, `packages/sqlite/src/index.ts`, `packages/postgres/src/index.ts`, `packages/differential/test/traversal_adversarial.test.ts`, `docs/hardening/TRAVERSAL.md`, and this document.
+
+Tests and commands run:
+
+- Focused traversal suite — 9 passed.
+- Focused differential traversal/randomized parity — 20 passed.
+- `npm test` — core 14 passed, differential 73 passed, SQLite 4 passed, PostgreSQL 1 skipped; dependency check passed.
+- `npm run build` — passed for all build-enabled workspaces.
+
+Failures and remaining risks:
+
+- No test or build failures.
+- PostgreSQL traversal remains unverified because `TEST_DATABASE_URL` is unset.
+- Vitest configuration deprecation warnings remain tracked as F-0003.
+
+Phase 3 is complete for locally available engines. The next phase is result-size and memory-safety review.

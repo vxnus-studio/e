@@ -181,6 +181,39 @@ describe("Traversal Adversarial & Boundary Verification", () => {
     }
   });
 
+  test("Relation work budget is shared across frontier nodes instead of starving later nodes", async () => {
+    const entities = ["FAIR-ROOT", "FAIR-B", "FAIR-C"]
+      .concat(Array.from({ length: 6 }, (_, i) => `FAIR-B-${i}`))
+      .concat(["FAIR-C-0"])
+      .map(id => createEntity(id));
+    const relations: Relation[] = [
+      { id: "fair-root-b", subjectId: "FAIR-ROOT", predicate: "next", objectId: "FAIR-B" },
+      { id: "fair-root-c", subjectId: "FAIR-ROOT", predicate: "next", objectId: "FAIR-C" },
+      ...Array.from({ length: 6 }, (_, i) => ({
+        id: `fair-b-${i}`,
+        subjectId: "FAIR-B",
+        predicate: "next",
+        objectId: `FAIR-B-${i}`,
+      })),
+      { id: "fair-c-0", subjectId: "FAIR-C", predicate: "next", objectId: "FAIR-C-0" },
+    ];
+
+    for (const e of engines) {
+      await e.insert({ entities, relations });
+      const result = await e.engine.query({
+        type: "traverse",
+        startId: "FAIR-ROOT",
+        maxDepth: 2,
+        maxRelationsExpanded: 4,
+        maxPaths: 20,
+      });
+      const pathEnds = result.traversal?.paths.map((path: any) => path.endId) ?? [];
+      expect(pathEnds, `Engine ${e.name} starved FAIR-C`).toContain("FAIR-C-0");
+      expect(result.metadata.partial).toBe(true);
+      expect(result.metadata.warnings?.some((warning: string) => warning.includes("maxRelationsExpanded"))).toBe(true);
+    }
+  });
+
   test("Bidirectional incoming and outgoing traversal parity", async () => {
     // Node-1 -> Node-2 <- Node-3
     const f = {
