@@ -1,6 +1,12 @@
 -- E Core Canonical Schema for PostgreSQL
 -- This file defines the tables, constraints, and indexes required by the @vxnus/e-postgres adapter.
 
+CREATE TABLE IF NOT EXISTS e_schema_migrations (
+  version INTEGER PRIMARY KEY,
+  name VARCHAR(255) NOT NULL,
+  applied_at TIMESTAMPTZ NOT NULL
+);
+
 CREATE TABLE IF NOT EXISTS e_entities (
   id VARCHAR(255) PRIMARY KEY,
   namespace VARCHAR(255) NOT NULL,

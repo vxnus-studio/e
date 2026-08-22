@@ -16,7 +16,9 @@ npm install @vxnus/e @vxnus/e-postgres pg
 
 ## Schema Provisioning
 
-This adapter requires the core E relational schema to exist in PostgreSQL. The canonical schema is packaged directly with `@vxnus/e-postgres` as `schema.sql`.
+The adapter exposes an authoritative PostgreSQL schema lifecycle. Use `PostgresEngine.open(config)` for a fresh install or upgrade; it runs migrations transactionally under a PostgreSQL advisory lock and records applied versions in `e_schema_migrations`. `new PostgresEngine(config)` remains available when schema lifecycle ownership is external, but queries and mutations require a compatible schema.
+
+The canonical schema is also packaged directly with `@vxnus/e-postgres` as `schema.sql` for inspection and controlled provisioning.
 
 ### Applying the Schema
 

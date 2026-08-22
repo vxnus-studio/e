@@ -26,4 +26,36 @@ describe("PostgreSQL engine lifecycle", () => {
     });
     await engine.close();
   });
+
+  test("migration lifecycle locks, records version, and rolls back failures", async () => {
+    const queries: string[] = [];
+    let fail = false;
+    const client = {
+      query: async (text: string) => {
+        queries.push(text);
+        if (fail && text.includes("ALTER TABLE")) throw new Error("DDL failed");
+        if (text.includes("SELECT version, name")) return { rows: [] };
+        return { rows: [] };
+      },
+      release: () => undefined,
+    };
+    const fakePool = {
+      connect: async () => client,
+      end: async () => undefined,
+      on: () => fakePool,
+      removeListener: () => fakePool,
+    };
+    const engine = new PostgresEngine({ connectionString: "postgresql://unused" });
+    (engine as any).pool = fakePool;
+
+    await engine.migrate();
+    expect(queries[0]).toBe("BEGIN");
+    expect(queries).toContain("SELECT pg_advisory_xact_lock(hashtext('e-schema-migrations'))");
+    expect(queries.some((query) => query.includes("INSERT INTO e_schema_migrations"))).toBe(true);
+
+    fail = true;
+    await expect(engine.migrate()).rejects.toMatchObject({ name: "StorageError", code: "SCHEMA_MIGRATION_FAILED" });
+    expect(queries).toContain("ROLLBACK");
+    await engine.close();
+  });
 });

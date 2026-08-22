@@ -40,6 +40,8 @@ import {
 } from "@vxnus/e";
 
 export class PostgresEngine implements EQueryEngine, EFixtureMutator, EBatchMutator {
+  private static readonly CURRENT_MIGRATION_VERSION = 1;
+  private static readonly CURRENT_MIGRATION_NAME = "add_provenance_and_identities";
   private pool: Pool;
   private closed = false;
   private closePromise?: Promise<void>;
@@ -59,6 +61,117 @@ export class PostgresEngine implements EQueryEngine, EFixtureMutator, EBatchMuta
     // listener is mandatory: without one EventEmitter treats the event as an
     // uncaught process-level exception.
     this.pool.on("error", this.poolErrorHandler);
+  }
+
+  /** Open an engine after applying the authoritative PostgreSQL schema lifecycle. */
+  static async open(config: PoolConfig): Promise<PostgresEngine> {
+    const engine = new PostgresEngine(config);
+    try {
+      await engine.migrate();
+      return engine;
+    } catch (error) {
+      await engine.close();
+      throw error;
+    }
+  }
+
+  /**
+   * Bootstrap or upgrade E's PostgreSQL schema. The transaction-scoped
+   * advisory lock serializes migration attempts across processes and the
+   * history row makes replay and compatibility checks explicit.
+   */
+  async migrate(): Promise<void> {
+    this.assertOpen();
+    let client: PoolClient | undefined;
+    let transactionStarted = false;
+    try {
+      client = await this.pool.connect();
+      await client.query("BEGIN");
+      transactionStarted = true;
+      await client.query("SELECT pg_advisory_xact_lock(hashtext('e-schema-migrations'))");
+      await client.query(`
+        CREATE TABLE IF NOT EXISTS e_schema_migrations (
+          version INTEGER PRIMARY KEY,
+          name VARCHAR(255) NOT NULL,
+          applied_at TIMESTAMPTZ NOT NULL
+        );
+        CREATE TABLE IF NOT EXISTS e_entities (
+          id VARCHAR(255) PRIMARY KEY, namespace VARCHAR(255) NOT NULL,
+          kind VARCHAR(255) NOT NULL, slug VARCHAR(255) NOT NULL,
+          name VARCHAR(255) NOT NULL, data JSONB NOT NULL DEFAULT '{}'
+        );
+        CREATE TABLE IF NOT EXISTS e_aliases (
+          id VARCHAR(255) PRIMARY KEY, entity_id VARCHAR(255) NOT NULL REFERENCES e_entities(id) ON DELETE CASCADE,
+          alias VARCHAR(255) NOT NULL
+        );
+        CREATE TABLE IF NOT EXISTS e_relations (
+          id VARCHAR(255) PRIMARY KEY, subject_id VARCHAR(255) NOT NULL REFERENCES e_entities(id) ON DELETE CASCADE,
+          predicate VARCHAR(255) NOT NULL, object_id VARCHAR(255) NOT NULL REFERENCES e_entities(id) ON DELETE CASCADE
+        );
+        CREATE TABLE IF NOT EXISTS e_claims (
+          id VARCHAR(255) PRIMARY KEY, entity_id VARCHAR(255) NOT NULL REFERENCES e_entities(id) ON DELETE CASCADE,
+          statement TEXT NOT NULL, confidence VARCHAR(50) NOT NULL CHECK (confidence IN ('canon', 'theory', 'outdated', 'unverified')),
+          source VARCHAR(255) NOT NULL
+        );
+        CREATE TABLE IF NOT EXISTS e_documents (
+          id VARCHAR(255) PRIMARY KEY, entity_id VARCHAR(255) NOT NULL REFERENCES e_entities(id) ON DELETE CASCADE,
+          content TEXT NOT NULL
+        );
+      `);
+      await client.query(`
+        ALTER TABLE e_entities ADD COLUMN IF NOT EXISTS identities JSONB;
+        ALTER TABLE e_entities ADD COLUMN IF NOT EXISTS provenance JSONB;
+        ALTER TABLE e_entities ADD COLUMN IF NOT EXISTS temporal JSONB;
+        ALTER TABLE e_relations ADD COLUMN IF NOT EXISTS provenance JSONB;
+        ALTER TABLE e_relations ADD COLUMN IF NOT EXISTS temporal JSONB;
+        ALTER TABLE e_relations ADD COLUMN IF NOT EXISTS metadata JSONB;
+        ALTER TABLE e_claims ADD COLUMN IF NOT EXISTS provenance JSONB;
+        ALTER TABLE e_claims ADD COLUMN IF NOT EXISTS temporal JSONB;
+        ALTER TABLE e_documents ADD COLUMN IF NOT EXISTS provenance JSONB;
+        CREATE INDEX IF NOT EXISTS idx_e_entities_namespace ON e_entities(namespace);
+        CREATE INDEX IF NOT EXISTS idx_e_entities_slug ON e_entities(slug);
+        CREATE INDEX IF NOT EXISTS idx_e_aliases_alias ON e_aliases(alias);
+        CREATE INDEX IF NOT EXISTS idx_e_aliases_entity_id ON e_aliases(entity_id);
+        CREATE INDEX IF NOT EXISTS idx_e_relations_subject_id ON e_relations(subject_id);
+        CREATE INDEX IF NOT EXISTS idx_e_relations_object_id ON e_relations(object_id);
+        CREATE INDEX IF NOT EXISTS idx_e_relations_predicate ON e_relations(predicate);
+        CREATE INDEX IF NOT EXISTS idx_e_claims_entity_id ON e_claims(entity_id);
+        CREATE INDEX IF NOT EXISTS idx_e_documents_entity_id ON e_documents(entity_id);
+      `);
+      const history = await client.query<{ version: number; name: string }>(
+        "SELECT version, name FROM e_schema_migrations ORDER BY version ASC",
+      );
+      const unsupported = history.rows.find((row) => row.version > PostgresEngine.CURRENT_MIGRATION_VERSION);
+      if (unsupported) {
+        throw new StorageError(
+          `PostgreSQL schema version ${unsupported.version} is newer than supported version ${PostgresEngine.CURRENT_MIGRATION_VERSION}`,
+          undefined,
+          "SCHEMA_VERSION_UNSUPPORTED",
+        );
+      }
+      const current = history.rows.find((row) => row.version === PostgresEngine.CURRENT_MIGRATION_VERSION);
+      if (current && current.name !== PostgresEngine.CURRENT_MIGRATION_NAME) {
+        throw new StorageError("PostgreSQL migration history does not match the bundled migration", undefined, "SCHEMA_MIGRATION_MISMATCH");
+      }
+      if (!current) {
+        await client.query(
+          "INSERT INTO e_schema_migrations (version, name, applied_at) VALUES ($1, $2, NOW())",
+          [PostgresEngine.CURRENT_MIGRATION_VERSION, PostgresEngine.CURRENT_MIGRATION_NAME],
+        );
+      }
+      await client.query("COMMIT");
+      transactionStarted = false;
+    } catch (error) {
+      if (transactionStarted && client) {
+        try { await client.query("ROLLBACK"); } catch (rollbackError) {
+          throw new StorageError("PostgreSQL migration rollback failed", rollbackError, "TRANSACTION_ROLLBACK_FAILED");
+        }
+      }
+      if (error instanceof StorageError) throw error;
+      throw new StorageError(error instanceof Error ? error.message : "PostgreSQL migration failed", error, "SCHEMA_MIGRATION_FAILED");
+    } finally {
+      client?.release();
+    }
   }
 
   async close() {
