@@ -2,7 +2,8 @@ import { test, expect, describe, beforeAll, afterAll, beforeEach } from "vitest"
 import { InMemoryEngine } from "../../core/src/engine.js";
 import { SqliteEngine } from "../../sqlite/src/index.js";
 import { PostgresEngine } from "../../postgres/src/index.js";
-import { ConstraintError, QueryError, UnsupportedOperationError } from "../../core/src/errors.js";
+import type { EQueryEngine, EFixtureMutator } from "../../core/src/types.js";
+import { ConstraintError } from "../../core/src/errors.js";
 import Database from "better-sqlite3";
 import { Pool } from "pg";
 import * as fs from "fs";
@@ -12,12 +13,19 @@ function createEmptyEntity(id: string, name: string = id) {
   return { id, namespace: "test", kind: "node", slug: name.toLowerCase(), name, data: {} };
 }
 
-describe("Differential Cross-Backend Semantic Parity", () => {
-  let memEngine: any;
-  let sqliteEngine: any;
-  let pgEngine: any;
+interface TestBackend {
+  name: string;
+  engine: EQueryEngine & EFixtureMutator & { close?: () => Promise<void> | void };
+  insert: (f: any) => Promise<void>;
+  clear: () => Promise<void>;
+}
 
-  let engines: { name: string; engine: any; insert: (f: any) => Promise<void>, clear: () => Promise<void> }[] = [];
+describe("Differential Cross-Backend Semantic Parity", () => {
+  let memEngine: InMemoryEngine;
+  let sqliteEngine: SqliteEngine;
+  let pgEngine: PostgresEngine;
+
+  let engines: TestBackend[] = [];
 
   beforeAll(async () => {
     // 1. InMemory
@@ -26,8 +34,9 @@ describe("Differential Cross-Backend Semantic Parity", () => {
       name: "InMemory",
       engine: memEngine,
       insert: async (f) => {
+        // Harness invariant: Mutate via engine bound directly to this backend
         for (const e of (f.entities || [])) memEngine.insertEntity(e);
-          for (const a of (f.aliases || [])) memEngine.insertAlias(a);
+        for (const a of (f.aliases || [])) memEngine.insertAlias(a);
         for (const r of (f.relations || [])) memEngine.insertRelation(r);
         for (const c of (f.claims || [])) memEngine.insertClaim(c);
         for (const d of (f.documents || [])) memEngine.insertDocument(d);
@@ -45,6 +54,7 @@ describe("Differential Cross-Backend Semantic Parity", () => {
         name: "SQLite",
         engine: sqliteEngine,
         insert: async (f) => {
+          // Harness invariant: Mutate via engine bound directly to SQLite
           for (const e of (f.entities || [])) sqliteEngine.insertEntity(e);
           for (const a of (f.aliases || [])) sqliteEngine.insertAlias(a);
           for (const r of (f.relations || [])) sqliteEngine.insertRelation(r);
@@ -79,18 +89,19 @@ describe("Differential Cross-Backend Semantic Parity", () => {
           name: "PostgreSQL",
           engine: pgEngine,
           insert: async (f) => {
-          for (const e of (f.entities || [])) sqliteEngine.insertEntity(e);
-          for (const a of (f.aliases || [])) sqliteEngine.insertAlias(a);
-          for (const r of (f.relations || [])) sqliteEngine.insertRelation(r);
-          for (const c of (f.claims || [])) sqliteEngine.insertClaim(c);
-          for (const d of (f.documents || [])) sqliteEngine.insertDocument(d);
-        },
-        clear: async () => {
-             await pool.query(`TRUNCATE TABLE e_entities, e_aliases, e_relations, e_claims, e_documents CASCADE;`);
+            // Harness invariant: Mutate via pgEngine bound directly to PostgreSQL
+            for (const e of (f.entities || [])) await pgEngine.insertEntity(e);
+            for (const a of (f.aliases || [])) await pgEngine.insertAlias(a);
+            for (const r of (f.relations || [])) await pgEngine.insertRelation(r);
+            for (const c of (f.claims || [])) await pgEngine.insertClaim(c);
+            for (const d of (f.documents || [])) await pgEngine.insertDocument(d);
+          },
+          clear: async () => {
+            await pool.query(`TRUNCATE TABLE e_entities, e_aliases, e_relations, e_claims, e_documents CASCADE;`);
           }
         });
       } catch (e) {
-         console.warn("Failed to init Postgres: ", e);
+        console.warn("Failed to init Postgres: ", e);
       }
     }
   });
@@ -107,13 +118,34 @@ describe("Differential Cross-Backend Semantic Parity", () => {
     }
   });
 
+  describe("0. Harness Integrity & Backend Isolation", () => {
+    test("Harness invariant: each test backend mutates only its own storage", async () => {
+      // Ensure all registered engines are distinct instances
+      const engineInstances = engines.map(e => e.engine);
+      const uniqueInstances = new Set(engineInstances);
+      expect(uniqueInstances.size).toBe(engines.length);
+
+      // Verify inserting into one backend does not bleed into another
+      if (engines.length > 1) {
+        await engines[0].insert({ entities: [createEmptyEntity("isolated-e1")] });
+        const res0 = await engines[0].engine.query({ type: "getEntity", id: "isolated-e1" });
+        expect(res0.entities?.length).toBe(1);
+
+        for (let i = 1; i < engines.length; i++) {
+          const resOther = await engines[i].engine.query({ type: "getEntity", id: "isolated-e1" });
+          expect(resOther.entities?.length, `Engine ${engines[i].name} saw entity from ${engines[0].name}`).toBe(0);
+        }
+      }
+    });
+  });
+
   describe("1. Constraint Parity Matrix", () => {
     test("Duplicate Entity ID", async () => {
       for (const e of engines) {
         await e.insert({ entities: [createEmptyEntity("E1")] });
         try {
           await e.insert({ entities: [createEmptyEntity("E1")] });
-          expect.fail("Should have thrown");
+          expect.fail(`Should have thrown ConstraintError on ${e.name}`);
         } catch(err: any) {
           expect(err.name).toBe("ConstraintError");
         }
@@ -126,7 +158,7 @@ describe("Differential Cross-Backend Semantic Parity", () => {
         await e.insert({ aliases: [{ id: "A1", entityId: "E1", alias: "one" }] });
         try {
           await e.insert({ aliases: [{ id: "A1", entityId: "E1", alias: "two" }] });
-          expect.fail("Should have thrown");
+          expect.fail(`Should have thrown ConstraintError on ${e.name}`);
         } catch(err: any) {
           expect(err.name).toBe("ConstraintError");
         }
@@ -137,7 +169,7 @@ describe("Differential Cross-Backend Semantic Parity", () => {
       for (const e of engines) {
         try {
           await e.insert({ aliases: [{ id: "A1", entityId: "MISSING", alias: "one" }] });
-          expect.fail("Should have thrown");
+          expect.fail(`Should have thrown ConstraintError on ${e.name}`);
         } catch(err: any) {
           expect(err.name).toBe("ConstraintError");
         }
@@ -150,7 +182,7 @@ describe("Differential Cross-Backend Semantic Parity", () => {
         await e.insert({ relations: [{ id: "R1", subjectId: "E1", predicate: "next", objectId: "E2" }] });
         try {
           await e.insert({ relations: [{ id: "R1", subjectId: "E1", predicate: "next", objectId: "E2" }] });
-          expect.fail("Should have thrown");
+          expect.fail(`Should have thrown ConstraintError on ${e.name}`);
         } catch(err: any) {
           expect(err.name).toBe("ConstraintError");
         }
@@ -161,7 +193,7 @@ describe("Differential Cross-Backend Semantic Parity", () => {
       for (const e of engines) {
         try {
           await e.insert({ relations: [{ id: "R1", subjectId: "MISSING", predicate: "next", objectId: "MISSING2" }] });
-          expect.fail("Should have thrown");
+          expect.fail(`Should have thrown ConstraintError on ${e.name}`);
         } catch(err: any) {
           expect(err.name).toBe("ConstraintError");
         }
@@ -188,9 +220,9 @@ describe("Differential Cross-Backend Semantic Parity", () => {
       
       const first = results[0];
       for (let i = 1; i < results.length; i++) {
-        expect(results[i].entities).toEqual(first.entities);
-        expect(results[i].relations).toEqual(first.relations);
-        expect(results[i].paths).toEqual(first.paths);
+        expect(results[i]!.entities).toEqual(first!.entities);
+        expect(results[i]!.relations).toEqual(first!.relations);
+        expect(results[i]!.paths).toEqual(first!.paths);
       }
     });
 
@@ -212,7 +244,7 @@ describe("Differential Cross-Backend Semantic Parity", () => {
       
       const first = results[0];
       for (let i = 1; i < results.length; i++) {
-        expect(results[i].paths).toEqual(first.paths);
+        expect(results[i]!.paths).toEqual(first!.paths);
       }
     });
   });
@@ -229,19 +261,15 @@ describe("Differential Cross-Backend Semantic Parity", () => {
         const resExact = await e.engine.query({ type: "resolve", alias: "MixedCase" });
         const resLower = await e.engine.query({ type: "resolve", alias: "mixedcase" });
         
-        // Documenting behavior: it SHOULD be case-sensitive everywhere or case-insensitive everywhere.
-        // If they differ, the test will catch it.
-        // Let's assert exact match works
-        expect(resExact.entities.length).toBe(1);
-        
-        // Do they all agree on lowercase? 
-        // We will just log their behavior and assert they match MemoryEngine's behavior.
+        expect(resExact.entities?.length).toBe(1);
+        expect(resExact.entities?.[0].id).toBe("E1");
+        // Contract: resolve is strictly case-sensitive across all backends
+        expect(resLower.entities?.length).toBe(0);
       }
     });
   });
 
   describe("4. Randomized Bounded Property Testing", () => {
-    // Seeded random number generator
     function mulberry32(a: number) {
       return function() {
         var t = a += 0x6D2B79F5;
@@ -251,7 +279,7 @@ describe("Differential Cross-Backend Semantic Parity", () => {
       }
     }
     
-    test("Random graph 1", async () => {
+    test("Random graph traversal parity", async () => {
       const rand = mulberry32(12345);
       const f: any = { entities: [], relations: [] };
       for (let i=0; i<10; i++) f.entities.push(createEmptyEntity(`N${i}`));
@@ -276,20 +304,16 @@ describe("Differential Cross-Backend Semantic Parity", () => {
   });
 
   describe("5. Search Mode Semantics", () => {
-    test("Unsupported semantic/hybrid mode must fail consistently or return empty", async () => {
+    test("Lexical search works across all backends; unsupported semantic/hybrid modes throw", async () => {
       for (const e of engines) {
         await e.insert({ entities: [createEmptyEntity("E1", "Test Node")] });
         
         const resLexical = await e.engine.query({ type: "search", search: { query: "test", mode: "lexical" } });
         expect(resLexical.search?.entities.length).toBe(1);
         
-        // If semantic is unsupported, they should ALL throw or ALL ignore it
-        // We'll see what happens
-        try {
-            await e.engine.query({ type: "search", search: { query: "test", mode: "semantic" } });
-        } catch(err) {
-            // expected
-        }
+        // Semantic mode must throw UnsupportedOperationError across all backends
+        await expect(e.engine.query({ type: "search", search: { query: "test", mode: "semantic" } })).rejects.toThrow();
+        await expect(e.engine.query({ type: "search", search: { query: "test", mode: "hybrid" } })).rejects.toThrow();
       }
     });
   });
