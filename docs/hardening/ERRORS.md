@@ -36,14 +36,18 @@ classDiagram
 ```
 
 ### 1.1 `QueryError`
-Thrown when a query request is malformed, structurally invalid, or contains out-of-domain parameters:
-- Root `request` is `null` or non-object.
-- Search query payload is non-object.
-- `search.limit` is negative or non-integer.
-- `traverse.maxDepth` is not an integer in $[0, 100]$.
-- `traverse.maxPaths` is not an integer in $[0, 100000]$.
-- `findRelations` is invoked without both `subjectId` and `objectId`.
-- Exceeds maximum query string length constraints.
+Thrown when a query request is malformed, structurally invalid, contains wrong primitive types, or contains out-of-domain parameters:
+- Root `request` is `null`, non-object, or array.
+- Missing or non-string query `type`.
+- Malformed search query (non-object `search`, non-string `search.query`, empty `namespace`/`kind`, negative or non-integer `limit`, invalid `mode`, length > 10,000).
+- Malformed traversal request (non-string `startId`, `maxDepth` not in $[0, 100]$, `maxPaths` not in $[0, 100000]$, negative `maxRelationsExpanded`/`maxEntitiesHydrated`, non-array `predicates`/`steps`, invalid step direction, non-string predicate elements).
+- `findRelations` invoked with neither `subjectId` nor `objectId`, or with non-string arguments.
+- `resolve` invoked with empty or non-string `alias` or `namespace`.
+- `getEntity`, `findClaims`, or `findDocuments` invoked with non-string or empty ID fields.
+
+Query validation runs before any backend lookup or SQL execution. `search.mode` must be one of
+`lexical`, `semantic`, or `hybrid`; a declared mode can still produce
+`UnsupportedOperationError` when the selected backend does not advertise that capability.
 
 ### 1.2 `UnsupportedOperationError`
 Thrown when a request asks for a feature not implemented or not advertised by the provider's capabilities:

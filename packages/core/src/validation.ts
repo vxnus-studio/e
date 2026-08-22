@@ -1,4 +1,4 @@
-import { ConstraintError, QueryError } from "./errors.js";
+import { ConstraintError, QueryError, UnsupportedOperationError } from "./errors.js";
 import type {
   Entity,
   Alias,
@@ -9,6 +9,7 @@ import type {
   TemporalSemantics,
   IdentityMapping,
   BatchDataset,
+  QueryRequest,
 } from "./types.js";
 
 const VALID_CONFIDENCE_LEVELS = new Set(["canon", "theory", "outdated", "unverified"]);
@@ -288,5 +289,160 @@ export function validateBatchDataset(dataset: unknown): asserts dataset is Batch
   if (ds.documents !== undefined) {
     if (!Array.isArray(ds.documents)) throw new ConstraintError("dataset.documents must be an array", undefined, "VALIDATION_ERROR");
     for (const doc of ds.documents) validateDocument(doc);
+  }
+}
+
+export function validateQueryRequest(request: unknown): asserts request is QueryRequest {
+  if (!request || typeof request !== "object" || Array.isArray(request)) {
+    throw new QueryError("QueryRequest must be a non-null object");
+  }
+  const req = request as Record<string, unknown>;
+  if (typeof req.type !== "string") {
+    throw new QueryError("Invalid query request: missing or non-string 'type'");
+  }
+
+  switch (req.type) {
+    case "getCapabilities": {
+      return;
+    }
+    case "resolve": {
+      if (typeof req.alias !== "string" || req.alias.trim().length === 0) {
+        throw new QueryError("Invalid alias: must be a non-empty string");
+      }
+      if (req.namespace !== undefined) {
+        if (typeof req.namespace !== "string" || req.namespace.trim().length === 0) {
+          throw new QueryError("Invalid namespace: must be a non-empty string");
+        }
+      }
+      return;
+    }
+    case "getEntity": {
+      if (typeof req.id !== "string" || req.id.trim().length === 0) {
+        throw new QueryError("Invalid id: must be a non-empty string");
+      }
+      return;
+    }
+    case "findRelations": {
+      if (req.subjectId !== undefined && (typeof req.subjectId !== "string" || req.subjectId.trim().length === 0)) {
+        throw new QueryError("Invalid subjectId: must be a non-empty string");
+      }
+      if (req.objectId !== undefined && (typeof req.objectId !== "string" || req.objectId.trim().length === 0)) {
+        throw new QueryError("Invalid objectId: must be a non-empty string");
+      }
+      if (req.predicate !== undefined && (typeof req.predicate !== "string" || req.predicate.trim().length === 0)) {
+        throw new QueryError("Invalid predicate: must be a non-empty string");
+      }
+      if (!req.subjectId && !req.objectId) {
+        throw new QueryError("findRelations requires at least subjectId or objectId");
+      }
+      return;
+    }
+    case "findClaims": {
+      if (typeof req.entityId !== "string" || req.entityId.trim().length === 0) {
+        throw new QueryError("Invalid entityId: must be a non-empty string");
+      }
+      return;
+    }
+    case "findDocuments": {
+      if (typeof req.entityId !== "string" || req.entityId.trim().length === 0) {
+        throw new QueryError("Invalid entityId: must be a non-empty string");
+      }
+      return;
+    }
+    case "search": {
+      const sq = req.search;
+      if (!sq || typeof sq !== "object" || Array.isArray(sq)) {
+        throw new QueryError("Search query must be a non-null object");
+      }
+      const s = sq as Record<string, unknown>;
+      if (typeof s.query !== "string") {
+        throw new QueryError("Invalid search query: must be a string");
+      }
+      if (s.query.length > 10000) {
+        throw new QueryError("Query length exceeds maximum allowed length of 10000");
+      }
+      if (s.namespace !== undefined) {
+        if (typeof s.namespace !== "string" || s.namespace.trim().length === 0) {
+          throw new QueryError("Invalid search namespace: must be a non-empty string");
+        }
+      }
+      if (s.kind !== undefined) {
+        if (typeof s.kind !== "string" || s.kind.trim().length === 0) {
+          throw new QueryError("Invalid search kind: must be a non-empty string");
+        }
+      }
+      if (s.limit !== undefined) {
+        if (typeof s.limit !== "number" || !Number.isInteger(s.limit) || s.limit < 0) {
+          throw new QueryError(`Invalid limit: ${s.limit}`);
+        }
+      }
+      if (s.mode !== undefined && (s.mode !== "lexical" && s.mode !== "semantic" && s.mode !== "hybrid")) {
+        throw new QueryError("Invalid search mode: must be 'lexical', 'semantic', or 'hybrid'");
+      }
+      return;
+    }
+    case "traverse": {
+      if (typeof req.startId !== "string" || req.startId.trim().length === 0) {
+        throw new QueryError("Invalid startId: must be a non-empty string");
+      }
+      if (req.maxDepth !== undefined) {
+        if (typeof req.maxDepth !== "number" || isNaN(req.maxDepth) || !Number.isInteger(req.maxDepth) || req.maxDepth < 0 || req.maxDepth > 100) {
+          throw new QueryError("Invalid maxDepth: must be an integer between 0 and 100");
+        }
+      }
+      if (req.maxPaths !== undefined) {
+        if (typeof req.maxPaths !== "number" || isNaN(req.maxPaths) || !Number.isInteger(req.maxPaths) || req.maxPaths < 0 || req.maxPaths > 100000) {
+          throw new QueryError("Invalid maxPaths: must be an integer between 0 and 100000");
+        }
+      }
+      if (req.maxRelationsExpanded !== undefined) {
+        if (typeof req.maxRelationsExpanded !== "number" || isNaN(req.maxRelationsExpanded) || !Number.isInteger(req.maxRelationsExpanded) || req.maxRelationsExpanded < 0) {
+          throw new QueryError("Invalid maxRelationsExpanded: must be a non-negative integer");
+        }
+      }
+      if (req.maxEntitiesHydrated !== undefined) {
+        if (typeof req.maxEntitiesHydrated !== "number" || isNaN(req.maxEntitiesHydrated) || !Number.isInteger(req.maxEntitiesHydrated) || req.maxEntitiesHydrated < 0) {
+          throw new QueryError("Invalid maxEntitiesHydrated: must be a non-negative integer");
+        }
+      }
+      if (req.predicates !== undefined) {
+        if (!Array.isArray(req.predicates)) {
+          throw new QueryError("Invalid predicates: must be an array of strings");
+        }
+        for (const p of req.predicates) {
+          if (typeof p !== "string" || p.trim().length === 0) {
+            throw new QueryError("Invalid predicate in predicates list: must be a non-empty string");
+          }
+        }
+      }
+      if (req.steps !== undefined) {
+        if (!Array.isArray(req.steps)) {
+          throw new QueryError("Invalid traversal steps: must be an array");
+        }
+        for (let i = 0; i < req.steps.length; i++) {
+          const step = req.steps[i];
+          if (!step || typeof step !== "object" || Array.isArray(step)) {
+            throw new QueryError(`Invalid traversal step at index ${i}: must be an object`);
+          }
+          if (step.direction !== "out" && step.direction !== "in" && step.direction !== "both") {
+            throw new QueryError(`Invalid traversal step direction '${step.direction}' at index ${i}: must be 'out', 'in', or 'both'`);
+          }
+          if (step.predicates !== undefined) {
+            if (!Array.isArray(step.predicates)) {
+              throw new QueryError(`Invalid traversal step predicates at index ${i}: must be an array of strings`);
+            }
+            for (const p of step.predicates) {
+              if (typeof p !== "string" || p.trim().length === 0) {
+                throw new QueryError(`Invalid predicate in step at index ${i}: must be a non-empty string`);
+              }
+            }
+          }
+        }
+      }
+      return;
+    }
+    default: {
+      throw new UnsupportedOperationError(`Unknown query type: ${req.type}`);
+    }
   }
 }

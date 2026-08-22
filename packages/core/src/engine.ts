@@ -33,6 +33,7 @@ import {
   validateClaim,
   validateDocument,
   validateBatchDataset,
+  validateQueryRequest,
 } from "./validation.js";
 
 function cloneValue<T>(val: T): T {
@@ -160,6 +161,7 @@ export class InMemoryEngine implements EQueryEngine, EFixtureMutator, EBatchMuta
   }
 
   async query(request: QueryRequest): Promise<KnowledgeResult> {
+    validateQueryRequest(request);
     const startTime = Date.now();
     const result: KnowledgeResult = {
       entities: [],
@@ -168,10 +170,6 @@ export class InMemoryEngine implements EQueryEngine, EFixtureMutator, EBatchMuta
       documents: [],
       metadata: { timeMs: 0 },
     };
-
-    if (!request || typeof request !== "object") {
-      throw new QueryError("QueryRequest must be an object");
-    }
 
     switch (request.type) {
       case "getCapabilities": {

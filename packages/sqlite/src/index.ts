@@ -34,6 +34,7 @@ import {
   validateClaim,
   validateDocument,
   validateBatchDataset,
+  validateQueryRequest,
 } from "@vxnus/e";
 
 export class SqliteEngine implements EQueryEngine, EFixtureMutator, EBatchMutator {
@@ -109,10 +110,8 @@ export class SqliteEngine implements EQueryEngine, EFixtureMutator, EBatchMutato
   }
 
   async query(request: QueryRequest): Promise<KnowledgeResult> {
+    validateQueryRequest(request);
     const startTime = Date.now();
-    if (!request || typeof request !== "object") {
-      throw new QueryError("QueryRequest must be an object");
-    }
     const result: KnowledgeResult = {
       entities: [],
       relations: [],

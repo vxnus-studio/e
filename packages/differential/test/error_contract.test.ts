@@ -145,6 +145,53 @@ describe("Error Contract & Boundary Validation Audit", () => {
       } catch (err: any) {
         expect(err.name).toBe("QueryError");
       }
+
+      try {
+        await e.engine.query([] as any);
+        expect.fail(`Engine ${e.name} should throw QueryError for array query request`);
+      } catch (err: any) {
+        expect(err.name).toBe("QueryError");
+      }
+    }
+  });
+
+  test("Runtime query input validation: malformed nested fields throw QueryError uniformly", async () => {
+    for (const e of engines) {
+      // 1. Search with non-string query
+      await expect(e.engine.query({ type: "search", search: { query: 123 as any } })).rejects.toThrow(/Invalid search query/);
+      await expect(e.engine.query({ type: "search", search: { query: null as any } })).rejects.toThrow(/Invalid search query/);
+      await expect(e.engine.query({ type: "search", search: null as any })).rejects.toThrow(/Search query must be a non-null object/);
+      await expect(e.engine.query({ type: "search", search: { query: "ok", namespace: 123 as any } })).rejects.toThrow(/Invalid search namespace/);
+      await expect(e.engine.query({ type: "search", search: { query: "ok", kind: "" } })).rejects.toThrow(/Invalid search kind/);
+      await expect(e.engine.query({ type: "search", search: { query: "ok", mode: "banana" as any } })).rejects.toThrow(/Invalid search mode/);
+
+      // 2. Resolve with empty/whitespace alias or invalid namespace
+      await expect(e.engine.query({ type: "resolve", alias: "" })).rejects.toThrow(/Invalid alias/);
+      await expect(e.engine.query({ type: "resolve", alias: "   " })).rejects.toThrow(/Invalid alias/);
+      await expect(e.engine.query({ type: "resolve", alias: 123 as any })).rejects.toThrow(/Invalid alias/);
+      await expect(e.engine.query({ type: "resolve", alias: "ok", namespace: "" })).rejects.toThrow(/Invalid namespace/);
+
+      // 3. getEntity with non-string or empty id
+      await expect(e.engine.query({ type: "getEntity", id: "" })).rejects.toThrow(/Invalid id/);
+      await expect(e.engine.query({ type: "getEntity", id: 123 as any })).rejects.toThrow(/Invalid id/);
+
+      // 4. findClaims / findDocuments with invalid entityId
+      await expect(e.engine.query({ type: "findClaims", entityId: "" })).rejects.toThrow(/Invalid entityId/);
+      await expect(e.engine.query({ type: "findClaims", entityId: 123 as any })).rejects.toThrow(/Invalid entityId/);
+      await expect(e.engine.query({ type: "findDocuments", entityId: "" })).rejects.toThrow(/Invalid entityId/);
+      await expect(e.engine.query({ type: "findDocuments", entityId: {} as any })).rejects.toThrow(/Invalid entityId/);
+
+      // 5. findRelations with invalid field types
+      await expect(e.engine.query({ type: "findRelations", subjectId: 123 as any })).rejects.toThrow(/Invalid subjectId/);
+      await expect(e.engine.query({ type: "findRelations", objectId: "" as any })).rejects.toThrow(/Invalid objectId/);
+      await expect(e.engine.query({ type: "findRelations", subjectId: "a", predicate: 123 as any })).rejects.toThrow(/Invalid predicate/);
+
+      // 6. Traverse with invalid startId, steps, or step direction
+      await expect(e.engine.query({ type: "traverse", startId: 123 as any })).rejects.toThrow(/Invalid startId/);
+      await expect(e.engine.query({ type: "traverse", startId: "ok", steps: "out" as any })).rejects.toThrow(/Invalid traversal steps/);
+      await expect(e.engine.query({ type: "traverse", startId: "ok", steps: [{ direction: "banana" as any }] })).rejects.toThrow(/direction 'banana'/);
+      await expect(e.engine.query({ type: "traverse", startId: "ok", steps: [{ direction: "out", predicates: [123 as any] }] })).rejects.toThrow(/Invalid predicate in step/);
+      await expect(e.engine.query({ type: "traverse", startId: "ok", predicates: "links" as any })).rejects.toThrow(/Invalid predicates/);
     }
   });
 
