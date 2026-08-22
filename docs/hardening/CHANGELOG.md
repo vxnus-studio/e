@@ -4,12 +4,21 @@ All notable hardening changes across the E runtime are recorded in this document
 
 ---
 
+## [Phase 8] - Scale, Performance & Concurrency Hardening
+- **Audited Scale Profiles & Concurrency Safety**:
+  - Authored `docs/hardening/SCALE-BENCHMARKS.md` and `docs/hardening/CONCURRENCY.md`.
+  - Updated `docs/hardening/SCALE.md` with complete operation complexity profiles.
+- **Created Scale & Concurrency Test Suite**:
+  - Authored `packages/differential/test/scale_concurrency.test.ts` testing 1,000-entity point lookups and filtered searches, 600-node SQLite parameter chunking safety, concurrent reader-writer connection pool stability, and concurrent duplicate insertion races.
+- **Reconciled Full Forensic Audit Matrix**:
+  - Reconciled AUD-01 through AUD-12 in `docs/hardening/AUDIT.md`.
+
+---
+
 ## [Phase 7] - Schema, Migration, Fresh Install, and Replay Hardening
-- **Verified Fresh Database Bootstrapping & Migration Replay**:
-  - Authored `packages/differential/test/schema_lifecycle.test.ts` testing fresh PostgreSQL database creation, complete schema installation, full CRUD cycle, migration replay against legacy schema, and schema initialization idempotency.
-  - Verified fresh SQLite in-memory initialization and table creation.
-- **Documented Schema & Migration Lifecycle**:
-  - Created `docs/hardening/SCHEMA.md` and `docs/hardening/MIGRATIONS.md`.
+- Verified fresh PostgreSQL and SQLite database bootstrapping.
+- Verified migration replay against legacy databases with data preservation.
+- Documented schema in `docs/hardening/SCHEMA.md` and `docs/hardening/MIGRATIONS.md`.
 
 ---
 

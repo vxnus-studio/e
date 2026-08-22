@@ -1,21 +1,25 @@
-# Traversal Scale & Performance Analysis (Phase 4)
+# Traversal & Database Scale Specification (Phase 8 Update)
 
-This document tracks graph scaling behavior, intermediate complexity, and query counts.
-
----
-
-## 1. Complexity & Memory Bounds
-
-| Dimension | Bound | Guarantees |
-|---|---|---|
-| **Max Depth** | $\le 100$ | Hard safety limit. Prevents stack overflow. |
-| **Max Paths** | $\le 100,000$ | Default 1,000. Prevents infinite frontier explosion. |
-| **Frontier Memory** | $O(\text{maxPaths})$ | Intermediate level expansion is bounded by `maxPaths`. |
-| **Visited Entities** | $O(\text{visited entities})$ | Global Set/Map prevents redundant DB entity lookups. |
+This document establishes the complexity and resource consumption bounds for the E runtime.
 
 ---
 
-## 2. DB Round-Trip Patterns
+## 1. Operation Complexity Matrix
 
-- **PostgreSQL**: 1-2 SQL queries per BFS level depth step (batched array queries via `= ANY($1)`), avoiding N+1 round-trips.
-- **SQLite**: Batched queries chunked in batches of 500 parameters per BFS level.
+| Operation | InMemory Time | InMemory Mem | SQLite Time | PostgreSQL Time | DB Round Trips | Index Used |
+|---|---|---|---|---|---|---|
+| **`getEntity`** | $O(1)$ | $O(1)$ | $O(\log N)$ | $O(\log N)$ | 1 | `e_entities_pkey` |
+| **`resolve`** | $O(A)$ | $O(R)$ | $O(\log N)$ | $O(\log N)$ | 1 | `idx_e_aliases_alias` |
+| **`search`** | $O(N)$ | $O(\text{limit})$ | $O(N)$ | $O(N)$ | 1 | `idx_e_entities_namespace` |
+| **`findRelations`** | $O(R)$ | $O(R)$ | $O(\log N)$ | $O(\log N)$ | 1-2 | `idx_e_relations_subject_id` |
+| **`findClaims`** | $O(C)$ | $O(C)$ | $O(\log N)$ | $O(\log N)$ | 1 | `idx_e_claims_entity_id` |
+| **`findDocuments`**| $O(D)$ | $O(D)$ | $O(\log N)$ | $O(\log N)$ | 1 | `idx_e_documents_entity_id` |
+| **`traverse`** | $O(\min(\|V\|+\|E\|, M \cdot d))$ | $O(M \cdot d)$ | $O(d \cdot \log N)$ | $O(d \cdot \log N)$ | $1-2$ per level | `idx_e_relations_*` |
+
+---
+
+## 2. Resource Bounding Summary
+
+- **Intermediate BFS Expansion**: Strict $O(\text{maxPaths})$ frontier boundary prevents memory spikes.
+- **SQLite Parameter Chunking**: Batches bounded to 500 parameters per SQL chunk to avoid SQLite variable limit exceptions.
+- **PostgreSQL Connection Pool**: Automatic client acquisition and return lifecycle prevents connection leakage under heavy concurrency.
