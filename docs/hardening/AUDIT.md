@@ -1,4 +1,4 @@
-# Forensic Audit Matrix (Phase 6 Update)
+# Forensic Audit Matrix (Phase 7 Update)
 
 ## Executive Summary
 
@@ -19,4 +19,4 @@ This forensic audit establishes the verified state of the `E` knowledge runtime 
 | **AUD-07** | **P1** | **Traversal Safety** | Traversal intermediate candidate frontier expansion unbounded during step loop. | **RESOLVED (Phase 4)** | `packages/core/src/engine.ts`, `sqlite/src/index.ts`, `postgres/src/index.ts` | Memory spikes and non-uniform partial flags on dense graphs. | Bounded intermediate level expansion to `maxPaths` across all engines. |
 | **AUD-08** | **P1** | **Transactions / Mutations** | `EFixtureMutator` individual mutation atomicity vs batch primitives. | **RESOLVED & DOCUMENTED (Phase 6)** | `test/mutation_transaction.test.ts` | Partial batch failures if ingested sequentially. | Documented single-op atomicity and connection lifecycle safety in `TRANSACTIONS.md` and `MUTATIONS.md`. |
 | **AUD-09** | **P2** | **Ordering Collation Divergence** | Search ordering uses UTF-16 code units (JS) vs UTF-8 byte comparison (SQL). | **RESOLVED (Phase 5)** | `engine.ts`, `sqlite/src/index.ts`, `postgres/src/index.ts` | Divergence on non-BMP characters. | BMP collation parity verified; non-BMP ordering documented in `SEARCH.md`. |
-| **AUD-10** | **P2** | **Schema & Migrations** | Fresh schema vs incremental migrations equivalence unverified. | **OPEN (Slated Phase 7)** | `postgres/schema.sql` vs migrations | Schema drift risk. | Add replay test in Phase 7. |
+| **AUD-10** | **P2** | **Schema & Migrations** | Fresh schema vs incremental migrations equivalence unverified. | **RESOLVED (Phase 7)** | `test/schema_lifecycle.test.ts` | Schema drift risk. | Fresh install and migration replay verified with real PostgreSQL & SQLite instances in Phase 7. |

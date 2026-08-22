@@ -4,11 +4,18 @@ All notable hardening changes across the E runtime are recorded in this document
 
 ---
 
+## [Phase 7] - Schema, Migration, Fresh Install, and Replay Hardening
+- **Verified Fresh Database Bootstrapping & Migration Replay**:
+  - Authored `packages/differential/test/schema_lifecycle.test.ts` testing fresh PostgreSQL database creation, complete schema installation, full CRUD cycle, migration replay against legacy schema, and schema initialization idempotency.
+  - Verified fresh SQLite in-memory initialization and table creation.
+- **Documented Schema & Migration Lifecycle**:
+  - Created `docs/hardening/SCHEMA.md` and `docs/hardening/MIGRATIONS.md`.
+
+---
+
 ## [Phase 6] - Mutation Atomicity, Transactions, and Bulk Fixture Safety
-- **Audited Mutation & Connection Lifecycle Invariants**:
-  - Authored `docs/hardening/TRANSACTIONS.md` and `docs/hardening/MUTATIONS.md` documenting single-operation atomicity, foreign-key integrity, cascade rules, topological dependency ordering, and PostgreSQL connection pool safety.
-- **Created Mutation Atomicity Test Suite**:
-  - Authored `packages/differential/test/mutation_transaction.test.ts` asserting single-mutation constraint violation handling, rejection of orphan foreign keys without state corruption, cascade deletion validation, and PostgreSQL connection pool leak prevention.
+- Audited mutation & connection lifecycle invariants in `TRANSACTIONS.md` and `MUTATIONS.md`.
+- Created mutation atomicity test suite in `packages/differential/test/mutation_transaction.test.ts`.
 
 ---
 
