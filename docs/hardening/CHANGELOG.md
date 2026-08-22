@@ -4,10 +4,17 @@ All notable hardening changes across the E runtime are recorded in this document
 
 ---
 
+## [Phase 6] - Mutation Atomicity, Transactions, and Bulk Fixture Safety
+- **Audited Mutation & Connection Lifecycle Invariants**:
+  - Authored `docs/hardening/TRANSACTIONS.md` and `docs/hardening/MUTATIONS.md` documenting single-operation atomicity, foreign-key integrity, cascade rules, topological dependency ordering, and PostgreSQL connection pool safety.
+- **Created Mutation Atomicity Test Suite**:
+  - Authored `packages/differential/test/mutation_transaction.test.ts` asserting single-mutation constraint violation handling, rejection of orphan foreign keys without state corruption, cascade deletion validation, and PostgreSQL connection pool leak prevention.
+
+---
+
 ## [Phase 5] - Search Semantics and Cross-Backend Parity
-- **Established Search Contract & Specification**: Authored `docs/hardening/SEARCH.md` formalizing lexical matching, literal wildcard (`%`, `_`) and escape (`\`) handling, filter scoping, and limit boundaries.
-- **Created Adversarial Search Test Suite**: Authored `packages/differential/test/search_adversarial.test.ts` testing ASCII case-insensitivity, literal SQL wildcard and backslash escaping, namespace/kind filters, limit bounds, deterministic ordering, CJK/Greek/Cyrillic/Emoji handling, and documented SQLite Unicode boundaries.
-- **Verified Cross-Backend Search Equivalence**: Confirmed deterministic ordering and parameter filtering parity across InMemory, SQLite, and PostgreSQL.
+- Established search contract in `docs/hardening/SEARCH.md`.
+- Created adversarial search test suite in `packages/differential/test/search_adversarial.test.ts`.
 
 ---
 

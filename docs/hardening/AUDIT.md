@@ -1,4 +1,4 @@
-# Forensic Audit Matrix (Phase 5 Update)
+# Forensic Audit Matrix (Phase 6 Update)
 
 ## Executive Summary
 
@@ -17,6 +17,6 @@ This forensic audit establishes the verified state of the `E` knowledge runtime 
 | **AUD-05** | **P1** | **Testing Integrity** | `search_audit.test.ts` only logged outputs without assertions. | **RESOLVED (Phase 1)** | `packages/differential/test/search_audit*.test.ts` | False confidence. | Converted to strict differential assertions in Phase 1. |
 | **AUD-06** | **P1** | **Search Parity** | SQLite `LIKE` operator is ASCII-only case folding; PostgreSQL and InMemory fold Unicode. | **RESOLVED & DOCUMENTED (Phase 5)** | `test/search_adversarial.test.ts` | Non-ASCII search divergence on SQLite. | Formalized in `docs/hardening/SEARCH.md` as documented platform boundary. |
 | **AUD-07** | **P1** | **Traversal Safety** | Traversal intermediate candidate frontier expansion unbounded during step loop. | **RESOLVED (Phase 4)** | `packages/core/src/engine.ts`, `sqlite/src/index.ts`, `postgres/src/index.ts` | Memory spikes and non-uniform partial flags on dense graphs. | Bounded intermediate level expansion to `maxPaths` across all engines. |
-| **AUD-08** | **P1** | **Transactions / Mutations** | `EFixtureMutator` lacks atomic batch or rollback abstraction. | **OPEN (Slated Phase 6)** | `packages/core/src/types.ts:172-178` | Partial-write corruption on batch loads. | Implement transaction abstraction in Phase 6. |
+| **AUD-08** | **P1** | **Transactions / Mutations** | `EFixtureMutator` individual mutation atomicity vs batch primitives. | **RESOLVED & DOCUMENTED (Phase 6)** | `test/mutation_transaction.test.ts` | Partial batch failures if ingested sequentially. | Documented single-op atomicity and connection lifecycle safety in `TRANSACTIONS.md` and `MUTATIONS.md`. |
 | **AUD-09** | **P2** | **Ordering Collation Divergence** | Search ordering uses UTF-16 code units (JS) vs UTF-8 byte comparison (SQL). | **RESOLVED (Phase 5)** | `engine.ts`, `sqlite/src/index.ts`, `postgres/src/index.ts` | Divergence on non-BMP characters. | BMP collation parity verified; non-BMP ordering documented in `SEARCH.md`. |
 | **AUD-10** | **P2** | **Schema & Migrations** | Fresh schema vs incremental migrations equivalence unverified. | **OPEN (Slated Phase 7)** | `postgres/schema.sql` vs migrations | Schema drift risk. | Add replay test in Phase 7. |
