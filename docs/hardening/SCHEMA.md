@@ -61,3 +61,7 @@ Short storage fields use a 255-character limit across the runtime validator, Pos
 - `idx_e_relations_predicate` on `e_relations(predicate)`
 - `idx_e_claims_entity_id` on `e_claims(entity_id)`
 - `idx_e_documents_entity_id` on `e_documents(entity_id)`
+
+## 3. Lifecycle Boundary
+
+`schema.sql` is a fresh-install definition. The repository currently has no schema version table or automatic migration runner. PostgreSQL migration `001` is statement-level idempotent; SQLite migration `001` is not replay-safe. Upgrade safety therefore remains an operational responsibility until versioned migration infrastructure is introduced.

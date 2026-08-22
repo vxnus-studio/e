@@ -22,7 +22,7 @@ Phase 0 established the current repository baseline without source changes. E is
 | 5. Search | COMPLETE (semantics; scale blocker remains) | Search adversarial/audit: 17 passed; build passed | Lexical substring search remains O(N); PostgreSQL execution remains unverified |
 | 6. Resolution | COMPLETE (local; PostgreSQL execution pending) | Differential resolution suite: 12 passed; PostgreSQL branch skipped locally | PostgreSQL runtime resolution remains unverified |
 | 7. Claims / documents / provenance / temporal | COMPLETE (persistence semantics) | Persistence round-trip suite: existing metadata tests pass; PostgreSQL execution pending | No temporal/provenance query capability; semantics are intentionally persistence-only |
-| 8. PostgreSQL schema / migrations | PENDING | Existing tests only; PostgreSQL skipped locally | Migration files are not visibly tracked by a migration table; fresh/upgrade/replay behavior requires live PostgreSQL verification |
+| 8. PostgreSQL schema / migrations | IN PROGRESS | Schema lifecycle: 4 SQLite tests passed; PostgreSQL lifecycle skipped | No migration-history/version runner; SQLite migration 001 is not replay-safe; live PostgreSQL verification pending |
 | 9. Batch ingestion | PENDING | Existing tests only | Atomicity exists in code/tests, but batching cost, size bounds, retry, and idempotency semantics remain open |
 | 10. Concurrency / connection safety | PENDING | Existing tests only | PostgreSQL pool and failure behavior are unverified without a live database |
 | 11. Scale review | PENDING | Existing 1k-scale tests | 100k/1m behavior and actual query plans are not established |
@@ -157,6 +157,20 @@ Phase 0 established the current repository baseline without source changes. E is
 - documentation impact: Updated `docs/CONTRACT.md`, `docs/hardening/PERSISTENCE.md`, and this document.
 - remaining risk: Consumers needing temporal reasoning or provenance ranking require a future explicit capability and contract extension.
 
+### F-0010 (OPEN — Phase 8)
+
+- ID: F-0010
+- severity: P1
+- subsystem: Schema and migration lifecycle
+- problem: Migrations are not version-tracked or automatically applied. PostgreSQL migration 001 is statement-level idempotent, but SQLite migration 001 fails when replayed because it adds existing columns without guards.
+- root cause: Migration files were introduced as manual SQL artifacts without a migration-history table, runner, transactional upgrade policy, or backend-specific replay guard.
+- affected engines: SQLite and PostgreSQL operational lifecycle; fresh schema bootstrap remains separately testable.
+- reproduction: Apply `packages/sqlite/migrations/001_add_provenance_and_identities.sql` twice to a legacy SQLite schema; the second application raises duplicate-column errors. No repository command records applied migration versions.
+- fix: Not yet implemented. Requires a deliberate migration API/runner design, SQLite schema inspection guards, version recording, failure semantics, and concurrency policy.
+- regression test: SQLite fresh schema lifecycle passes; PostgreSQL fresh/replay tests are skipped locally.
+- documentation impact: Corrected `docs/hardening/MIGRATIONS.md`, added lifecycle boundary to `docs/hardening/SCHEMA.md`, and recorded this blocker.
+- remaining risk: Production upgrades cannot yet be treated as automatically safe or replayable.
+
 ## Contract decisions
 
 No new semantic decisions were made in Phase 0. Existing documented decisions remain provisional until revalidated against current code and all backends, including:
@@ -194,8 +208,8 @@ Phase 1 decision: identifier-like and short textual storage fields have a 255-ch
 - [ ] Batch writes are atomic
 - [ ] Batch writes have defined retry/idempotency behavior
 - [ ] Connection/pool lifecycle is safe
-- [ ] Schema lifecycle is understood
-- [ ] Migration lifecycle is safe
+- [ ] Schema lifecycle is understood end-to-end
+- [ ] Migration lifecycle is safe and version-tracked
 - [x] Provenance/temporal semantics are documented as opaque persistence-only metadata
 - [ ] Scale envelope is documented
 - [ ] Current HEAD passes the complete suite
@@ -321,3 +335,13 @@ Tests and commands run:
 Remaining risk: temporal/provenance query capabilities are intentionally absent and must not be advertised by current engines.
 
 Phase 7 is complete as a persistence and contract audit.
+
+## Phase 8 record
+
+Files changed: `docs/hardening/MIGRATIONS.md`, `docs/hardening/SCHEMA.md`, and this document.
+
+Tests and commands run:
+
+- Schema lifecycle suite — 4 passed locally; PostgreSQL branches skipped because `TEST_DATABASE_URL` is unset.
+
+Remaining blocker: F-0010 remains open. Phase 8 is not complete; the repository has no safe, versioned migration lifecycle yet.
