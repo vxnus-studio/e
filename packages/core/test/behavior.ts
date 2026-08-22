@@ -102,8 +102,7 @@ export function runBehavioralTests(
       const searchLimit0 = await engine.query({ type: "search", search: { query: "acme", limit: 0 } });
       expect(searchLimit0.search!.entities.length).toBe(0);
 
-      const searchLimitNeg = await engine.query({ type: "search", search: { query: "acme", limit: -5 } });
-      expect(searchLimitNeg.search!.entities.length).toBe(0);
+      await expect(engine.query({ type: "search", search: { query: "acme", limit: -5 } })).rejects.toThrow("Invalid limit");
 
       const searchLimitOmitted = await engine.query({ type: "search", search: { query: "acme" } });
       expect(searchLimitOmitted.search!.entities.length).toBe(2);

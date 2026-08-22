@@ -28,6 +28,9 @@ export class PostgresEngine implements EQueryEngine, EFixtureMutator {
 
   async query(request: QueryRequest): Promise<KnowledgeResult> {
     const startTime = Date.now();
+    if (!request || typeof request !== "object") {
+      throw new Error("QueryRequest must be an object");
+    }
     const result: KnowledgeResult = {
       entities: [],
       relations: [],
@@ -122,6 +125,9 @@ export class PostgresEngine implements EQueryEngine, EFixtureMutator {
         }
         case "search": {
           const sq = request.search;
+          if (!sq || typeof sq !== "object") {
+            throw new Error("Search query must be an object");
+          }
           if (sq.mode && sq.mode !== "lexical") {
             throw new UnsupportedOperationError(`Search mode '${sq.mode}' is not supported by this engine.`);
           }
@@ -369,7 +375,8 @@ export class PostgresEngine implements EQueryEngine, EFixtureMutator {
           break;
         }
         default: {
-          throw new Error(`Unknown query type: ${(request as any).type}`);
+          const req = request as Record<string, unknown>;
+          throw new Error(`Unknown query type: ${req.type}`);
         }
       }
     } catch (e: any) {

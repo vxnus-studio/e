@@ -14,7 +14,7 @@ This repository is a monorepo containing the following packages:
 
 ## Architecture & Semantics
 
-E operates as a unified contract bridging underlying databases and knowledge consumers. All storage backend implementations in this repository guarantee exactly identical query semantics (including graph traversals, searches, provenance mapping, and temporal capability).
+E operates as a unified contract bridging underlying databases and knowledge consumers. The storage backend implementations in this repository strive to provide consistent query semantics (including graph traversals, searches, provenance mapping, and temporal capability), though some backend-native differences exist (such as SQLite's handling of Unicode case-insensitivity in search).
 
 For more detailed technical documentation on the E architecture, query interfaces, and traversal semantics, please see the [Core Documentation](packages/core/README.md) and the `packages/core/docs/` directory.
 

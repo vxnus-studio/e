@@ -88,6 +88,10 @@ describe("Search Audit", () => {
     console.log("limit 0:", await runSearch("a", 0));
     console.log("limit 1:", await runSearch("a", 1));
     console.log("limit 100:", await runSearch("a", 100));
-    console.log("limit -1:", await runSearch("a", -1));
+    try {
+      console.log("limit -1:", await runSearch("a", -1));
+    } catch (e: any) {
+      console.log("limit -1 threw:", e.message);
+    }
   });
 });

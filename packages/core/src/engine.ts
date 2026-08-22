@@ -79,6 +79,10 @@ export class InMemoryEngine implements EQueryEngine, EFixtureMutator {
       metadata: { timeMs: 0 },
     };
 
+    if (!request || typeof request !== "object") {
+      throw new QueryError("QueryRequest must be an object");
+    }
+
     switch (request.type) {
       case "getCapabilities": {
         result.capabilities = {
@@ -162,6 +166,9 @@ export class InMemoryEngine implements EQueryEngine, EFixtureMutator {
       }
       case "search": {
         const sq = request.search;
+        if (!sq || typeof sq !== "object") {
+          throw new QueryError("Search query must be an object");
+        }
         if (sq.mode && sq.mode !== "lexical") {
           throw new UnsupportedOperationError(`Search mode '${sq.mode}' is not supported by this engine.`);
         }
@@ -220,13 +227,6 @@ export class InMemoryEngine implements EQueryEngine, EFixtureMutator {
         if (typeof maxPaths !== 'number' || isNaN(maxPaths) || !Number.isInteger(maxPaths) || maxPaths < 0 || maxPaths > 100000) {
           throw new QueryError("Invalid maxPaths: must be an integer between 0 and 100000");
         }
-        if (maxPaths === 0) {
-          result.traversal = { entities: [], relations: [], paths: [] };
-          result.entities = [];
-          result.relations = [];
-          break;
-        }
-
         if (maxPaths === 0) {
           result.traversal = { entities: [], relations: [], paths: [] };
           result.entities = [];
@@ -388,7 +388,8 @@ export class InMemoryEngine implements EQueryEngine, EFixtureMutator {
         break;
       }
       default: {
-        throw new UnsupportedOperationError(`Unknown query type: ${(request as any).type}`);
+        const req = request as Record<string, unknown>;
+        throw new UnsupportedOperationError(`Unknown query type: ${req.type}`);
       }
     }
 
