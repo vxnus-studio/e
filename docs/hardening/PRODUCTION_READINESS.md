@@ -2,10 +2,10 @@
 
 ## Status
 
-- Current phase: Phase 10 complete locally; Phase 8 migration lifecycle remains open
+- Current phase: Phase 13 local verification complete; Phase 8 migration lifecycle remains open
 - Overall status: HARDENING
 - Date: 2026-08-22
-- HEAD: `456bb34` (`hardening: bound batch ingestion`)
+- HEAD: current working HEAD; see git log for the phase commits
 - Scope: E only. `e-teyvat` is out of scope.
 
 Phase 0 established the current repository baseline without source changes. E is not production-ready: PostgreSQL behavior was not exercised in this environment, and the initial contract/storage audit found known constraint mismatches to resolve in Phase 1.
@@ -27,7 +27,7 @@ Phase 0 established the current repository baseline without source changes. E is
 | 10. Concurrency / connection safety | COMPLETE (local; PostgreSQL execution pending) | Pool lifecycle regression and workspace build pass; PostgreSQL concurrency branches skipped | Live pool exhaustion, connection acquisition failure, timeout, and isolation behavior remain unverified |
 | 11. Scale review | COMPLETE (envelope documented; measurement incomplete) | Existing 1k-scale suite; complexity audit; build passed | No repeatable latency/memory/query-plan measurements; 100k/1m behavior remains outside verified envelope |
 | 12. Differential / adversarial testing | COMPLETE (local two-backend; PostgreSQL pending) | 75 differential tests; traversal adversarial suite; three deterministic randomized seeds pass | PostgreSQL branches remain skipped; randomized coverage is not a substitute for live backend parity |
-| 13. Current-head verification | PENDING | Not run | Final readiness cannot be assessed until all phases and live PostgreSQL verification complete |
+| 13. Current-head verification | COMPLETE (local; not production-ready) | Full local suite, build, dependency check, diff hygiene, and scope inspection passed | Live PostgreSQL verification, migration lifecycle, scale measurements, and tooling-warning cleanup remain incomplete |
 
 ## Findings
 
@@ -255,8 +255,8 @@ Phase 1 decision: identifier-like and short textual storage fields have a 255-ch
 - [x] Provenance/temporal semantics are documented as opaque persistence-only metadata
 - [x] Scale envelope is documented; measured capacity remains limited to local behavioral tests
 - [x] Current HEAD passes the complete local suite; PostgreSQL remains skipped
-- [ ] Hardening documentation is up to date
-- [ ] No known P0 blockers remain
+- [x] Hardening documentation is up to date for the verified local state
+- [x] No known P0 blockers remain; P1 blockers remain documented below
 
 ## Remaining blockers
 
@@ -455,3 +455,16 @@ Remaining risks:
 - Randomized tests use fixed seeds and bounded graphs; they do not establish arbitrary-scale or arbitrary-input coverage.
 
 Phase 12 is complete for local differential/adversarial coverage.
+
+## Phase 13 record
+
+Tests and commands run at current HEAD:
+
+- `npm test` — core 15 passed; differential 75 passed; PostgreSQL 1 lifecycle test passed and 1 live-DB test skipped; SQLite 4 passed; dependency check passed.
+- `npm run build` — passed for all build-enabled workspaces.
+- `git diff --check` — passed.
+- Git scope inspection — no changes outside E; no generated junk or secrets detected in the changed-file set.
+
+Final local status: HARDENING, not READY.
+
+Remaining blockers are F-0002 (live PostgreSQL parity), F-0007 (O(N) search scale), F-0010 (unversioned/non-replay-safe migration lifecycle), F-0013 (unmeasured 100k/1m capacity), and F-0003 (test tooling warnings). The complete suite passing locally is not sufficient to close these risks.
