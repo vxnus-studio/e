@@ -64,6 +64,7 @@ describe("Cross-Backend Persistence Round-Trip Contract Audit", () => {
           }
         });
       } catch (e) {
+        if (process.env.CI) throw e;
         console.warn("PostgreSQL not initialized: ", e);
       }
     }

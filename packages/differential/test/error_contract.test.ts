@@ -60,6 +60,7 @@ describe("Error Contract & Boundary Validation Audit", () => {
           }
         });
       } catch (e) {
+        if (process.env.CI) throw e;
         console.warn("PostgreSQL not initialized: ", e);
       }
     }

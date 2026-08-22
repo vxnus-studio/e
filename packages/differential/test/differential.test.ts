@@ -100,8 +100,9 @@ describe("Differential Cross-Backend Semantic Parity", () => {
             await pool.query(`TRUNCATE TABLE e_entities, e_aliases, e_relations, e_claims, e_documents CASCADE;`);
           }
         });
-      } catch (e) {
-        console.warn("Failed to init Postgres: ", e);
+    } catch (e) {
+      if (process.env.CI) throw e;
+      console.warn("Failed to init Postgres: ", e);
       }
     }
   });

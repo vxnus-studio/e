@@ -20,6 +20,7 @@ describe("Schema Lifecycle, Fresh Install & Migration Replay Verification", () =
         await adminPool.query(`DROP DATABASE IF EXISTS ${freshDbName};`);
         await adminPool.query(`CREATE DATABASE ${freshDbName};`);
       } catch (e) {
+        if (process.env.CI) throw e;
         console.warn("Could not create fresh test database:", e);
       } finally {
         await adminPool.end();

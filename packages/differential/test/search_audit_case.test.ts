@@ -25,6 +25,7 @@ describe("Unicode & Search Collation Differential Truth", () => {
         await pgPool.query(schemaSql);
         await pgPool.query("TRUNCATE TABLE e_entities, e_aliases, e_relations, e_claims, e_documents CASCADE;");
       } catch (e) {
+        if (process.env.CI) throw e;
         console.warn("PostgreSQL not initialized: ", e);
       }
     }

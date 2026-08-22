@@ -65,6 +65,7 @@ describe("Traversal Adversarial & Boundary Verification", () => {
           }
         });
       } catch (e) {
+        if (process.env.CI) throw e;
         console.warn("PostgreSQL not initialized for traversal tests: ", e);
       }
     }

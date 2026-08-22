@@ -39,6 +39,12 @@ jobs:
       
     - name: Create PostgreSQL database
       run: psql -h localhost -U postgres -c 'CREATE DATABASE e_test;'
+
+    - name: Verify PostgreSQL test gate
+      env:
+        TEST_DATABASE_URL: postgres://postgres@localhost/e_test
+        CI: true
+      run: node scripts/verify-postgres.cjs
       
     - name: Run Tests
       env:

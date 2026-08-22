@@ -31,6 +31,7 @@ describe("Search Audit & Differential Verification", () => {
         await pgPool.query("TRUNCATE TABLE e_entities, e_aliases, e_relations, e_claims, e_documents CASCADE;");
         activeEngines.push({ name: "PostgreSQL", query: (r) => pgEngine!.query(r) });
       } catch (e) {
+        if (process.env.CI) throw e;
         console.warn("PostgreSQL not initialized for search audit: ", e);
       }
     }

@@ -50,6 +50,7 @@ describe("Scale, Concurrency & High-Volume Stress Tests", () => {
           insertRelation: (r) => pgEngine!.insertRelation(r)
         });
       } catch (e) {
+        if (process.env.CI) throw e;
         console.warn("PostgreSQL not initialized for scale tests: ", e);
       }
     }

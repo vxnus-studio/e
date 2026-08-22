@@ -70,6 +70,7 @@ describe("Search Adversarial & Parity Verification", () => {
           }
         });
       } catch (e) {
+        if (process.env.CI) throw e;
         console.warn("PostgreSQL not initialized for search tests: ", e);
       }
     }

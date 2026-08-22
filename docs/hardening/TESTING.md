@@ -38,9 +38,8 @@ The repository contains three levels of testing:
 ## 3. Investigating Skipped Tests
 
 ### `packages/postgres/test/postgres.test.ts`
-- **Previous state**: Skipped when `TEST_DATABASE_URL` was not provided in local environments.
-- **Audit verdict**: **Intentionally environment-gated**. The test suite is complete and unskipped whenever `TEST_DATABASE_URL` is set (e.g. `TEST_DATABASE_URL=postgres://postgres:postgres@localhost:5432/e_test` or in CI). When running with PostgreSQL available, all 100% of behavioral and differential tests execute and pass.
-- **In CI**: `.github/workflows/ci.yml` provisions a PostgreSQL 15 service container and sets `TEST_DATABASE_URL`, ensuring CI always executes PostgreSQL tests.
+- **Local state**: Skipped when `TEST_DATABASE_URL` is not provided, so local development does not require a database server.
+- **CI state**: `.github/workflows/ci.yml` provisions PostgreSQL, sets `TEST_DATABASE_URL`, runs `scripts/verify-postgres.cjs`, and fails if the server is unreachable. Differential PostgreSQL initialization failures also fail under `CI` instead of silently removing PostgreSQL from the matrix.
 
 ---
 

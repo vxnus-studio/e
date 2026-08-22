@@ -48,6 +48,7 @@ describe("PostgreSQL traversal query shape", () => {
         throw new Error(`unexpected query: ${text}`);
       },
       end: async () => undefined,
+      removeListener: () => undefined,
     };
 
     const engine = new PostgresEngine({ connectionString: "postgresql://unused" });

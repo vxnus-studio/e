@@ -59,6 +59,7 @@ describe("Mutation Atomicity & Failure Isolation", () => {
           insertDocument: (d) => pgEngine!.insertDocument(d)
         });
       } catch (e) {
+        if (process.env.CI) throw e;
         console.warn("PostgreSQL not initialized for transaction tests: ", e);
       }
     }
