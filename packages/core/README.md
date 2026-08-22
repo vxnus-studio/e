@@ -1,95 +1,77 @@
-# E Core
+# `e` (E Core)
 
-E is a **domain-agnostic knowledge runtime and graph query layer**.
+`e` is the foundational TypeScript library defining the **generic knowledge graph runtime and query contract**.
 
-It provides a unified schema, query contract, and retrieval engine so that AI systems can retrieve structured, evidence-backed knowledge across different domains (e.g., fictional universes, software architecture, internal wikis) without needing to guess via unstructured RAG or reverse-engineer SQL.
+> **Note:** E is currently pre-1.0 (`0.1.0`) and under active development. APIs and schema conventions may evolve.
 
-## Architecture
+## Purpose
 
-E acts as a layer over persistence. It standardizes the shape of data into a graph, avoiding domain-specific hardcodes in the core query engine.
+E standardizes the representation and retrieval of structured, evidence-backed knowledge graphs across diverse domains (fictional universes, documentation, enterprise knowledge) without requiring hardcoded schema assumptions or fragile unstructured search.
 
-### Current Core Capabilities
-The E schema natively supports:
-- **Entities:** Nodes in the graph with a `kind`, domain-specific `data`, and mapped external `identities`.
-- **Aliases:** Alternative names for entities to aid in resolution.
-- **Relations:** Directed edges between entities with an optional predicate.
-- **Claims:** Source-backed statements about an entity.
-- **Documents:** Long-form text attached to an entity for semantic search.
-- **Provenance & Temporal Semantics:** Universal properties across schema components for tracking data sources, revisions, and temporal validity.
+## Core Schema Concepts
 
-### Graph Traversal
-E features a scalable, cycle-protected, Breadth-First Search (BFS) graph traversal engine. Starting from a root entity, it can predictably fetch deep relational context without N+1 query scaling issues, supporting bounded depth limits, bidirectional edge traversal, multiple traversal paths, and predicate filtering.
+The core data contract defines the following entities:
 
-### Current Limitations
-- **Read-Only API:** E's query contract is strictly retrieval-oriented. Write/Ingestion APIs must be handled directly via the underlying database using the E schemas.
-- **Local Bounding:** Graph traversals operate locally within the configured database engine; distributed or federated cross-database traversal is not supported.
-- **Alias Scoping:** Aliases currently resolve flatly per-namespace. Language-based scoping is a future proposal.
+- **Entity:** Graph nodes identified by canonical `id`, `namespace`, `kind`, `slug`, `name`, custom `data`, optional external `identities`, `provenance`, and `temporal` semantics.
+- **Alias:** Alternate lookup keys associated with entities within a namespace.
+- **Relation:** Directed edges between entities with a `predicate`, optional `provenance`, `temporal`, and `metadata`.
+- **Claim:** Factual assertions or statements about an entity with confidence levels (`canon`, `theory`, `outdated`, `unverified`) and source attribution.
+- **Document:** Text representations attached to an entity.
+- **Provenance & TemporalSemantics:** Universal metadata tracking origins, revisions, confidence, and time validity.
 
-## Packages
+## Engine Interface
 
-E is distributed as a monorepo with multiple packages:
+The core query interface is `EQueryEngine`, executing structured `QueryRequest` payloads:
 
-- `e`: The core TypeScript types, query contracts, and an `InMemoryEngine`.
-- `@e/sqlite`: The production SQLite adapter.
-- `@e/postgres`: The production PostgreSQL adapter.
+- `getEntity`: Retrieve a single entity by ID.
+- `resolve`: Resolve entities by alias.
+- `findRelations`: Query edges by `subjectId`, `objectId`, and optional `predicate` (hydrates connected entities).
+- `findClaims`: Fetch claims attached to an entity.
+- `findDocuments`: Fetch documents attached to an entity.
+- `traverse`: Perform bounded, cycle-protected Breadth-First Search (BFS) graph traversals with depth, path limits, and predicate/direction filters.
+- `search`: Lexical search on entity names and slugs.
+- `getCapabilities`: Inspect backend feature capabilities.
 
-Since these are currently workspace packages, you can use them within this repository, or install them via npm if published:
+## Installation
 
 ```bash
-# To install the core interface
 npm install e
-# To install a persistence backend
-npm install @e/sqlite
 ```
 
-## Basic Usage
-
-The package exposes the core types and an `InMemoryEngine` for testing.
+## Usage
 
 ```typescript
 import { InMemoryEngine } from "e";
-import type { QueryRequest } from "e";
+import type { QueryRequest, KnowledgeResult } from "e";
 
+// Initialize the lightweight in-memory engine
 const engine = new InMemoryEngine();
 
-// Traverse the graph starting from an entity
-const result = await engine.query({ 
-  type: "traverse", 
-  startId: "char_1",
-  maxDepth: 2,
-  predicates: ["knows"]
+// Insert an entity
+engine.insertEntity({
+  id: "node_1",
+  namespace: "default",
+  kind: "concept",
+  slug: "alpha",
+  name: "Alpha Concept",
+  data: { topic: "graph" }
 });
+
+// Query the engine
+const result: KnowledgeResult = await engine.query({
+  type: "getEntity",
+  id: "node_1"
+});
+
+console.log(result.entities);
 ```
 
-See the `docs/` folder for architectural guidelines, such as `QUERY.md` and `HYDRATION_AND_ERRORS.md`, which formalize the engine guarantees.
+## Available Packages
 
-## Future/Proposed Capabilities
-- Advanced `Claim` evidence chaining.
-- Vector-based semantic search integration at the engine level.
-- Multi-language scoped aliases.
+- `e`: Core interfaces, error classes, types, and `InMemoryEngine`.
+- `@e/postgres`: PostgreSQL / Neon adapter.
+- `@e/sqlite`: SQLite adapter using `better-sqlite3`.
 
+## License
 
-
-## Development and Testing
-
-The repository uses `vitest` for the behavioral and backend parity test suite. 
-
-### Local Testing
-To test the core in-memory logic:
-```bash
-npm test -w e
-```
-
-To run the full workspace test suite (which validates parity across all backend engines):
-```bash
-TEST_DATABASE_URL=postgres://postgres@localhost:5432/postgres npm test
-```
-
-### Backend Requirements
-- **PostgreSQL:** The Postgres parity tests require a running database instance. Set `TEST_DATABASE_URL` to point to a temporary test database (it will drop and recreate tables automatically during setup). If this variable is omitted locally, the Postgres tests will be cleanly skipped.
-- **SQLite:** The SQLite tests require `better-sqlite3` native bindings to be compiled. If your local Node runtime is incompatible with the pinned version (e.g., Node v26.7.0 `node-gyp` V8 API changes), the SQLite tests will gracefully skip locally. 
-
-### CI Behavior
-In a Continuous Integration environment (where `process.env.CI` is true):
-- Backend tests are **strictly required**. 
-- If `TEST_DATABASE_URL` is missing, or if `better-sqlite3` native bindings fail to load, the test suite will intentionally throw a loud `Error` and fail the build to prevent silent test rotting. Backends are only optional in local development.
+E is licensed under the [E Architecture Non-Commercial License](LICENSE).

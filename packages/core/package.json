@@ -1,31 +1,50 @@
 {
   "name": "e",
-  "version": "1.0.0",
-  "description": "> One schema to structure them all 🌐",
-  "scripts": {
-    "test": "vitest run",
-    "build": "tsc",
-    "prepack": "npm run build"
-  },
+  "version": "0.1.0",
+  "description": "Generic knowledge graph runtime and query contract",
+  "type": "module",
+  "license": "SEE LICENSE IN LICENSE",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/vxnuslabs/e.git"
+    "url": "git+https://github.com/vxnuslabs/e.git",
+    "directory": "packages/core"
   },
-  "keywords": [],
-  "type": "module",
   "bugs": {
     "url": "https://github.com/vxnuslabs/e/issues"
   },
   "homepage": "https://github.com/vxnuslabs/e#readme",
-  "devDependencies": {
-    "@types/node": "^26.2.0",
-    "vitest": "^4.1.11"
-  },
+  "keywords": [
+    "knowledge-graph",
+    "graph",
+    "runtime",
+    "rag",
+    "entities",
+    "relations"
+  ],
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "exports": {
-    "import": "./dist/index.js"
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    }
   },
-  "dependencies": {
-    "typescript": "^5.9.3"
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "test": "vitest run",
+    "prepack": "npm run build"
+  },
+  "devDependencies": {
+    "@types/node": "^26.2.0",
+    "typescript": "^5.9.3",
+    "vitest": "^4.1.11"
   }
 }
+

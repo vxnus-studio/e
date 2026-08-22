@@ -1,20 +1,54 @@
 {
   "name": "@e/postgres",
-  "version": "1.0.0",
+  "version": "0.1.0",
+  "description": "PostgreSQL adapter and schema for E knowledge graph runtime",
   "type": "module",
-  "exports": {
-    "import": "./dist/index.js"
+  "license": "SEE LICENSE IN LICENSE",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/vxnuslabs/e.git",
+    "directory": "packages/postgres"
   },
+  "bugs": {
+    "url": "https://github.com/vxnuslabs/e/issues"
+  },
+  "homepage": "https://github.com/vxnuslabs/e#readme",
+  "keywords": [
+    "e",
+    "postgres",
+    "postgresql",
+    "neon",
+    "knowledge-graph",
+    "adapter"
+  ],
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
   "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    },
+    "./schema.sql": "./schema.sql"
+  },
+  "files": [
+    "dist",
+    "schema.sql",
+    "migrations",
+    "README.md",
+    "LICENSE"
+  ],
   "scripts": {
     "build": "tsc",
-    "test": "vitest run"
+    "test": "vitest run",
+    "prepack": "npm run build"
   },
   "dependencies": {
     "pg": "^8.11.3"
   },
   "peerDependencies": {
-    "e": "^1.0.0"
+    "e": "^0.1.0"
   },
   "devDependencies": {
     "@types/pg": "^8.10.2",
@@ -23,3 +57,4 @@
     "vitest": "^4.1.11"
   }
 }
+
