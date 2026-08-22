@@ -6,7 +6,7 @@ This document defines the canonical error contract for `@vxnus/e` and all engine
 
 ## 1. Error Taxonomy
 
-The E runtime provides three standard, machine-inspectable error classes exported from `@vxnus/e`:
+The E runtime provides four standard, machine-inspectable error classes exported from `@vxnus/e`:
 
 ```mermaid
 classDiagram
@@ -26,12 +26,19 @@ classDiagram
       +unknown cause
       +toJSON()
     }
+    class StorageError {
+      +string name = "StorageError"
+      +string code
+      +unknown cause
+      +toJSON()
+    }
     class UnsupportedOperationError {
       +string name = "UnsupportedOperationError"
       +toJSON()
     }
     Error <|-- ConstraintError
     Error <|-- QueryError
+    Error <|-- StorageError
     Error <|-- UnsupportedOperationError
 ```
 
@@ -54,7 +61,11 @@ Thrown when a request asks for a feature not implemented or not advertised by th
 - Unknown `request.type` (e.g. unknown query discriminator).
 - Unsupported `search.mode` (e.g. `"semantic"` or `"hybrid"` on engines where capability flag is `false`).
 
-### 1.3 `ConstraintError`
+### 1.3 `StorageError`
+
+Thrown for backend and driver failures such as a closed database, connection outage, SQL execution failure, or transaction infrastructure failure. Adapter-specific errors remain available as `cause` for diagnostics, but callers can reliably distinguish storage failure from malformed requests (`QueryError`) and integrity violations (`ConstraintError`).
+
+### 1.4 `ConstraintError`
 Thrown when a mutation violates schema or integrity rules:
 - Duplicate primary key (`id`).
 - Foreign key violation (`entityId`, `subjectId`, `objectId` referencing nonexistent entities).
@@ -96,5 +107,5 @@ If a caller provides `maxDepth: -1` in a traversal query, the engine throws `Que
 
 Database adapters (`SqliteEngine`, `PostgresEngine`) translate internal driver exceptions at the adapter boundary:
 - SQLite `SQLITE_CONSTRAINT_*` and PostgreSQL error codes (`23505`, `23503`, `23514`, `23502`) are normalized into `ConstraintError`.
-- Generic SQL syntax errors are wrapped into `QueryError` while preserving the driver error in `error.cause`.
-- Network/connection pool outages from the driver are rethrown or wrapped preserving causality, without masking them as user input errors (`ConstraintError` / `QueryError`).
+- SQL execution, syntax, and network/connection pool outages are wrapped as `StorageError` while preserving the driver error in `error.cause`.
+- Validation errors raised before storage access remain `QueryError` for reads and `ConstraintError` with `code: "VALIDATION_ERROR"` for mutations.

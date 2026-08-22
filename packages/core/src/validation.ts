@@ -11,6 +11,19 @@ import type {
   BatchDataset,
   QueryRequest,
 } from "./types.js";
+import {
+  MAX_STORAGE_IDENTIFIER_LENGTH,
+  MAX_STORAGE_SHORT_TEXT_LENGTH,
+  MAX_PROVENANCE_PROVIDER_LENGTH,
+  MAX_PROVENANCE_SOURCE_LENGTH,
+  MAX_PROVENANCE_SOURCE_ID_LENGTH,
+  MAX_PROVENANCE_SOURCE_REVISION_LENGTH,
+  MAX_PROVENANCE_LOCATOR_LENGTH,
+  MAX_PROVENANCE_CONTENT_HASH_LENGTH,
+  MAX_PROVENANCE_OBSERVED_AT_LENGTH,
+  MAX_PROVENANCE_EXTRACTED_VIA_LENGTH,
+  MAX_IDENTITY_EXTERNAL_ID_LENGTH,
+} from "./types.js";
 
 const VALID_CONFIDENCE_LEVELS = new Set(["canon", "theory", "outdated", "unverified"]);
 
@@ -22,7 +35,7 @@ function validateNonEmptyString(val: unknown, fieldName: string, maxLen: number 
   if (trimmed.length === 0) {
     throw new ConstraintError(`Invalid ${fieldName}: cannot be empty or whitespace-only`, undefined, "VALIDATION_ERROR");
   }
-  if (val.length > maxLen) {
+  if ([...val].length > maxLen) {
     throw new ConstraintError(`Invalid ${fieldName}: exceeds maximum allowed length of ${maxLen}`, undefined, "VALIDATION_ERROR");
   }
   return val;
@@ -33,7 +46,7 @@ function validateOptionalString(val: unknown, fieldName: string, maxLen: number 
   if (typeof val !== "string") {
     throw new ConstraintError(`Invalid ${fieldName}: must be a string`, undefined, "VALIDATION_ERROR");
   }
-  if (val.length > maxLen) {
+  if ([...val].length > maxLen) {
     throw new ConstraintError(`Invalid ${fieldName}: exceeds maximum allowed length of ${maxLen}`, undefined, "VALIDATION_ERROR");
   }
 }
@@ -44,14 +57,14 @@ export function validateProvenance(prov: unknown): void {
     throw new ConstraintError("Invalid provenance: must be an object", undefined, "VALIDATION_ERROR");
   }
   const p = prov as Record<string, unknown>;
-  validateNonEmptyString(p.provider, "provenance.provider", 500);
-  validateOptionalString(p.source, "provenance.source", 2000);
-  validateOptionalString(p.sourceId, "provenance.sourceId", 500);
-  validateOptionalString(p.sourceRevision, "provenance.sourceRevision", 500);
-  validateOptionalString(p.locator, "provenance.locator", 2000);
-  validateOptionalString(p.contentHash, "provenance.contentHash", 500);
-  validateOptionalString(p.observedAt, "provenance.observedAt", 100);
-  validateOptionalString(p.extractedVia, "provenance.extractedVia", 500);
+  validateNonEmptyString(p.provider, "provenance.provider", MAX_PROVENANCE_PROVIDER_LENGTH);
+  validateOptionalString(p.source, "provenance.source", MAX_PROVENANCE_SOURCE_LENGTH);
+  validateOptionalString(p.sourceId, "provenance.sourceId", MAX_PROVENANCE_SOURCE_ID_LENGTH);
+  validateOptionalString(p.sourceRevision, "provenance.sourceRevision", MAX_PROVENANCE_SOURCE_REVISION_LENGTH);
+  validateOptionalString(p.locator, "provenance.locator", MAX_PROVENANCE_LOCATOR_LENGTH);
+  validateOptionalString(p.contentHash, "provenance.contentHash", MAX_PROVENANCE_CONTENT_HASH_LENGTH);
+  validateOptionalString(p.observedAt, "provenance.observedAt", MAX_PROVENANCE_OBSERVED_AT_LENGTH);
+  validateOptionalString(p.extractedVia, "provenance.extractedVia", MAX_PROVENANCE_EXTRACTED_VIA_LENGTH);
   if (p.derivedFrom !== undefined && p.derivedFrom !== null) {
     if (!Array.isArray(p.derivedFrom)) {
       throw new ConstraintError("Invalid provenance.derivedFrom: must be an array of strings", undefined, "VALIDATION_ERROR");
@@ -85,8 +98,8 @@ export function validateIdentities(identities: unknown): void {
     if (!idm || typeof idm !== "object" || Array.isArray(idm)) {
       throw new ConstraintError("Invalid identity mapping: must be an object", undefined, "VALIDATION_ERROR");
     }
-    validateNonEmptyString((idm as any).provider, "identity.provider", 500);
-    validateNonEmptyString((idm as any).externalId, "identity.externalId", 1000);
+    validateNonEmptyString((idm as any).provider, "identity.provider", MAX_PROVENANCE_PROVIDER_LENGTH);
+    validateNonEmptyString((idm as any).externalId, "identity.externalId", MAX_IDENTITY_EXTERNAL_ID_LENGTH);
   }
 }
 
@@ -182,11 +195,11 @@ export function validateEntity(entity: unknown): asserts entity is Entity {
     throw new ConstraintError("Entity must be a non-null object", undefined, "VALIDATION_ERROR");
   }
   const e = entity as Record<string, unknown>;
-  validateNonEmptyString(e.id, "entity.id", 500);
-  validateNonEmptyString(e.namespace, "entity.namespace", 200);
-  validateNonEmptyString(e.kind, "entity.kind", 200);
-  validateNonEmptyString(e.slug, "entity.slug", 500);
-  validateNonEmptyString(e.name, "entity.name", 1000);
+  validateNonEmptyString(e.id, "entity.id", MAX_STORAGE_IDENTIFIER_LENGTH);
+  validateNonEmptyString(e.namespace, "entity.namespace", MAX_STORAGE_SHORT_TEXT_LENGTH);
+  validateNonEmptyString(e.kind, "entity.kind", MAX_STORAGE_SHORT_TEXT_LENGTH);
+  validateNonEmptyString(e.slug, "entity.slug", MAX_STORAGE_SHORT_TEXT_LENGTH);
+  validateNonEmptyString(e.name, "entity.name", MAX_STORAGE_SHORT_TEXT_LENGTH);
 
   if (e.data === undefined || typeof e.data !== "object" || e.data === null || Array.isArray(e.data)) {
     throw new ConstraintError("Invalid entity.data: must be a non-null object", undefined, "VALIDATION_ERROR");
@@ -203,9 +216,9 @@ export function validateAlias(alias: unknown): asserts alias is Alias {
     throw new ConstraintError("Alias must be a non-null object", undefined, "VALIDATION_ERROR");
   }
   const a = alias as Record<string, unknown>;
-  validateNonEmptyString(a.id, "alias.id", 500);
-  validateNonEmptyString(a.entityId, "alias.entityId", 500);
-  validateNonEmptyString(a.alias, "alias.alias", 1000);
+  validateNonEmptyString(a.id, "alias.id", MAX_STORAGE_IDENTIFIER_LENGTH);
+  validateNonEmptyString(a.entityId, "alias.entityId", MAX_STORAGE_IDENTIFIER_LENGTH);
+  validateNonEmptyString(a.alias, "alias.alias", MAX_STORAGE_SHORT_TEXT_LENGTH);
 }
 
 export function validateRelation(relation: unknown): asserts relation is Relation {
@@ -213,10 +226,10 @@ export function validateRelation(relation: unknown): asserts relation is Relatio
     throw new ConstraintError("Relation must be a non-null object", undefined, "VALIDATION_ERROR");
   }
   const r = relation as Record<string, unknown>;
-  validateNonEmptyString(r.id, "relation.id", 500);
-  validateNonEmptyString(r.subjectId, "relation.subjectId", 500);
-  validateNonEmptyString(r.predicate, "relation.predicate", 200);
-  validateNonEmptyString(r.objectId, "relation.objectId", 500);
+  validateNonEmptyString(r.id, "relation.id", MAX_STORAGE_IDENTIFIER_LENGTH);
+  validateNonEmptyString(r.subjectId, "relation.subjectId", MAX_STORAGE_IDENTIFIER_LENGTH);
+  validateNonEmptyString(r.predicate, "relation.predicate", MAX_STORAGE_SHORT_TEXT_LENGTH);
+  validateNonEmptyString(r.objectId, "relation.objectId", MAX_STORAGE_IDENTIFIER_LENGTH);
 
   if (r.metadata !== undefined) {
     if (typeof r.metadata !== "object" || r.metadata === null || Array.isArray(r.metadata)) {
@@ -234,10 +247,10 @@ export function validateClaim(claim: unknown): asserts claim is Claim {
     throw new ConstraintError("Claim must be a non-null object", undefined, "VALIDATION_ERROR");
   }
   const c = claim as Record<string, unknown>;
-  validateNonEmptyString(c.id, "claim.id", 500);
-  validateNonEmptyString(c.entityId, "claim.entityId", 500);
+  validateNonEmptyString(c.id, "claim.id", MAX_STORAGE_IDENTIFIER_LENGTH);
+  validateNonEmptyString(c.entityId, "claim.entityId", MAX_STORAGE_IDENTIFIER_LENGTH);
   validateNonEmptyString(c.statement, "claim.statement", 100000);
-  validateNonEmptyString(c.source, "claim.source", 2000);
+  validateNonEmptyString(c.source, "claim.source", MAX_STORAGE_SHORT_TEXT_LENGTH);
 
   if (typeof c.confidence !== "string" || !VALID_CONFIDENCE_LEVELS.has(c.confidence)) {
     throw new ConstraintError(
@@ -256,8 +269,8 @@ export function validateDocument(doc: unknown): asserts doc is Document {
     throw new ConstraintError("Document must be a non-null object", undefined, "VALIDATION_ERROR");
   }
   const d = doc as Record<string, unknown>;
-  validateNonEmptyString(d.id, "document.id", 500);
-  validateNonEmptyString(d.entityId, "document.entityId", 500);
+  validateNonEmptyString(d.id, "document.id", MAX_STORAGE_IDENTIFIER_LENGTH);
+  validateNonEmptyString(d.entityId, "document.entityId", MAX_STORAGE_IDENTIFIER_LENGTH);
   if (typeof d.content !== "string") {
     throw new ConstraintError("Invalid document.content: must be a string", undefined, "VALIDATION_ERROR");
   }

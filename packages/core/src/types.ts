@@ -168,6 +168,20 @@ export const MAX_SAFE_SEARCH_QUERY_LENGTH = 10000;
 export const DEFAULT_MAX_RELATIONS_EXPANDED = 100000;
 export const DEFAULT_MAX_ENTITIES_HYDRATED = 50000;
 
+// Storage contract: these values match the VARCHAR(255) columns in the
+// PostgreSQL schema and the explicit SQLite length checks.
+export const MAX_STORAGE_IDENTIFIER_LENGTH = 255;
+export const MAX_STORAGE_SHORT_TEXT_LENGTH = 255;
+export const MAX_PROVENANCE_PROVIDER_LENGTH = 500;
+export const MAX_PROVENANCE_SOURCE_LENGTH = 2000;
+export const MAX_PROVENANCE_SOURCE_ID_LENGTH = 500;
+export const MAX_PROVENANCE_SOURCE_REVISION_LENGTH = 500;
+export const MAX_PROVENANCE_LOCATOR_LENGTH = 2000;
+export const MAX_PROVENANCE_CONTENT_HASH_LENGTH = 500;
+export const MAX_PROVENANCE_OBSERVED_AT_LENGTH = 100;
+export const MAX_PROVENANCE_EXTRACTED_VIA_LENGTH = 500;
+export const MAX_IDENTITY_EXTERNAL_ID_LENGTH = 1000;
+
 export interface QueryMetadata {
   timeMs: number;
   warnings?: string[];

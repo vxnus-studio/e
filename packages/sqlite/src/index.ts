@@ -25,6 +25,7 @@ import {
   MAX_SAFE_PATHS,
   ConstraintError,
   QueryError,
+  StorageError,
   UnsupportedOperationError,
   MAX_SAFE_SEARCH_LIMIT,
   MAX_SAFE_SEARCH_QUERY_LENGTH,
@@ -48,11 +49,11 @@ export class SqliteEngine implements EQueryEngine, EFixtureMutator, EBatchMutato
   private initSchema() {
     this.db.exec(`
       CREATE TABLE IF NOT EXISTS e_entities (
-        id TEXT PRIMARY KEY,
-        namespace TEXT NOT NULL,
-        kind TEXT NOT NULL,
-        slug TEXT NOT NULL,
-        name TEXT NOT NULL,
+        id TEXT PRIMARY KEY CHECK (length(id) <= 255),
+        namespace TEXT NOT NULL CHECK (length(namespace) <= 255),
+        kind TEXT NOT NULL CHECK (length(kind) <= 255),
+        slug TEXT NOT NULL CHECK (length(slug) <= 255),
+        name TEXT NOT NULL CHECK (length(name) <= 255),
         data TEXT NOT NULL DEFAULT '{}',
         identities TEXT,
         provenance TEXT,
@@ -60,15 +61,15 @@ export class SqliteEngine implements EQueryEngine, EFixtureMutator, EBatchMutato
       );
 
       CREATE TABLE IF NOT EXISTS e_aliases (
-        id TEXT PRIMARY KEY,
+        id TEXT PRIMARY KEY CHECK (length(id) <= 255),
         entity_id TEXT NOT NULL REFERENCES e_entities(id) ON DELETE CASCADE,
-        alias TEXT NOT NULL
+        alias TEXT NOT NULL CHECK (length(alias) <= 255)
       );
 
       CREATE TABLE IF NOT EXISTS e_relations (
-        id TEXT PRIMARY KEY,
+        id TEXT PRIMARY KEY CHECK (length(id) <= 255),
         subject_id TEXT NOT NULL REFERENCES e_entities(id) ON DELETE CASCADE,
-        predicate TEXT NOT NULL,
+        predicate TEXT NOT NULL CHECK (length(predicate) <= 255),
         object_id TEXT NOT NULL REFERENCES e_entities(id) ON DELETE CASCADE,
         provenance TEXT,
         temporal TEXT,
@@ -76,17 +77,17 @@ export class SqliteEngine implements EQueryEngine, EFixtureMutator, EBatchMutato
       );
 
       CREATE TABLE IF NOT EXISTS e_claims (
-        id TEXT PRIMARY KEY,
+        id TEXT PRIMARY KEY CHECK (length(id) <= 255),
         entity_id TEXT NOT NULL REFERENCES e_entities(id) ON DELETE CASCADE,
         statement TEXT NOT NULL,
         confidence TEXT NOT NULL CHECK (confidence IN ('canon', 'theory', 'outdated', 'unverified')),
-        source TEXT NOT NULL,
+        source TEXT NOT NULL CHECK (length(source) <= 255),
         provenance TEXT,
         temporal TEXT
       );
 
       CREATE TABLE IF NOT EXISTS e_documents (
-        id TEXT PRIMARY KEY,
+        id TEXT PRIMARY KEY CHECK (length(id) <= 255),
         entity_id TEXT NOT NULL REFERENCES e_entities(id) ON DELETE CASCADE,
         content TEXT NOT NULL,
         provenance TEXT
@@ -603,10 +604,10 @@ export class SqliteEngine implements EQueryEngine, EFixtureMutator, EBatchMutato
         }
       }
     } catch (e: any) {
-      if (e instanceof QueryError || e instanceof UnsupportedOperationError || e instanceof ConstraintError) {
+      if (e instanceof QueryError || e instanceof UnsupportedOperationError || e instanceof ConstraintError || e instanceof StorageError) {
         throw e;
       }
-      throw new QueryError(e.message, e);
+      throw new StorageError(e instanceof Error ? e.message : "SQLite storage failure", e);
     }
 
     result.metadata.timeMs = Date.now() - startTime;
@@ -665,7 +666,7 @@ export class SqliteEngine implements EQueryEngine, EFixtureMutator, EBatchMutato
     if (e.message.includes("UNIQUE constraint failed") || e.message.includes("FOREIGN KEY constraint failed") || e.message.includes("CHECK constraint failed")) {
       throw new ConstraintError(e.message, e);
     }
-    throw new QueryError(e.message, e);
+    throw new StorageError(e instanceof Error ? e.message : "SQLite storage failure", e);
   }
 
   insertEntity(entity: Entity): void {

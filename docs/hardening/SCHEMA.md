@@ -2,6 +2,8 @@
 
 This document details the canonical schema definitions, constraints, indexes, and database types for `@vxnus/e-sqlite` and `@vxnus/e-postgres`.
 
+Short storage fields use a 255-character limit across the runtime validator, PostgreSQL `VARCHAR(255)`, and SQLite `CHECK(length(...) <= 255)` constraints. Runtime length checks count Unicode code points, matching SQL character-length semantics. Long-form claim statements and document content remain unrestricted `TEXT` values.
+
 ---
 
 ## 1. Table & Column Definitions

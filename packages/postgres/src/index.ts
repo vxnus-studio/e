@@ -24,6 +24,7 @@ import {
   MAX_SAFE_PATHS,
   ConstraintError,
   QueryError,
+  StorageError,
   UnsupportedOperationError,
   MAX_SAFE_SEARCH_LIMIT,
   MAX_SAFE_SEARCH_QUERY_LENGTH,
@@ -521,10 +522,10 @@ export class PostgresEngine implements EQueryEngine, EFixtureMutator, EBatchMuta
         }
       }
     } catch (e: any) {
-      if (e instanceof QueryError || e instanceof UnsupportedOperationError || e instanceof ConstraintError) {
+      if (e instanceof QueryError || e instanceof UnsupportedOperationError || e instanceof ConstraintError || e instanceof StorageError) {
         throw e;
       }
-      throw new QueryError(e.message, e);
+      throw new StorageError(e instanceof Error ? e.message : "PostgreSQL storage failure", e);
     }
 
     result.metadata.timeMs = Date.now() - startTime;
@@ -583,7 +584,7 @@ export class PostgresEngine implements EQueryEngine, EFixtureMutator, EBatchMuta
     if (e.code === "23505" || e.code === "23503" || e.code === "23514" || e.code === "23502") {
       throw new ConstraintError(e.message, e, e.code);
     }
-    throw new QueryError(e.message, e);
+    throw new StorageError(e instanceof Error ? e.message : "PostgreSQL storage failure", e);
   }
 
   async insertEntity(entity: Entity): Promise<void> {
@@ -771,7 +772,15 @@ export class PostgresEngine implements EQueryEngine, EFixtureMutator, EBatchMuta
         timeMs: Date.now() - startTime,
       };
     } catch (e: any) {
-      await client.query("ROLLBACK");
+      try {
+        await client.query("ROLLBACK");
+      } catch (rollbackError) {
+        throw new StorageError(
+          "PostgreSQL transaction rollback failed",
+          { error: e, rollbackError },
+          "TRANSACTION_ROLLBACK_FAILED",
+        );
+      }
       this.handlePostgresError(e);
     } finally {
       client.release();

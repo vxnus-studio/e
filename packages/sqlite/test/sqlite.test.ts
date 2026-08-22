@@ -2,6 +2,7 @@ import { test, expect, describe } from "vitest";
 import { SqliteEngine } from "../src/index.js";
 import Database from "better-sqlite3";
 import { runBehavioralTests, type Fixtures } from "../../core/test/behavior.js";
+import { StorageError } from "@vxnus/e";
 
 let canRun = true;
 try {
@@ -63,6 +64,22 @@ if (canRun) {
       expect(relationsCount.c).toBe(0);
 
       engine.close();
+    });
+
+    test("Schema enforces the same 255-character storage boundary as validation", () => {
+      const engine = new SqliteEngine(":memory:");
+      const db = (engine as any).db as Database.Database;
+      const insertEntity = db.prepare("INSERT INTO e_entities (id, namespace, kind, slug, name, data) VALUES (?, ?, ?, ?, ?, ?)");
+      const valid = "x".repeat(255);
+      insertEntity.run(valid, "ns", "node", "slug", "name", "{}");
+      expect(() => insertEntity.run("too-long", "ns", "node", "slug", "y".repeat(256), "{}")).toThrow(/CHECK constraint failed/);
+      engine.close();
+    });
+
+    test("Closed database failures are StorageError, not QueryError", async () => {
+      const engine = new SqliteEngine(":memory:");
+      engine.close();
+      await expect(engine.query({ type: "getEntity", id: "missing" })).rejects.toBeInstanceOf(StorageError);
     });
   });
 } else {
