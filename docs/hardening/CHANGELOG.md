@@ -4,14 +4,17 @@ All notable hardening changes across the E runtime are recorded in this document
 
 ---
 
+## [Phase 5] - Search Semantics and Cross-Backend Parity
+- **Established Search Contract & Specification**: Authored `docs/hardening/SEARCH.md` formalizing lexical matching, literal wildcard (`%`, `_`) and escape (`\`) handling, filter scoping, and limit boundaries.
+- **Created Adversarial Search Test Suite**: Authored `packages/differential/test/search_adversarial.test.ts` testing ASCII case-insensitivity, literal SQL wildcard and backslash escaping, namespace/kind filters, limit bounds, deterministic ordering, CJK/Greek/Cyrillic/Emoji handling, and documented SQLite Unicode boundaries.
+- **Verified Cross-Backend Search Equivalence**: Confirmed deterministic ordering and parameter filtering parity across InMemory, SQLite, and PostgreSQL.
+
+---
+
 ## [Phase 4] - Traversal Hardening
-- **Bounded Intermediate Candidate Frontier**:
-  - Refactored `InMemoryEngine` (`packages/core/src/engine.ts`), `SqliteEngine` (`packages/sqlite/src/index.ts`), and `PostgresEngine` (`packages/postgres/src/index.ts`) traversal algorithms to enforce level-by-level BFS with strict intermediate candidate frontier bounding ($\le \text{maxPaths}$).
-  - Unified `metadata.partial` flag and warnings calculation across all three engines so that truncation triggers if and only if intermediate expansion or path collection was bounded.
-- **Created Traversal Adversarial & Parity Test Suite**:
-  - Authored `packages/differential/test/traversal_adversarial.test.ts` testing converging diamond graphs (confirming path-local visited preservation), 3-node cycle termination, self-loops, dense 1-to-100 fan-out bounding with `maxPaths=2`, bidirectional incoming/outgoing traversal, and cross-backend deterministic path sort parity.
-- **Documented Traversal Specification & Scaling Profile**:
-  - Authored `docs/hardening/TRAVERSAL.md` and `docs/hardening/SCALE.md`.
+- Bounded intermediate candidate frontier ($\le \text{maxPaths}$) across all three engines.
+- Unified `metadata.partial` flag and warnings.
+- Created `traversal_adversarial.test.ts`, `TRAVERSAL.md`, and `SCALE.md`.
 
 ---
 
