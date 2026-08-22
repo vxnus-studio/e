@@ -43,6 +43,9 @@ import {
 export class SqliteEngine implements EQueryEngine, EFixtureMutator, EBatchMutator {
   private db: SqliteDatabase;
 
+  private static readonly CURRENT_MIGRATION_VERSION = 1;
+  private static readonly CURRENT_MIGRATION_NAME = "add_provenance_and_identities";
+
   constructor(filename: string, options?: Database.Options) {
     this.db = new Database(filename, options);
     this.initSchema();
@@ -106,6 +109,90 @@ export class SqliteEngine implements EQueryEngine, EFixtureMutator, EBatchMutato
       CREATE INDEX IF NOT EXISTS idx_e_documents_entity_id ON e_documents(entity_id);
     `);
     this.db.pragma('foreign_keys = ON');
+    this.runMigrations();
+  }
+
+  /**
+   * Apply supported schema upgrades exactly once and record their completion.
+   * better-sqlite3 executes this synchronously, so BEGIN IMMEDIATE also makes
+   * migration ownership explicit when multiple processes open the same file.
+   */
+  private runMigrations(): void {
+    this.db.exec(`
+      CREATE TABLE IF NOT EXISTS e_schema_migrations (
+        version INTEGER PRIMARY KEY,
+        name TEXT NOT NULL,
+        applied_at TEXT NOT NULL
+      );
+    `);
+
+    const versions = this.db
+      .prepare("SELECT version, name FROM e_schema_migrations ORDER BY version ASC")
+      .all() as Array<{ version: number; name: string }>;
+    const unsupported = versions.find(({ version }) => version > SqliteEngine.CURRENT_MIGRATION_VERSION);
+    if (unsupported) {
+      throw new StorageError(
+        `SQLite schema version ${unsupported.version} is newer than supported version ${SqliteEngine.CURRENT_MIGRATION_VERSION}`,
+        undefined,
+        "SCHEMA_VERSION_UNSUPPORTED"
+      );
+    }
+
+    const recorded = versions.find(({ version }) => version === SqliteEngine.CURRENT_MIGRATION_VERSION);
+    if (recorded && recorded.name !== SqliteEngine.CURRENT_MIGRATION_NAME) {
+      throw new StorageError(
+        `SQLite migration ${SqliteEngine.CURRENT_MIGRATION_VERSION} has unexpected name '${recorded.name}'`,
+        undefined,
+        "SCHEMA_MIGRATION_MISMATCH"
+      );
+    }
+
+    const requiredColumns: Record<string, string[]> = {
+      e_entities: ["identities", "provenance", "temporal"],
+      e_relations: ["provenance", "temporal", "metadata"],
+      e_claims: ["provenance", "temporal"],
+      e_documents: ["provenance"],
+    };
+    const missingColumns: Array<{ table: string; column: string }> = [];
+    for (const [table, columns] of Object.entries(requiredColumns)) {
+      const existing = new Set(
+        (this.db.prepare(`PRAGMA table_info(${table})`).all() as Array<{ name: string }>).map((column) => column.name)
+      );
+      for (const column of columns) {
+        if (!existing.has(column)) missingColumns.push({ table, column });
+      }
+    }
+
+    if (recorded && missingColumns.length > 0) {
+      throw new StorageError(
+        `SQLite schema migration ${SqliteEngine.CURRENT_MIGRATION_VERSION} is recorded but required columns are missing: ${missingColumns.map(({ table, column }) => `${table}.${column}`).join(", ")}`,
+        undefined,
+        "SCHEMA_INCOMPATIBLE"
+      );
+    }
+    if (recorded) return;
+
+    try {
+      this.db.exec("BEGIN IMMEDIATE");
+      for (const { table, column } of missingColumns) {
+        this.db.exec(`ALTER TABLE ${table} ADD COLUMN ${column} TEXT`);
+      }
+      this.db.prepare(
+        "INSERT INTO e_schema_migrations (version, name, applied_at) VALUES (?, ?, ?)",
+      ).run(
+        SqliteEngine.CURRENT_MIGRATION_VERSION,
+        SqliteEngine.CURRENT_MIGRATION_NAME,
+        new Date().toISOString(),
+      );
+      this.db.exec("COMMIT");
+    } catch (error) {
+      try { this.db.exec("ROLLBACK"); } catch { /* preserve the migration failure */ }
+      throw new StorageError(
+        error instanceof Error ? error.message : "SQLite migration failed",
+        error,
+        "SCHEMA_MIGRATION_FAILED"
+      );
+    }
   }
 
   close() {

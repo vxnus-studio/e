@@ -21,7 +21,8 @@ SQLite adapter automatically initializes `packages/sqlite/schema.sql` on databas
 
 - **Migration Files**:
   - `001_add_provenance_and_identities.sql` adds JSONB/TEXT columns (`identities`, `provenance`, `temporal`, `metadata`) for legacy databases instantiated prior to Phase 3.
-- **Version tracking**: There is currently no migration-history table or runtime migration runner. Migration files are manually applied by operators/tests and are not sufficient evidence of an upgrade lifecycle by themselves.
+- **SQLite version tracking**: `SqliteEngine` maintains `e_schema_migrations` with a unique integer version, migration name, and completion timestamp. Opening a current database records version `1`; opening a legacy database applies the missing metadata columns and records it. Migration application uses `BEGIN IMMEDIATE`, so concurrent writers cannot interleave the upgrade.
 - **PostgreSQL replay**: Migration `001` uses `IF NOT EXISTS` guards and is replay-safe at the SQL statement level.
-- **SQLite replay**: Migration `001` uses bare `ALTER TABLE ... ADD COLUMN` statements and is not replay-safe; applying it twice fails with duplicate-column errors. Do not reapply it without an external schema inspection/guard.
-- **Production blocker**: A versioned migration runner, transactional upgrade policy, failure/retry semantics, and concurrent migration policy remain unimplemented.
+- **SQLite replay**: The runtime runner is replay-safe because recorded versions are skipped and the schema is checked for compatibility. The SQL file under `packages/sqlite/migrations` remains a historical/manual artifact; production upgrades should open the database through `SqliteEngine`, not execute that file directly.
+- **Failure semantics**: A failed SQLite migration rolls back its DDL and history insert, then raises `StorageError(code=SCHEMA_MIGRATION_FAILED)`. A later open retries the unapplied version. A recorded version with missing columns fails closed as `SCHEMA_INCOMPATIBLE` rather than guessing.
+- **PostgreSQL status**: PostgreSQL version tracking, transactional runner, and advisory-lock coordination remain a separate hardening batch; the current SQL migration is not yet the authoritative runtime lifecycle.

@@ -16,7 +16,7 @@ npm install @vxnus/e @vxnus/e-sqlite better-sqlite3
 
 ## Schema Provisioning
 
-`SqliteEngine` automatically provisions the necessary tables and indexes upon instantiation if they do not already exist. 
+`SqliteEngine` automatically provisions the necessary tables and indexes upon instantiation if they do not already exist. It also runs the versioned schema lifecycle transactionally. Migration version `1` (`add_provenance_and_identities`) upgrades legacy tables missing metadata columns and records completion in `e_schema_migrations`; opening an already-current database records the same version without changing data. Unknown future versions and recorded-but-incompatible schemas fail closed.
 
 Alternatively, the canonical SQL schema is distributed as `@vxnus/e-sqlite/schema.sql` if you prefer to inspect or run it manually:
 

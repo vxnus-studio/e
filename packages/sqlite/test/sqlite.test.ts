@@ -1,6 +1,9 @@
 import { test, expect, describe } from "vitest";
 import { SqliteEngine } from "../src/index.js";
 import Database from "better-sqlite3";
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
 import { runBehavioralTests, type Fixtures } from "../../core/test/behavior.js";
 import { StorageError } from "@vxnus/e";
 
@@ -80,6 +83,54 @@ if (canRun) {
       const engine = new SqliteEngine(":memory:");
       engine.close();
       await expect(engine.query({ type: "getEntity", id: "missing" })).rejects.toBeInstanceOf(StorageError);
+    });
+
+    test("Versioned migration upgrades a legacy database and is replay-safe", () => {
+      const filename = path.join(os.tmpdir(), `e-migration-${process.pid}-${Date.now()}.db`);
+      const legacy = new Database(filename);
+      legacy.exec(`
+        CREATE TABLE e_entities (id TEXT PRIMARY KEY, namespace TEXT NOT NULL, kind TEXT NOT NULL, slug TEXT NOT NULL, name TEXT NOT NULL, data TEXT NOT NULL DEFAULT '{}');
+        CREATE TABLE e_aliases (id TEXT PRIMARY KEY, entity_id TEXT NOT NULL REFERENCES e_entities(id), alias TEXT NOT NULL);
+        CREATE TABLE e_relations (id TEXT PRIMARY KEY, subject_id TEXT NOT NULL REFERENCES e_entities(id), predicate TEXT NOT NULL, object_id TEXT NOT NULL REFERENCES e_entities(id));
+        CREATE TABLE e_claims (id TEXT PRIMARY KEY, entity_id TEXT NOT NULL REFERENCES e_entities(id), statement TEXT NOT NULL, confidence TEXT NOT NULL, source TEXT NOT NULL);
+        CREATE TABLE e_documents (id TEXT PRIMARY KEY, entity_id TEXT NOT NULL REFERENCES e_entities(id), content TEXT NOT NULL);
+        INSERT INTO e_entities (id, namespace, kind, slug, name, data) VALUES ('legacy', 'test', 'node', 'legacy', 'Legacy', '{}');
+      `);
+      legacy.close();
+
+      const engine = new SqliteEngine(filename);
+      const db = (engine as any).db as Database.Database;
+      expect(db.prepare("SELECT version, name FROM e_schema_migrations").get()).toEqual({
+        version: 1,
+        name: "add_provenance_and_identities",
+      });
+      expect((db.prepare("PRAGMA table_info(e_entities)").all() as any[]).map((column) => column.name)).toContain("identities");
+      expect(db.prepare("SELECT name FROM e_entities WHERE id = 'legacy'").get()).toEqual({ name: "Legacy" });
+      engine.close();
+
+      const replay = new SqliteEngine(filename);
+      const replayDb = (replay as any).db as Database.Database;
+      expect(replayDb.prepare("SELECT count(*) AS count FROM e_schema_migrations").get()).toEqual({ count: 1 });
+      replay.close();
+      fs.unlinkSync(filename);
+    });
+
+    test("Recorded migration with an incompatible schema fails closed", () => {
+      const filename = path.join(os.tmpdir(), `e-migration-bad-${process.pid}-${Date.now()}.db`);
+      const legacy = new Database(filename);
+      legacy.exec(`
+        CREATE TABLE e_entities (id TEXT PRIMARY KEY, namespace TEXT NOT NULL, kind TEXT NOT NULL, slug TEXT NOT NULL, name TEXT NOT NULL, data TEXT NOT NULL DEFAULT '{}');
+        CREATE TABLE e_aliases (id TEXT PRIMARY KEY, entity_id TEXT NOT NULL, alias TEXT NOT NULL);
+        CREATE TABLE e_relations (id TEXT PRIMARY KEY, subject_id TEXT NOT NULL, predicate TEXT NOT NULL, object_id TEXT NOT NULL);
+        CREATE TABLE e_claims (id TEXT PRIMARY KEY, entity_id TEXT NOT NULL, statement TEXT NOT NULL, confidence TEXT NOT NULL, source TEXT NOT NULL);
+        CREATE TABLE e_documents (id TEXT PRIMARY KEY, entity_id TEXT NOT NULL, content TEXT NOT NULL);
+        CREATE TABLE e_schema_migrations (version INTEGER PRIMARY KEY, name TEXT NOT NULL, applied_at TEXT NOT NULL);
+        INSERT INTO e_schema_migrations VALUES (1, 'add_provenance_and_identities', '2026-08-22T00:00:00.000Z');
+      `);
+      legacy.close();
+
+      expect(() => new SqliteEngine(filename)).toThrowError(/required columns are missing/);
+      fs.unlinkSync(filename);
     });
   });
 } else {
