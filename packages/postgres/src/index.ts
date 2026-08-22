@@ -28,6 +28,8 @@ import {
   UnsupportedOperationError,
   MAX_SAFE_SEARCH_LIMIT,
   MAX_SAFE_SEARCH_QUERY_LENGTH,
+  DEFAULT_MAX_RESULT_LIMIT,
+  MAX_SAFE_RESULT_LIMIT,
   validateEntity,
   validateAlias,
   validateRelation,
@@ -121,9 +123,12 @@ export class PostgresEngine implements EQueryEngine, EFixtureMutator, EBatchMuta
             queryText += ` AND predicate = $${params.length}`;
           }
 
-          queryText += ` ORDER BY id COLLATE "C" ASC`;
+          const limit = Math.min(request.limit ?? DEFAULT_MAX_RESULT_LIMIT, MAX_SAFE_RESULT_LIMIT);
+          params.push(limit + 1);
+          queryText += ` ORDER BY id COLLATE "C" ASC LIMIT $${params.length}`;
           const res = await this.pool.query(queryText, params);
-          result.relations = res.rows.map(this.mapRelation);
+          if (res.rows.length > limit) { result.metadata.partial = true; result.metadata.warnings = [`Result limit reached: ${limit}`]; }
+          result.relations = res.rows.slice(0, limit).map(this.mapRelation);
 
           if (result.relations.length > 0) {
             const entityIds = new Set<string>();
@@ -145,16 +150,20 @@ export class PostgresEngine implements EQueryEngine, EFixtureMutator, EBatchMuta
           if (!request.entityId || typeof request.entityId !== "string") {
             throw new QueryError("Invalid entityId: must be a non-empty string");
           }
-          const res = await this.pool.query("SELECT * FROM e_claims WHERE entity_id = $1 ORDER BY id COLLATE \"C\" ASC", [request.entityId]);
-          result.claims = res.rows.map(this.mapClaim);
+          const limit = Math.min(request.limit ?? DEFAULT_MAX_RESULT_LIMIT, MAX_SAFE_RESULT_LIMIT);
+          const res = await this.pool.query("SELECT * FROM e_claims WHERE entity_id = $1 ORDER BY id COLLATE \"C\" ASC LIMIT $2", [request.entityId, limit + 1]);
+          if (res.rows.length > limit) { result.metadata.partial = true; result.metadata.warnings = [`Result limit reached: ${limit}`]; }
+          result.claims = res.rows.slice(0, limit).map(this.mapClaim);
           break;
         }
         case "findDocuments": {
           if (!request.entityId || typeof request.entityId !== "string") {
             throw new QueryError("Invalid entityId: must be a non-empty string");
           }
-          const res = await this.pool.query("SELECT * FROM e_documents WHERE entity_id = $1 ORDER BY id COLLATE \"C\" ASC", [request.entityId]);
-          result.documents = res.rows.map(this.mapDocument);
+          const limit = Math.min(request.limit ?? DEFAULT_MAX_RESULT_LIMIT, MAX_SAFE_RESULT_LIMIT);
+          const res = await this.pool.query("SELECT * FROM e_documents WHERE entity_id = $1 ORDER BY id COLLATE \"C\" ASC LIMIT $2", [request.entityId, limit + 1]);
+          if (res.rows.length > limit) { result.metadata.partial = true; result.metadata.warnings = [`Result limit reached: ${limit}`]; }
+          result.documents = res.rows.slice(0, limit).map(this.mapDocument);
           break;
         }
         case "search": {

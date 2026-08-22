@@ -29,6 +29,8 @@ import {
   UnsupportedOperationError,
   MAX_SAFE_SEARCH_LIMIT,
   MAX_SAFE_SEARCH_QUERY_LENGTH,
+  DEFAULT_MAX_RESULT_LIMIT,
+  MAX_SAFE_RESULT_LIMIT,
   validateEntity,
   validateAlias,
   validateRelation,
@@ -187,9 +189,14 @@ export class SqliteEngine implements EQueryEngine, EFixtureMutator, EBatchMutato
             params.push(request.predicate);
           }
 
-          queryText += ` ORDER BY id COLLATE BINARY ASC`;
-          const rows = this.db.prepare(queryText).all(params);
-          result.relations = rows.map(r => this.mapRelation(r));
+          const limit = Math.min(request.limit ?? DEFAULT_MAX_RESULT_LIMIT, MAX_SAFE_RESULT_LIMIT);
+          queryText += ` ORDER BY id COLLATE BINARY ASC LIMIT ?`;
+          const rows = this.db.prepare(queryText).all([...params, limit + 1]) as Record<string, any>[];
+          if (rows.length > limit) {
+            result.metadata.partial = true;
+            result.metadata.warnings = [`Result limit reached: ${limit}`];
+          }
+          result.relations = rows.slice(0, limit).map(r => this.mapRelation(r));
 
           if (result.relations.length > 0) {
             const entityIds = new Set<string>();
@@ -211,16 +218,20 @@ export class SqliteEngine implements EQueryEngine, EFixtureMutator, EBatchMutato
           if (!request.entityId || typeof request.entityId !== "string") {
             throw new QueryError("Invalid entityId: must be a non-empty string");
           }
-          const rows = this.db.prepare("SELECT * FROM e_claims WHERE entity_id = ? ORDER BY id COLLATE BINARY ASC").all(request.entityId);
-          result.claims = rows.map(r => this.mapClaim(r));
+          const limit = Math.min(request.limit ?? DEFAULT_MAX_RESULT_LIMIT, MAX_SAFE_RESULT_LIMIT);
+          const rows = this.db.prepare("SELECT * FROM e_claims WHERE entity_id = ? ORDER BY id COLLATE BINARY ASC LIMIT ?").all(request.entityId, limit + 1) as Record<string, any>[];
+          if (rows.length > limit) { result.metadata.partial = true; result.metadata.warnings = [`Result limit reached: ${limit}`]; }
+          result.claims = rows.slice(0, limit).map(r => this.mapClaim(r));
           break;
         }
         case "findDocuments": {
           if (!request.entityId || typeof request.entityId !== "string") {
             throw new QueryError("Invalid entityId: must be a non-empty string");
           }
-          const rows = this.db.prepare("SELECT * FROM e_documents WHERE entity_id = ? ORDER BY id COLLATE BINARY ASC").all(request.entityId);
-          result.documents = rows.map(r => this.mapDocument(r));
+          const limit = Math.min(request.limit ?? DEFAULT_MAX_RESULT_LIMIT, MAX_SAFE_RESULT_LIMIT);
+          const rows = this.db.prepare("SELECT * FROM e_documents WHERE entity_id = ? ORDER BY id COLLATE BINARY ASC LIMIT ?").all(request.entityId, limit + 1) as Record<string, any>[];
+          if (rows.length > limit) { result.metadata.partial = true; result.metadata.warnings = [`Result limit reached: ${limit}`]; }
+          result.documents = rows.slice(0, limit).map(r => this.mapDocument(r));
           break;
         }
         case "search": {

@@ -24,6 +24,8 @@ import {
   MAX_SAFE_PATHS,
   MAX_SAFE_SEARCH_LIMIT,
   MAX_SAFE_SEARCH_QUERY_LENGTH,
+  DEFAULT_MAX_RESULT_LIMIT,
+  MAX_SAFE_RESULT_LIMIT,
 } from "./types.js";
 import { ConstraintError, QueryError, UnsupportedOperationError } from "./errors.js";
 import {
@@ -233,11 +235,16 @@ export class InMemoryEngine implements EQueryEngine, EFixtureMutator, EBatchMuta
         );
         // Deterministic ordering by relation.id ASC
         matchingRelations.sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
-        result.relations = matchingRelations;
+        const relationLimit = Math.min(request.limit ?? DEFAULT_MAX_RESULT_LIMIT, MAX_SAFE_RESULT_LIMIT);
+        if (matchingRelations.length > relationLimit) {
+          result.metadata.partial = true;
+          result.metadata.warnings = [`Result limit reached: ${relationLimit}`];
+        }
+        result.relations = matchingRelations.slice(0, relationLimit);
         
         // Hydrate related entities in deterministic order (by entity.id ASC)
         const hydratedMap = new Map<string, Entity>();
-        for (const rel of matchingRelations) {
+        for (const rel of result.relations!) {
           const subj = this.entities.get(rel.subjectId);
           if (subj) hydratedMap.set(subj.id, subj);
           const obj = this.entities.get(rel.objectId);
@@ -258,7 +265,12 @@ export class InMemoryEngine implements EQueryEngine, EFixtureMutator, EBatchMuta
         );
         // Deterministic ordering by claim.id ASC
         matchingClaims.sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
-        result.claims = matchingClaims;
+        const claimLimit = Math.min(request.limit ?? DEFAULT_MAX_RESULT_LIMIT, MAX_SAFE_RESULT_LIMIT);
+        if (matchingClaims.length > claimLimit) {
+          result.metadata.partial = true;
+          result.metadata.warnings = [`Result limit reached: ${claimLimit}`];
+        }
+        result.claims = matchingClaims.slice(0, claimLimit);
         break;
       }
       case "findDocuments": {
@@ -270,7 +282,12 @@ export class InMemoryEngine implements EQueryEngine, EFixtureMutator, EBatchMuta
         );
         // Deterministic ordering by document.id ASC
         matchingDocs.sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
-        result.documents = matchingDocs;
+        const documentLimit = Math.min(request.limit ?? DEFAULT_MAX_RESULT_LIMIT, MAX_SAFE_RESULT_LIMIT);
+        if (matchingDocs.length > documentLimit) {
+          result.metadata.partial = true;
+          result.metadata.warnings = [`Result limit reached: ${documentLimit}`];
+        }
+        result.documents = matchingDocs.slice(0, documentLimit);
         break;
       }
       case "search": {

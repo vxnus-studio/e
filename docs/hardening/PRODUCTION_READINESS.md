@@ -18,7 +18,7 @@ Phase 0 established the current repository baseline without source changes. E is
 | 1. Contract ↔ storage parity | COMPLETE (local; PostgreSQL execution pending) | Boundary suite: 9 passed; workspace: 88 passed, 1 skipped; build passed | Live PostgreSQL boundary execution remains unavailable locally; JSON/provenance field limits remain validator-level |
 | 2. Error model | COMPLETE (local; PostgreSQL execution pending) | Workspace: 88 passed, 1 skipped; closed SQLite database test passed; build passed | Live PostgreSQL outage/rollback-failure tests remain unavailable |
 | 3. Traversal hardening | COMPLETE (local; PostgreSQL execution pending) | Traversal adversarial: 9 passed; focused differential traversal: 20 passed; workspace: 87 passed, 1 skipped; build passed | PostgreSQL runtime traversal remains unverified; conservative partial signaling may over-report when an allocation is exactly full |
-| 4. Result size / memory safety | PENDING | Existing tests only | Claims, documents, relations, and search result materialization need explicit limits/pagination review |
+| 4. Result size / memory safety | COMPLETE (local; PostgreSQL execution pending) | Result-limit differential test: 10 passed; workspace: 89 passed, 1 skipped; build passed | PostgreSQL runtime result-limit execution remains unverified; pagination beyond limit is not yet cursor-based |
 | 5. Search | PENDING | Existing tests only | SQLite Unicode folding and cross-backend collation differences remain documented divergences; scale claims need verification |
 | 6. Resolution | PENDING | Existing tests only | Alias/name/slug/identity semantics need an explicit current contract and collision tests |
 | 7. Claims / documents / provenance / temporal | PENDING | Existing tests only | Persistence is tested in selected paths, but temporal query semantics and limits are not established |
@@ -101,6 +101,20 @@ Phase 0 established the current repository baseline without source changes. E is
 - documentation impact: Updated `docs/hardening/TRAVERSAL.md` with allocation, fairness, and conservative partial-result semantics.
 - remaining risk: PostgreSQL runtime execution remains gated; the conservative exact-allocation signal can report partial when no additional rows exist.
 
+### F-0006 (RESOLVED in Phase 4)
+
+- ID: F-0006
+- severity: P1
+- subsystem: Result size / memory safety
+- problem: `findRelations`, `findClaims`, and `findDocuments` materialized every matching row with no caller-controlled bound.
+- root cause: Only lexical search and traversal had explicit result limits in the public contract.
+- affected engines: InMemory, SQLite, PostgreSQL.
+- reproduction: Attach an unbounded number of relations, claims, or documents to one entity and issue the corresponding query; all rows were materialized.
+- fix: Added optional `limit` to these query types, default 1,000 and capped at 10,000. SQL adapters fetch at most `limit + 1`, trim output, and report `metadata.partial` when rows are truncated.
+- regression test: Bounded result test in `packages/differential/test/error_contract.test.ts`.
+- documentation impact: Updated `docs/CONTRACT.md`, `docs/hardening/PRODUCTION_READINESS.md`, and the public types.
+- remaining risk: The API currently supports bounded pages but not cursor/keyset pagination; PostgreSQL execution remains gated.
+
 ## Contract decisions
 
 No new semantic decisions were made in Phase 0. Existing documented decisions remain provisional until revalidated against current code and all backends, including:
@@ -131,7 +145,7 @@ Phase 1 decision: identifier-like and short textual storage fields have a 255-ch
 - [ ] All engines agree on documented semantics
 - [x] Traversal is bounded and deterministic for locally tested engines; PostgreSQL runtime verification pending
 - [x] Traversal resource limits bound actual work for locally tested engines; PostgreSQL runtime verification pending
-- [ ] Large result sets are controlled
+- [x] Large result sets are controlled with bounded limits; cursor pagination remains future work
 - [ ] Search semantics are explicit
 - [ ] Resolution semantics are explicit
 - [x] Error taxonomy is useful for locally tested adapters; PostgreSQL runtime verification remains pending
@@ -209,4 +223,18 @@ Failures and remaining risks:
 - PostgreSQL traversal remains unverified because `TEST_DATABASE_URL` is unset.
 - Vitest configuration deprecation warnings remain tracked as F-0003.
 
-Phase 3 is complete for locally available engines. The next phase is result-size and memory-safety review.
+Phase 3 is complete for locally available engines. Phase 4 is now complete for locally available engines; the next phase is search semantics and scale review.
+
+## Phase 4 record
+
+Files changed: `packages/core/src/types.ts`, `packages/core/src/validation.ts`, `packages/core/src/engine.ts`, `packages/sqlite/src/index.ts`, `packages/postgres/src/index.ts`, `packages/differential/test/error_contract.test.ts`, `docs/CONTRACT.md`, and this document.
+
+Tests and commands run:
+
+- Result-limit differential test — 10 passed.
+- `npm run build` — passed for all build-enabled workspaces.
+
+Remaining risks:
+
+- PostgreSQL result-limit execution remains unverified because `TEST_DATABASE_URL` is unset.
+- Limits are offsetless bounded pages; cursor pagination is not implemented.

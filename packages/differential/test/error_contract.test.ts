@@ -337,4 +337,24 @@ describe("Error Contract & Boundary Validation Audit", () => {
       expect(resDocs.documents?.map((d: any) => d.id)).toEqual(["doc-a", "doc-m", "doc-z"]);
     }
   });
+
+  test("Relation, claim, and document queries are explicitly bounded", async () => {
+    for (const e of engines) {
+      await e.engine.insertEntity({ id: "bounded-root", namespace: "bounded", kind: "node", slug: "bounded-root", name: "Bounded", data: {} });
+      await e.engine.insertEntity({ id: "bounded-child", namespace: "bounded", kind: "node", slug: "bounded-child", name: "Child", data: {} });
+      await e.engine.insertRelation({ id: "bounded-r-2", subjectId: "bounded-root", predicate: "links", objectId: "bounded-child" });
+      await e.engine.insertRelation({ id: "bounded-r-1", subjectId: "bounded-root", predicate: "links", objectId: "bounded-root" });
+      await e.engine.insertClaim({ id: "bounded-c-2", entityId: "bounded-root", statement: "two", confidence: "canon", source: "test" });
+      await e.engine.insertClaim({ id: "bounded-c-1", entityId: "bounded-root", statement: "one", confidence: "canon", source: "test" });
+      await e.engine.insertDocument({ id: "bounded-d-2", entityId: "bounded-root", content: "two" });
+      await e.engine.insertDocument({ id: "bounded-d-1", entityId: "bounded-root", content: "one" });
+
+      const relations = await e.engine.query({ type: "findRelations", subjectId: "bounded-root", limit: 1 });
+      expect(relations.relations?.map((r: any) => r.id), `Engine ${e.name}`).toEqual(["bounded-r-1"]);
+      expect(relations.metadata.partial).toBe(true);
+      expect((await e.engine.query({ type: "findClaims", entityId: "bounded-root", limit: 1 })).claims?.map((c: any) => c.id)).toEqual(["bounded-c-1"]);
+      expect((await e.engine.query({ type: "findDocuments", entityId: "bounded-root", limit: 1 })).documents?.map((d: any) => d.id)).toEqual(["bounded-d-1"]);
+      expect((await e.engine.query({ type: "findClaims", entityId: "bounded-root", limit: 0 })).claims).toEqual([]);
+    }
+  });
 });

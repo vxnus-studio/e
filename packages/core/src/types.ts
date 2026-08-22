@@ -140,12 +140,12 @@ export interface ProviderCapabilities {
 export type QueryRequest =
   | { type: "resolve"; alias: string; namespace?: string }
   | { type: "getEntity"; id: string }
-  | ({ type: "findRelations"; predicate?: string } & (
+  | ({ type: "findRelations"; predicate?: string; limit?: number } & (
       | { subjectId: string; objectId?: string }
       | { subjectId?: string; objectId: string }
     ))
-  | { type: "findClaims"; entityId: string }
-  | { type: "findDocuments"; entityId: string }
+  | { type: "findClaims"; entityId: string; limit?: number }
+  | { type: "findDocuments"; entityId: string; limit?: number }
   | { type: "search"; search: SearchQuery }
   | {
       type: "traverse";
@@ -164,6 +164,8 @@ export const DEFAULT_MAX_PATHS = 1000;
 export const MAX_SAFE_DEPTH = 100;
 export const MAX_SAFE_PATHS = 100000;
 export const MAX_SAFE_SEARCH_LIMIT = 10000;
+export const DEFAULT_MAX_RESULT_LIMIT = 1000;
+export const MAX_SAFE_RESULT_LIMIT = 10000;
 export const MAX_SAFE_SEARCH_QUERY_LENGTH = 10000;
 export const DEFAULT_MAX_RELATIONS_EXPANDED = 100000;
 export const DEFAULT_MAX_ENTITIES_HYDRATED = 50000;

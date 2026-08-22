@@ -27,6 +27,12 @@ import {
 
 const VALID_CONFIDENCE_LEVELS = new Set(["canon", "theory", "outdated", "unverified"]);
 
+function validateResultLimit(value: unknown): void {
+  if (value !== undefined && (typeof value !== "number" || !Number.isInteger(value) || value < 0)) {
+    throw new QueryError(`Invalid limit: ${value}`);
+  }
+}
+
 function validateNonEmptyString(val: unknown, fieldName: string, maxLen: number = 1000): string {
   if (typeof val !== "string") {
     throw new ConstraintError(`Invalid ${fieldName}: must be a string`, undefined, "VALIDATION_ERROR");
@@ -348,18 +354,21 @@ export function validateQueryRequest(request: unknown): asserts request is Query
       if (!req.subjectId && !req.objectId) {
         throw new QueryError("findRelations requires at least subjectId or objectId");
       }
+      validateResultLimit(req.limit);
       return;
     }
     case "findClaims": {
       if (typeof req.entityId !== "string" || req.entityId.trim().length === 0) {
         throw new QueryError("Invalid entityId: must be a non-empty string");
       }
+      validateResultLimit(req.limit);
       return;
     }
     case "findDocuments": {
       if (typeof req.entityId !== "string" || req.entityId.trim().length === 0) {
         throw new QueryError("Invalid entityId: must be a non-empty string");
       }
+      validateResultLimit(req.limit);
       return;
     }
     case "search": {

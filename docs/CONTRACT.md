@@ -62,14 +62,16 @@ All queries accept a discriminated union `QueryRequest` and return a unified `Kn
 - **Ordering**: Explicitly Unspecified.
 
 ### 4.3. `findRelations`
-- **Input**: Requires at least one of `subjectId` or `objectId`. Optionally `predicate`.
+- **Input**: Requires at least one of `subjectId` or `objectId`. Optionally `predicate` and `limit`.
 - **Behavior**: Returns edges matching the provided criteria.
-- **Ordering**: Explicitly Unspecified.
+- **Ordering**: Relation ID ascending; hydrated entity ID ascending.
+- **Result Bound**: `limit` defaults to `1000`, clamps to a maximum effective limit of `10000`, and `limit=0` returns no rows. Truncated results set `metadata.partial` and a warning.
 
 ### 4.4. `findClaims` & `findDocuments`
-- **Input**: `entityId: string`.
+- **Input**: `entityId: string`, optionally `limit`.
 - **Behavior**: Returns claims or documents associated with the entity. Does not hydrate the parent entity.
-- **Ordering**: Explicitly Unspecified.
+- **Ordering**: Claim/document ID ascending.
+- **Result Bound**: `limit` defaults to `1000`, clamps to a maximum effective limit of `10000`, and `limit=0` returns no rows. Truncated results set `metadata.partial` and a warning.
 
 ### 4.5. `search`
 - **Input**: `search: SearchQuery` (query, namespace?, kind?, limit?, mode?).
