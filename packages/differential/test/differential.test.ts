@@ -298,26 +298,29 @@ describe("Differential Cross-Backend Semantic Parity", () => {
       }
     }
     
-    test("Random graph traversal parity", async () => {
-      const rand = mulberry32(12345);
-      const f: any = { entities: [], relations: [] };
-      for (let i=0; i<10; i++) f.entities.push(createEmptyEntity(`N${i}`));
-      for (let i=0; i<20; i++) {
-        const sub = `N${Math.floor(rand() * 10)}`;
-        const obj = `N${Math.floor(rand() * 10)}`;
-        f.relations.push({ id: `R${i}`, subjectId: sub, predicate: "edge", objectId: obj });
-      }
+    test("Random graph traversal parity across deterministic seeds", async () => {
+      for (const seed of [12345, 67890, 424242]) {
+        const prefix = `R${seed}`;
+        const rand = mulberry32(seed);
+        const f: any = { entities: [], relations: [] };
+        for (let i=0; i<10; i++) f.entities.push(createEmptyEntity(`${prefix}-N${i}`));
+        for (let i=0; i<20; i++) {
+          const sub = `${prefix}-N${Math.floor(rand() * 10)}`;
+          const obj = `${prefix}-N${Math.floor(rand() * 10)}`;
+          f.relations.push({ id: `${prefix}-R${i}`, subjectId: sub, predicate: "edge", objectId: obj });
+        }
 
-      const results = [];
-      for (const e of engines) {
-        await e.insert(f);
-        const res = await e.engine.query({ type: "traverse", startId: "N0", maxDepth: 3, maxPaths: 10 });
-        results.push({ name: e.name, paths: res.traversal?.paths });
-      }
+        const results = [];
+        for (const e of engines) {
+          await e.insert(f);
+          const res = await e.engine.query({ type: "traverse", startId: `${prefix}-N0`, maxDepth: 3, maxPaths: 10 });
+          results.push({ name: e.name, paths: res.traversal?.paths });
+        }
 
-      const memPaths = results[0].paths;
-      for (let i = 1; i < results.length; i++) {
-        expect(results[i].paths, `Mismatch in ${results[i].name}`).toEqual(memPaths);
+        const memPaths = results[0].paths;
+        for (let i = 1; i < results.length; i++) {
+          expect(results[i].paths, `Mismatch for seed ${seed} in ${results[i].name}`).toEqual(memPaths);
+        }
       }
     });
   });

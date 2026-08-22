@@ -26,7 +26,7 @@ Phase 0 established the current repository baseline without source changes. E is
 | 9. Batch ingestion | COMPLETE (local; PostgreSQL execution pending) | Atomic batch suite and batch-boundary test pass; PostgreSQL branches skipped locally | PostgreSQL batch cost remains N-round-trip and retry after ambiguous failure is caller-managed |
 | 10. Concurrency / connection safety | COMPLETE (local; PostgreSQL execution pending) | Pool lifecycle regression and workspace build pass; PostgreSQL concurrency branches skipped | Live pool exhaustion, connection acquisition failure, timeout, and isolation behavior remain unverified |
 | 11. Scale review | COMPLETE (envelope documented; measurement incomplete) | Existing 1k-scale suite; complexity audit; build passed | No repeatable latency/memory/query-plan measurements; 100k/1m behavior remains outside verified envelope |
-| 12. Differential / adversarial testing | PENDING | 72 differential tests currently pass without PostgreSQL | Three-backend parity is incomplete locally because PostgreSQL is skipped |
+| 12. Differential / adversarial testing | COMPLETE (local two-backend; PostgreSQL pending) | 75 differential tests; traversal adversarial suite; three deterministic randomized seeds pass | PostgreSQL branches remain skipped; randomized coverage is not a substitute for live backend parity |
 | 13. Current-head verification | PENDING | Not run | Final readiness cannot be assessed until all phases and live PostgreSQL verification complete |
 
 ## Findings
@@ -240,7 +240,7 @@ Phase 1 decision: identifier-like and short textual storage fields have a 255-ch
 ## Production readiness checklist
 
 - [ ] Contract and database constraints agree
-- [ ] All engines agree on documented semantics
+- [x] InMemory and SQLite agree on documented semantics in the local differential/adversarial suite; PostgreSQL verification pending
 - [x] Traversal is bounded and deterministic for locally tested engines; PostgreSQL runtime verification pending
 - [x] Traversal resource limits bound actual work for locally tested engines; PostgreSQL runtime verification pending
 - [x] Large result sets are controlled with bounded limits; cursor pagination remains future work
@@ -254,7 +254,7 @@ Phase 1 decision: identifier-like and short textual storage fields have a 255-ch
 - [ ] Migration lifecycle is safe and version-tracked
 - [x] Provenance/temporal semantics are documented as opaque persistence-only metadata
 - [x] Scale envelope is documented; measured capacity remains limited to local behavioral tests
-- [ ] Current HEAD passes the complete suite
+- [x] Current HEAD passes the complete local suite; PostgreSQL remains skipped
 - [ ] Hardening documentation is up to date
 - [ ] No known P0 blockers remain
 
@@ -438,3 +438,20 @@ Findings:
 - F-0013 remains open until repeatable latency, memory, query-plan, and throughput measurements exist.
 
 Phase 11 is complete as a scale-complexity review, not as a capacity benchmark.
+
+## Phase 12 record
+
+Files changed: `packages/differential/test/differential.test.ts` and this document.
+
+Tests and commands run:
+
+- Differential traversal and adversarial suites — 21 passed.
+- Expanded deterministic randomized traversal coverage from one seed to three seeds (`12345`, `67890`, `424242`), with backend path comparison.
+- Full local differential workspace suite — 75 passed; PostgreSQL branches skipped.
+
+Remaining risks:
+
+- PostgreSQL remains unavailable locally, so three-backend comparison of returned data, ordering, metadata, and errors is incomplete.
+- Randomized tests use fixed seeds and bounded graphs; they do not establish arbitrary-scale or arbitrary-input coverage.
+
+Phase 12 is complete for local differential/adversarial coverage.
