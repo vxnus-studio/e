@@ -360,7 +360,6 @@ export class PostgresEngine implements EQueryEngine, EFixtureMutator, EBatchMuta
               if (!visitedEntities.has(nextId)) {
                 nextEntityIds.add(nextId);
               }
-              visitedRelations.set(r.id, r);
             }
 
             if (nextEntityIds.size > 0) {
@@ -418,6 +417,10 @@ export class PostgresEngine implements EQueryEngine, EFixtureMutator, EBatchMuta
 
                 const nextId = dir === "out" ? r.objectId : r.subjectId;
                 if (!visitedEntities.has(nextId)) continue;
+
+                if (!visitedRelations.has(r.id)) {
+                  visitedRelations.set(r.id, r);
+                }
 
                 const newEdge: TraversalPathEdge = {
                   relationId: r.id,

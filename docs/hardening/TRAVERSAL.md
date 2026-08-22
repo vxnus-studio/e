@@ -20,13 +20,14 @@ This document defines the formal traversal execution model, boundary rules, cycl
 
 ## 2. Resource Bounding & Intermediate Frontier Safety
 
-### 2.1 Intermediate Frontier & Expansion Bounding
-To prevent unbounded memory growth on pathological high-fan-out graphs ($A \to B_{1..10000}$), intermediate candidate generation, edge expansion, and entity hydration are bounded at configurable safety limits:
-- **`maxPaths`**: Capped at `MAX_SAFE_PATHS = 100,000` (default `1,000`).
-- **`maxRelationsExpanded`**: Hard limit on intermediate candidate relation edges evaluated during traversal (default `100,000`).
-- **`maxEntitiesHydrated`**: Hard limit on intermediate entity records hydrated during traversal (default `50,000`).
+### 2.1 Hard Safety Limits & Intermediate Frontier Safety
+To prevent unbounded memory growth on pathological high-fan-out graphs ($A \to B_{1..10000}$), intermediate candidate generation, edge expansion, entity hydration, and path accumulation are bounded by hard, unbreachable safety limits:
+- **`maxDepth`**: Hard ceiling on path edge length. Observable paths never have `depth > maxDepth`. Capped at `MAX_SAFE_DEPTH = 100` (default `5`).
+- **`maxPaths`**: Hard ceiling on returned paths. Observable paths never exceed `maxPaths`. Capped at `MAX_SAFE_PATHS = 100,000` (default `1,000`).
+- **`maxRelationsExpanded`**: Hard limit on total relation edges expanded and returned. Observable relations never exceed `maxRelationsExpanded` (default `100,000`).
+- **`maxEntitiesHydrated`**: Hard limit on total entity records hydrated and returned. Observable entities never exceed `maxEntitiesHydrated` (default `50,000`).
 
-Database fetch queries in `SqliteEngine` and `PostgresEngine` bound intermediate edge fetching to the remaining expansion budget (`remainingRelationBudget + 1`), preventing driver materialization of massive edge sets on high-degree nodes.
+Database fetch queries in `SqliteEngine` and `PostgresEngine` bound intermediate edge fetching to the remaining expansion budget (`remainingRelationBudget + 1`), preventing driver materialization of massive edge sets on high-degree nodes. Rows fetched beyond remaining budgets are strictly excluded from returned entities, visited relations, path expansion, and result counters.
 
 ```typescript
 if (totalRelationsExpanded >= maxRelationsExpanded) {

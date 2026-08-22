@@ -230,4 +230,65 @@ describe("Traversal Adversarial & Boundary Verification", () => {
       expect(results[i].paths, `Engine ${results[i].name} sort order mismatch`).toEqual(baseline);
     }
   });
+
+  test("Strict traversal limit boundaries: observable results NEVER exceed configured limits", async () => {
+    // Highly connected mesh graph: 20 nodes, every node connected to next 3 nodes
+    const meshEntities: Entity[] = [];
+    const meshRelations: Relation[] = [];
+    for (let i = 0; i < 20; i++) {
+      meshEntities.push(createEntity(`MESH-${i}`));
+    }
+    let relId = 0;
+    for (let i = 0; i < 20; i++) {
+      for (let j = 1; j <= 3; j++) {
+        const target = (i + j) % 20;
+        meshRelations.push({
+          id: `mesh-rel-${relId++}`,
+          subjectId: `MESH-${i}`,
+          predicate: "points_to",
+          objectId: `MESH-${target}`
+        });
+      }
+    }
+
+    for (const e of engines) {
+      await e.insert({ entities: meshEntities, relations: meshRelations });
+
+      // 1. maxDepth = 0 must return depth 0 only (single root path, 0 relations, 1 entity)
+      const resD0 = await e.engine.query({ type: "traverse", startId: "MESH-0", maxDepth: 0 });
+      expect(resD0.traversal?.paths.length).toBe(1);
+      expect(resD0.traversal?.paths[0].depth).toBe(0);
+      expect(resD0.traversal?.relations.length).toBe(0);
+      expect(resD0.traversal?.entities.length).toBe(1);
+
+      // 2. maxDepth = 1 must strictly contain paths of depth <= 1
+      const resD1 = await e.engine.query({ type: "traverse", startId: "MESH-0", maxDepth: 1 });
+      for (const p of resD1.traversal?.paths || []) {
+        expect(p.depth).toBeLessThanOrEqual(1);
+      }
+
+      // 3. maxPaths strict limit: maxPaths = 4 on dense graph
+      const resP4 = await e.engine.query({ type: "traverse", startId: "MESH-0", maxDepth: 5, maxPaths: 4 });
+      expect(resP4.traversal?.paths.length).toBeLessThanOrEqual(4);
+      expect(resP4.metadata.partial).toBe(true);
+
+      // 4. maxRelationsExpanded strict limit: maxRelationsExpanded = 7
+      const resRel7 = await e.engine.query({
+        type: "traverse",
+        startId: "MESH-0",
+        maxDepth: 5,
+        maxRelationsExpanded: 7
+      });
+      expect(resRel7.traversal?.relations.length).toBeLessThanOrEqual(7);
+
+      // 5. maxEntitiesHydrated strict limit: maxEntitiesHydrated = 5
+      const resEnt5 = await e.engine.query({
+        type: "traverse",
+        startId: "MESH-0",
+        maxDepth: 5,
+        maxEntitiesHydrated: 5
+      });
+      expect(resEnt5.traversal?.entities.length).toBeLessThanOrEqual(5);
+    }
+  });
 });
