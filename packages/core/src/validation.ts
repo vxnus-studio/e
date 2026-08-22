@@ -23,6 +23,7 @@ import {
   MAX_PROVENANCE_OBSERVED_AT_LENGTH,
   MAX_PROVENANCE_EXTRACTED_VIA_LENGTH,
   MAX_IDENTITY_EXTERNAL_ID_LENGTH,
+  MAX_SAFE_BATCH_ITEMS,
 } from "./types.js";
 
 const VALID_CONFIDENCE_LEVELS = new Set(["canon", "theory", "outdated", "unverified"]);
@@ -289,6 +290,11 @@ export function validateBatchDataset(dataset: unknown): asserts dataset is Batch
     throw new ConstraintError("Batch dataset must be an object", undefined, "VALIDATION_ERROR");
   }
   const ds = dataset as Record<string, unknown>;
+  const arrays = [ds.entities, ds.aliases, ds.relations, ds.claims, ds.documents];
+  const itemCount = arrays.reduce<number>((count, value) => count + (Array.isArray(value) ? value.length : 0), 0);
+  if (itemCount > MAX_SAFE_BATCH_ITEMS) {
+    throw new ConstraintError(`Batch exceeds maximum item count of ${MAX_SAFE_BATCH_ITEMS}`, undefined, "BATCH_LIMIT");
+  }
   if (ds.entities !== undefined) {
     if (!Array.isArray(ds.entities)) throw new ConstraintError("dataset.entities must be an array", undefined, "VALIDATION_ERROR");
     for (const ent of ds.entities) validateEntity(ent);

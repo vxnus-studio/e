@@ -23,7 +23,7 @@ Phase 0 established the current repository baseline without source changes. E is
 | 6. Resolution | COMPLETE (local; PostgreSQL execution pending) | Differential resolution suite: 12 passed; PostgreSQL branch skipped locally | PostgreSQL runtime resolution remains unverified |
 | 7. Claims / documents / provenance / temporal | COMPLETE (persistence semantics) | Persistence round-trip suite: existing metadata tests pass; PostgreSQL execution pending | No temporal/provenance query capability; semantics are intentionally persistence-only |
 | 8. PostgreSQL schema / migrations | IN PROGRESS | Schema lifecycle: 4 SQLite tests passed; PostgreSQL lifecycle skipped | No migration-history/version runner; SQLite migration 001 is not replay-safe; live PostgreSQL verification pending |
-| 9. Batch ingestion | PENDING | Existing tests only | Atomicity exists in code/tests, but batching cost, size bounds, retry, and idempotency semantics remain open |
+| 9. Batch ingestion | COMPLETE (local; PostgreSQL execution pending) | Atomic batch suite and batch-boundary test pass; PostgreSQL branches skipped locally | PostgreSQL batch cost remains N-round-trip and retry after ambiguous failure is caller-managed |
 | 10. Concurrency / connection safety | PENDING | Existing tests only | PostgreSQL pool and failure behavior are unverified without a live database |
 | 11. Scale review | PENDING | Existing 1k-scale tests | 100k/1m behavior and actual query plans are not established |
 | 12. Differential / adversarial testing | PENDING | 72 differential tests currently pass without PostgreSQL | Three-backend parity is incomplete locally because PostgreSQL is skipped |
@@ -171,6 +171,20 @@ Phase 0 established the current repository baseline without source changes. E is
 - documentation impact: Corrected `docs/hardening/MIGRATIONS.md`, added lifecycle boundary to `docs/hardening/SCHEMA.md`, and recorded this blocker.
 - remaining risk: Production upgrades cannot yet be treated as automatically safe or replayable.
 
+### F-0011 (RESOLVED in Phase 9)
+
+- ID: F-0011
+- severity: P1
+- subsystem: Batch ingestion
+- problem: Batch ingestion had no explicit total-size bound or documented retry/idempotency semantics.
+- root cause: Atomicity was implemented independently of resource and replay policy.
+- affected engines: InMemory, SQLite, PostgreSQL.
+- reproduction: Construct a batch larger than available memory or replay a committed batch after an ambiguous failure; behavior was not contractually bounded.
+- fix: Added a 100,000-record validation bound and documented atomic-but-not-idempotent behavior, caller-managed retries, and deterministic type ordering.
+- regression test: Added core batch-boundary test; existing atomic rollback/commit suite remains the behavioral regression suite.
+- documentation impact: Updated `docs/hardening/MUTATIONS.md` and this document.
+- remaining risk: PostgreSQL currently executes one SQL statement per row; no automatic retry is provided.
+
 ## Contract decisions
 
 No new semantic decisions were made in Phase 0. Existing documented decisions remain provisional until revalidated against current code and all backends, including:
@@ -206,7 +220,7 @@ Phase 1 decision: identifier-like and short textual storage fields have a 255-ch
 - [x] Resolution semantics are explicit and ambiguity-preserving; PostgreSQL runtime verification pending
 - [x] Error taxonomy is useful for locally tested adapters; PostgreSQL runtime verification remains pending
 - [ ] Batch writes are atomic
-- [ ] Batch writes have defined retry/idempotency behavior
+- [x] Batch writes have defined retry/idempotency behavior; PostgreSQL throughput remains a scale risk
 - [ ] Connection/pool lifecycle is safe
 - [ ] Schema lifecycle is understood end-to-end
 - [ ] Migration lifecycle is safe and version-tracked
@@ -345,3 +359,16 @@ Tests and commands run:
 - Schema lifecycle suite — 4 passed locally; PostgreSQL branches skipped because `TEST_DATABASE_URL` is unset.
 
 Remaining blocker: F-0010 remains open. Phase 8 is not complete; the repository has no safe, versioned migration lifecycle yet.
+
+## Phase 9 record
+
+Files changed: `packages/core/src/types.ts`, `packages/core/src/validation.ts`, `packages/core/test/batch-boundaries.test.ts`, `docs/hardening/MUTATIONS.md`, and this document.
+
+Tests and commands run:
+
+- New batch-boundary test — passed.
+- Existing atomic mutation suite remains the rollback/commit regression basis; PostgreSQL branches are environment-gated.
+
+Remaining risk: PostgreSQL batch ingestion uses one round trip per row and requires future measured optimization; retries remain intentionally caller-controlled.
+
+Phase 9 is complete for the contract and local validation behavior.

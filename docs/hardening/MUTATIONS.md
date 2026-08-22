@@ -45,3 +45,9 @@ export interface EBatchMutator {
   - Snapshots maps and arrays prior to mutation.
   - On error, restores pre-transaction snapshot cleanly.
 
+### 3.2 Batch Bound and Retry Contract
+
+- A batch is limited to `100,000` total records across entities, aliases, relations, claims, and documents. Oversized batches fail validation before row-level validation or storage work.
+- `ingestBatch` is atomic but not idempotent: replaying a successfully committed batch with the same IDs fails with `ConstraintError` and does not merge or update existing records.
+- E does not automatically retry batches. Callers may retry only after determining whether the prior operation committed; retrying after an ambiguous connection failure can produce duplicate-key failures.
+- Batch ordering is deterministic: entities, aliases, relations, claims, then documents, with each array processed in caller order.
