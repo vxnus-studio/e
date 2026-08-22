@@ -14,7 +14,7 @@ This document establishes the complexity and resource consumption bounds for the
 | **`findRelations`** | $O(R)$ | $O(R)$ | $O(\log N)$ | $O(\log N)$ | 1-2 | `idx_e_relations_subject_id` |
 | **`findClaims`** | $O(C)$ | $O(C)$ | $O(\log N)$ | $O(\log N)$ | 1 | `idx_e_claims_entity_id` |
 | **`findDocuments`**| $O(D)$ | $O(D)$ | $O(\log N)$ | $O(\log N)$ | 1 | `idx_e_documents_entity_id` |
-| **`traverse`** | $O(\min(\|V\|+\|E\|, M \cdot d))$ | $O(M \cdot d)$ bounded by path/frontier limits | Per-frontier relation lookup plus bounded hydration chunks | Per-frontier relation lookup plus bounded hydration | 1 start lookup + frontier/hydration queries per level | `idx_e_relations_subject_id`, `idx_e_relations_object_id` |
+| **`traverse`** | $O(\min(\|V\|+\|E\|, M \cdot d))$ | $O(M \cdot d)$ bounded by path/frontier limits | Per-frontier relation lookup plus bounded hydration chunks | One set-based frontier relation query plus bounded hydration per level | 1 start lookup + 1 relation query + hydration query per level | `idx_e_relations_subject_id`, `idx_e_relations_object_id` |
 | **`ingestBatch`** | $O(B)$ | $O(B)$ snapshot overhead | $O(B)$ prepared-statement executions in one transaction | $O(B)$ SQL round trips in one transaction | PostgreSQL: one per record plus transaction statements | Primary keys and foreign keys |
 
 ---

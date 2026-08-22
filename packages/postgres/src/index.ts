@@ -340,42 +340,55 @@ export class PostgresEngine implements EQueryEngine, EFixtureMutator, EBatchMuta
               }
 
               // Allocate the fetch budget across frontier entities so one high-degree
-              // entity cannot starve the rest of the frontier.
+              // entity cannot starve the rest of the frontier. The allocation is
+              // applied inside one set-based query; do not turn a wide frontier into
+              // one round trip per entity.
               const baseBudget = Math.floor(remainingRelationBudget / entityIds.length);
               let extraBudget = remainingRelationBudget % entityIds.length;
-              const queries = [];
-              for (const entityId of entityIds) {
-                const entityBudget = baseBudget + (extraBudget-- > 0 ? 1 : 0);
-                if (entityBudget === 0) break;
-                const p: any[] = [entityId];
-                const queryParts: string[] = [];
-                const predicateParam = allowedPreds ? 2 : undefined;
-                if (allowedDir === "out" || allowedDir === "both") {
-                  let q = `SELECT 'out' as dir, * FROM e_relations WHERE subject_id = $1`;
-                  if (allowedPreds) { q += ` AND predicate = ANY($${predicateParam})`; p.push(Array.from(allowedPreds)); }
-                  queryParts.push(q);
-                }
-                if (allowedDir === "in" || allowedDir === "both") {
-                  let q = `SELECT 'in' as dir, * FROM e_relations WHERE object_id = $1`;
-                  if (allowedPreds) { q += ` AND predicate = ANY($${predicateParam})`; if (!allowedDir || allowedDir === "in") p.push(Array.from(allowedPreds)); }
-                  queryParts.push(q);
-                }
-                const limitParam = p.length + 1;
-                p.push(entityBudget);
-                const q = `${queryParts.join(" UNION ALL ")} ORDER BY id ASC, dir ASC LIMIT $${limitParam}`;
-                queries.push(this.pool.query(q, p).then(r => {
-                  if (r.rows.length >= entityBudget) {
-                    truncationOccurred = true;
-                    if (!truncationReasons.includes("maxRelationsExpanded limit reached")) {
-                      truncationReasons.push("maxRelationsExpanded limit reached");
-                    }
-                  }
-                  return r.rows.map(row => ({ r: this.mapRelation(row), dir: row.dir as "out" | "in" }));
-                }));
+              const frontierBudgets = entityIds.map(() => baseBudget + (extraBudget-- > 0 ? 1 : 0));
+              const params: any[] = [entityIds, frontierBudgets];
+              const predicateParam = allowedPreds ? 3 : undefined;
+              const candidates: string[] = [];
+              if (allowedDir === "out" || allowedDir === "both") {
+                let q = `SELECT f.entity_id AS frontier_id, 'out'::text AS dir, r.*
+                  FROM frontier f JOIN e_relations r ON r.subject_id = f.entity_id
+                  WHERE f.budget > 0`;
+                if (allowedPreds) { q += ` AND r.predicate = ANY($${predicateParam})`; }
+                candidates.push(q);
               }
-              const results = await Promise.all(queries);
-              for (const res of results) {
-                allEdges = allEdges.concat(res);
+              if (allowedDir === "in" || allowedDir === "both") {
+                let q = `SELECT f.entity_id AS frontier_id, 'in'::text AS dir, r.*
+                  FROM frontier f JOIN e_relations r ON r.object_id = f.entity_id
+                  WHERE f.budget > 0`;
+                if (allowedPreds) { q += ` AND r.predicate = ANY($${predicateParam})`; }
+                candidates.push(q);
+              }
+              if (allowedPreds) params.push(Array.from(allowedPreds));
+              const queryText = `
+                WITH frontier(entity_id, budget) AS (
+                  SELECT * FROM unnest($1::varchar[], $2::integer[])
+                ), candidates AS (
+                  ${candidates.join(" UNION ALL ")}
+                ), ranked AS (
+                  SELECT candidates.*, frontier.budget,
+                    row_number() OVER (PARTITION BY frontier_id ORDER BY id ASC, dir ASC) AS frontier_rank,
+                    count(*) OVER (PARTITION BY frontier_id) AS available_count
+                  FROM candidates
+                  JOIN frontier ON frontier.entity_id = candidates.frontier_id
+                )
+                SELECT * FROM ranked
+                WHERE frontier_rank <= budget
+                ORDER BY id ASC, dir ASC, frontier_id ASC
+              `;
+              const res = await this.pool.query(queryText, params);
+              for (const row of res.rows) {
+                if (row.available_count > row.budget) {
+                  truncationOccurred = true;
+                  if (!truncationReasons.includes("maxRelationsExpanded limit reached")) {
+                    truncationReasons.push("maxRelationsExpanded limit reached");
+                  }
+                }
+                allEdges.push({ r: this.mapRelation(row), dir: row.dir as "out" | "in" });
               }
 
               // Deterministic sort

@@ -27,9 +27,9 @@ To prevent unbounded memory growth on pathological high-fan-out graphs ($A \to B
 - **`maxRelationsExpanded`**: Hard limit on total relation edges expanded and returned. Observable relations never exceed `maxRelationsExpanded` (default `100,000`).
 - **`maxEntitiesHydrated`**: Hard limit on total entity records hydrated and returned. Observable entities never exceed `maxEntitiesHydrated` (default `50,000`).
 
-Database fetch queries in `SqliteEngine` and `PostgresEngine` bound intermediate edge fetching to the remaining expansion budget (`remainingRelationBudget + 1`), preventing driver materialization of massive edge sets on high-degree nodes. Rows fetched beyond remaining budgets are strictly excluded from returned entities, visited relations, path expansion, and result counters.
+Database fetch queries in `SqliteEngine` and `PostgresEngine` bound intermediate edge fetching to the remaining expansion budget, preventing driver materialization of massive edge sets on high-degree nodes. Rows fetched beyond remaining budgets are strictly excluded from returned entities, visited relations, path expansion, and result counters.
 
-The remaining relation budget is allocated deterministically across the entities in the current frontier (`floor(remainingBudget / frontierEntityCount)`, with the remainder assigned to the earliest frontier entities). SQL adapters issue bounded per-frontier-entity fetches rather than one global `LIMIT`, so a high-degree entity cannot consume the entire fetch budget and starve later frontier entities. InMemory uses the same round-robin edge expansion order.
+The remaining relation budget is allocated deterministically across the entities in the current frontier (`floor(remainingBudget / frontierEntityCount)`, with the remainder assigned to the earliest frontier entities), so a high-degree entity cannot consume the entire fetch budget and starve later frontier entities. InMemory uses the same round-robin edge expansion order. SQLite uses bounded per-frontier fetches. PostgreSQL applies the same allocation with one set-based `ANY`/`unnest` query per BFS level, avoiding query amplification while retaining fairness.
 
 If a bounded per-entity fetch returns exactly its allocation, traversal reports `partial: true` because additional matching rows may have been suppressed by that allocation. This conservative signal avoids claiming completeness when the bounded query cannot prove that no rows remain.
 
@@ -62,4 +62,4 @@ All engines apply an identical canonical sort order to discovered paths:
 
 - **`InMemoryEngine`**: Synchronous in-memory BFS expansion with bounded edge and entity evaluation.
 - **`SqliteEngine`**: Level-by-level batched `SELECT ... WHERE subject_id/object_id IN (...)` (chunked at 500 IDs with budget-aware limits).
-- **`PostgresEngine`**: Level-by-level batched `SELECT ... WHERE subject_id/object_id = ANY($1)` with `ORDER BY id ASC LIMIT $budget`.
+- **`PostgresEngine`**: Level-by-level set-based `SELECT ... JOIN unnest(frontier IDs, budgets)` with `row_number()` per frontier entity and deterministic `ORDER BY id ASC, dir ASC`; one relation-expansion round trip is issued per BFS level.
