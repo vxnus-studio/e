@@ -324,6 +324,8 @@ export class InMemoryEngine implements EQueryEngine, EFixtureMutator, EBatchMuta
         // Deterministic ordering by id (Binary / ASCII order)
         result.entities!.sort((a, b) => a.id < b.id ? -1 : a.id > b.id ? 1 : 0);
         if (result.entities!.length > effectiveLimit) {
+          result.metadata.partial = true;
+          result.metadata.warnings = [`Search result limit reached: ${effectiveLimit}`];
           result.entities = result.entities!.slice(0, effectiveLimit);
         }
         

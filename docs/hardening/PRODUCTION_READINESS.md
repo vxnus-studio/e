@@ -19,7 +19,7 @@ Phase 0 established the current repository baseline without source changes. E is
 | 2. Error model | COMPLETE (local; PostgreSQL execution pending) | Workspace: 88 passed, 1 skipped; closed SQLite database test passed; build passed | Live PostgreSQL outage/rollback-failure tests remain unavailable |
 | 3. Traversal hardening | COMPLETE (local; PostgreSQL execution pending) | Traversal adversarial: 9 passed; focused differential traversal: 20 passed; workspace: 87 passed, 1 skipped; build passed | PostgreSQL runtime traversal remains unverified; conservative partial signaling may over-report when an allocation is exactly full |
 | 4. Result size / memory safety | COMPLETE (local; PostgreSQL execution pending) | Result-limit differential test: 10 passed; workspace: 89 passed, 1 skipped; build passed | PostgreSQL runtime result-limit execution remains unverified; pagination beyond limit is not yet cursor-based |
-| 5. Search | PENDING | Existing tests only | SQLite Unicode folding and cross-backend collation differences remain documented divergences; scale claims need verification |
+| 5. Search | COMPLETE (semantics; scale blocker remains) | Search adversarial/audit: 17 passed; build passed | Lexical substring search remains O(N); PostgreSQL execution remains unverified |
 | 6. Resolution | PENDING | Existing tests only | Alias/name/slug/identity semantics need an explicit current contract and collision tests |
 | 7. Claims / documents / provenance / temporal | PENDING | Existing tests only | Persistence is tested in selected paths, but temporal query semantics and limits are not established |
 | 8. PostgreSQL schema / migrations | PENDING | Existing tests only; PostgreSQL skipped locally | Migration files are not visibly tracked by a migration table; fresh/upgrade/replay behavior requires live PostgreSQL verification |
@@ -115,6 +115,20 @@ Phase 0 established the current repository baseline without source changes. E is
 - documentation impact: Updated `docs/CONTRACT.md`, `docs/hardening/PRODUCTION_READINESS.md`, and the public types.
 - remaining risk: The API currently supports bounded pages but not cursor/keyset pagination; PostgreSQL execution remains gated.
 
+### F-0007 (OPEN — Search scale boundary)
+
+- ID: F-0007
+- severity: P1
+- subsystem: Search scale
+- problem: Lexical search uses arbitrary substring matching over entity name/slug, which is an O(N) scan in all backends for `%query%` patterns.
+- root cause: The current contract requires substring semantics; ordinary B-tree indexes cannot accelerate arbitrary leading-wildcard searches.
+- affected engines: InMemory, SQLite, PostgreSQL.
+- reproduction: Search a large dataset with a short or empty query; each backend scans candidates and only bounds returned rows.
+- fix: No speculative indexing change was made. The limitation is explicitly documented; future production-scale search requires a deliberate capability/contract decision such as trigram/full-text indexing or a separate search provider.
+- regression test: Existing 1,000-entity scale test and 17 search adversarial/audit tests.
+- documentation impact: Updated `docs/CONTRACT.md` and `docs/hardening/SEARCH.md` to state O(N) complexity and avoid production-scale claims.
+- remaining risk: Search at 100k–1m entities may be too slow without a future indexed search design.
+
 ## Contract decisions
 
 No new semantic decisions were made in Phase 0. Existing documented decisions remain provisional until revalidated against current code and all backends, including:
@@ -146,7 +160,7 @@ Phase 1 decision: identifier-like and short textual storage fields have a 255-ch
 - [x] Traversal is bounded and deterministic for locally tested engines; PostgreSQL runtime verification pending
 - [x] Traversal resource limits bound actual work for locally tested engines; PostgreSQL runtime verification pending
 - [x] Large result sets are controlled with bounded limits; cursor pagination remains future work
-- [ ] Search semantics are explicit
+- [x] Search semantics are explicit; arbitrary substring search remains an O(N) documented limitation
 - [ ] Resolution semantics are explicit
 - [x] Error taxonomy is useful for locally tested adapters; PostgreSQL runtime verification remains pending
 - [ ] Batch writes are atomic
@@ -238,3 +252,19 @@ Remaining risks:
 
 - PostgreSQL result-limit execution remains unverified because `TEST_DATABASE_URL` is unset.
 - Limits are offsetless bounded pages; cursor pagination is not implemented.
+
+## Phase 5 record
+
+Files changed: `packages/core/src/engine.ts`, `packages/sqlite/src/index.ts`, `packages/postgres/src/index.ts`, `docs/CONTRACT.md`, `docs/hardening/SEARCH.md`, and this document.
+
+Tests and commands run:
+
+- Search adversarial/audit suite — 17 passed.
+- `npm run build` — passed for all build-enabled workspaces.
+
+Remaining risks:
+
+- F-0007 remains open: lexical substring search is O(N).
+- PostgreSQL search execution remains unverified because `TEST_DATABASE_URL` is unset.
+
+Phase 5 is complete as a semantic and capability audit, but it does not claim production-scale search.

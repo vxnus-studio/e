@@ -12,6 +12,7 @@ Search queries are executed via `engine.query({ type: "search", search: SearchQu
 - **Matching Type**: Substring lexical matching (`name` or `slug`).
 - **Fields Searched**: Matches if `entity.name` contains `query` OR `entity.slug` contains `query`.
 - **Match Reason**: Tagged with `matchReason: "lexical"`.
+- **Output Truncation**: Results are capped by `limit` (default/max semantics are documented in `docs/CONTRACT.md`). When additional matches exist, `metadata.partial` is `true` and includes a warning.
 - **Unsupported Modes**: `mode: "semantic"` and `mode: "hybrid"` are unsupported in core/base engines and throw `UnsupportedOperationError`.
 
 ### 1.2 Literal Wildcard & Escape Rules
@@ -49,3 +50,7 @@ A search for `"%"` only matches entities containing a literal `%` symbol (e.g. `
 
 Standard SQLite `LIKE` operator is case-insensitive for ASCII characters (`a-z` == `A-Z`) only. In standard SQLite without ICU extension, accented character casing (e.g. `café` vs `CAFÉ`) does not fold.
 - **Contract Rule**: Search in SQLite performs case-insensitive ASCII search and exact-case Unicode search.
+
+## 4. Scale Boundary
+
+Lexical matching is a substring scan (`%query%`) over `name` and `slug` in SQLite/PostgreSQL and an in-memory scan in InMemoryEngine. Existing indexes do not make arbitrary substring matching index-backed. E therefore provides bounded output and documents the current implementation as O(N), but does not claim production-scale search at 100k or 1m entities.

@@ -268,9 +268,10 @@ export class SqliteEngine implements EQueryEngine, EFixtureMutator, EBatchMutato
           }
           queryText += ` ORDER BY id COLLATE BINARY ASC`; // deterministic binary ordering
           queryText += ` LIMIT ?`;
-          params.push(effectiveLimit);
-          const rows = this.db.prepare(queryText).all(params);
-          const entities = rows.map(r => this.mapEntity(r));
+          params.push(effectiveLimit + 1);
+          const rows = this.db.prepare(queryText).all(params) as Record<string, any>[];
+          if (rows.length > effectiveLimit) { result.metadata.partial = true; result.metadata.warnings = [`Search result limit reached: ${effectiveLimit}`]; }
+          const entities = rows.slice(0, effectiveLimit).map(r => this.mapEntity(r));
           result.entities = entities;
           result.search = {
             entities,

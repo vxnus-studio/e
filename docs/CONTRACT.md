@@ -91,7 +91,9 @@ All queries accept a discriminated union `QueryRequest` and return a unified `Kn
 - **Filters**: `namespace` and `kind` are strictly applied as `AND` filters.
 - **Scores**: No score is provided. `matches` arrays will only specify `matchReason: "lexical"`.
 - **Limits**: `limit` must be a non-negative integer. If `limit=0`, the query immediately returns empty. Maximum search limit is `10000`. Exceeding it clamps to `10000`. Invalid values (`< 0` or decimal/NaN) will throw a `QueryError`.
+- **Truncation**: If more matches exist than the effective limit, results are truncated deterministically and `metadata.partial` is `true` with a warning.
 - **Ordering**: **Contractually Ordered**. Implementations must sort by `id` ascending before slicing to `limit` to guarantee deterministic pagination. Note: JavaScript (InMemory) sorts by UTF-16 code units (`<`), whereas SQL engines sort by UTF-8 bytes (`COLLATE "C"` or `BINARY`). Ordering is guaranteed identically across backends for BMP characters, but diverges for characters outside the BMP (e.g., Emoji).
+- **Scale**: Lexical substring matching is currently an O(N) scan in all backends. The result limit bounds materialization, but does not make arbitrary substring search index-backed or production-scale.
 
 ### 4.6. `traverse`
 - **Input**: `startId: string`, `steps?: TraversalStep[]`, `maxDepth?: number`, `maxPaths?: number`, `predicates?: string[]`.

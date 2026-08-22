@@ -199,10 +199,11 @@ export class PostgresEngine implements EQueryEngine, EFixtureMutator, EBatchMuta
             queryText += ` AND kind = $${params.length}`;
           }
           queryText += ` ORDER BY id COLLATE "C" ASC`; // deterministic binary ordering
-          params.push(effectiveLimit);
+          params.push(effectiveLimit + 1);
           queryText += ` LIMIT $${params.length}`;
           const res = await this.pool.query(queryText, params);
-          const entities = res.rows.map((row) => this.mapEntity(row));
+          if (res.rows.length > effectiveLimit) { result.metadata.partial = true; result.metadata.warnings = [`Search result limit reached: ${effectiveLimit}`]; }
+          const entities = res.rows.slice(0, effectiveLimit).map((row) => this.mapEntity(row));
           result.search = {
             entities,
             matches: entities.map(e => ({
