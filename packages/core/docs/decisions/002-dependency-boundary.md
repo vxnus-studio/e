@@ -7,6 +7,6 @@ During Phase 2, we evaluated whether E should provide built-in Postgres adapters
 E Core will remain purely a contract layer with an in-memory reference implementation. It will have zero dependencies on storage engines (Neon, Drizzle), web frameworks (Next.js, Express), transport protocols (MCP), or domain projects (`e-teyvat`).
 
 ## Consequences
-- `e` is highly stable and lightweight.
-- Projects implementing `e` can use the provided generic adapters (e.g., `@e/postgres`, `@e/sqlite`) or build their own storage adapters that conform to the `EQueryEngine` interface.
-- This guarantees `e` can be repurposed for entirely different domains (e.g. software architecture mapping) without dragging along Genshin-specific logic or heavy database clients in the core package.
+- `@vxnus/e` is highly stable and lightweight.
+- Projects implementing `@vxnus/e` can use the provided generic adapters (e.g., `@vxnus/e-postgres`, `@vxnus/e-sqlite`) or build their own storage adapters that conform to the `EQueryEngine` interface.
+- This guarantees `@vxnus/e` can be repurposed for entirely different domains (e.g. software architecture mapping) without dragging along Genshin-specific logic or heavy database clients in the core package.

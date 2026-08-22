@@ -1,5 +1,5 @@
 {
-  "name": "e",
+  "name": "@vxnus/e",
   "version": "0.1.0",
   "description": "Generic knowledge graph runtime and query contract",
   "type": "module",

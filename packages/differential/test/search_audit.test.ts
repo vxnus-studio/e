@@ -1,7 +1,7 @@
 import { test, describe, expect, beforeAll, afterAll } from "vitest";
-import { InMemoryEngine } from "e";
-import { SqliteEngine } from "@e/sqlite";
-import { PostgresEngine } from "@e/postgres";
+import { InMemoryEngine } from "@vxnus/e";
+import { SqliteEngine } from "@vxnus/e-sqlite";
+import { PostgresEngine } from "@vxnus/e-postgres";
 import { Pool } from "pg";
 import * as fs from "fs";
 import * as path from "path";

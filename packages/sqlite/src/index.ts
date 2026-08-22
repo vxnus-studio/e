@@ -12,8 +12,8 @@ import type {
   EFixtureMutator,
   TraversalPath,
   TraversalPathEdge,
-} from "e";
-import { DEFAULT_MAX_DEPTH, ConstraintError, QueryError, UnsupportedOperationError, MAX_SAFE_SEARCH_LIMIT, MAX_SAFE_SEARCH_QUERY_LENGTH } from "e";
+} from "@vxnus/e";
+import { DEFAULT_MAX_DEPTH, ConstraintError, QueryError, UnsupportedOperationError, MAX_SAFE_SEARCH_LIMIT, MAX_SAFE_SEARCH_QUERY_LENGTH } from "@vxnus/e";
 
 
 export class SqliteEngine implements EQueryEngine, EFixtureMutator {

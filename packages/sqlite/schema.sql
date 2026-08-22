@@ -1,5 +1,5 @@
 -- E Core Canonical Schema for SQLite
--- This file defines the tables, constraints, and indexes required by the @e/sqlite adapter.
+-- This file defines the tables, constraints, and indexes required by the @vxnus/e-sqlite adapter.
 
 CREATE TABLE IF NOT EXISTS e_entities (
   id TEXT PRIMARY KEY,

@@ -1,20 +1,22 @@
-# `@e/postgres`
+# `@vxnus/e-postgres`
+
+[![npm](https://img.shields.io/npm/v/@vxnus/e-postgres)](https://www.npmjs.com/package/@vxnus/e-postgres)
 
 PostgreSQL / Neon storage adapter and schema for the **E** knowledge graph runtime.
 
-> **Note:** E is currently pre-1.0 (`0.1.0`) and experimental.
+> **Note:** E is currently pre-1.0 (`0.1.0`) and experimental. Published by [@vxnus](https://www.npmjs.com/~vxnus).
 
 ## Installation
 
 ```bash
-npm install e @e/postgres pg
+npm install @vxnus/e @vxnus/e-postgres pg
 ```
 
-`e` is required as a peer dependency.
+`@vxnus/e` is required as a peer dependency.
 
 ## Schema Provisioning
 
-This adapter requires the core E relational schema to exist in PostgreSQL. The canonical schema is packaged directly with `@e/postgres` as `schema.sql`.
+This adapter requires the core E relational schema to exist in PostgreSQL. The canonical schema is packaged directly with `@vxnus/e-postgres` as `schema.sql`.
 
 ### Applying the Schema
 
@@ -22,7 +24,7 @@ You can apply the SQL schema directly from the installed package:
 
 ```bash
 # Using psql CLI
-psql -d "$DATABASE_URL" -f node_modules/@e/postgres/schema.sql
+psql -d "$DATABASE_URL" -f node_modules/@vxnus/e-postgres/schema.sql
 ```
 
 Or via Node.js:
@@ -33,7 +35,7 @@ import { Pool } from "pg";
 
 const pool = new Pool({ connectionString: process.env.DATABASE_URL });
 const schemaSql = fs.readFileSync(
-  require.resolve("@e/postgres/schema.sql"),
+  require.resolve("@vxnus/e-postgres/schema.sql"),
   "utf-8"
 );
 await pool.query(schemaSql);
@@ -42,8 +44,8 @@ await pool.query(schemaSql);
 ## Usage
 
 ```typescript
-import { PostgresEngine } from "@e/postgres";
-import type { QueryRequest, KnowledgeResult } from "e";
+import { PostgresEngine } from "@vxnus/e-postgres";
+import type { QueryRequest, KnowledgeResult } from "@vxnus/e";
 
 // Initialize with pg PoolConfig
 const engine = new PostgresEngine({

@@ -33,7 +33,7 @@ This enforces the boundary where AI consumers (like Siduri) do not need to rever
 
 ## Storage Boundary
 
-E defines the models and the query interfaces. The actual persistence and retrieval mechanics are left to adapters. Core currently provides an in-memory reference engine, while distinct workspace packages (`@e/postgres`, `@e/sqlite`) provide robust database implementations.
+E defines the models and the query interfaces. The actual persistence and retrieval mechanics are left to adapters. Core currently provides an in-memory reference engine, while distinct workspace packages (`@vxnus/e-postgres`, `@vxnus/e-sqlite`) provide robust database implementations.
 
 ## Write / Ingestion Boundary
 

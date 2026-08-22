@@ -1,6 +1,6 @@
 # Canonical API Contract
 
-This document defines the strict, authoritative semantic contract for the `@vxnuslabs/e` Knowledge Engine API. This contract dictates how all compliant backends (InMemory, SQLite, PostgreSQL, etc.) must behave. 
+This document defines the strict, authoritative semantic contract for the `@vxnus/e` Knowledge Engine API. This contract dictates how all compliant backends (InMemory, SQLite, PostgreSQL, etc.) must behave. 
 
 If an implementation deviates from this document, the implementation is incorrect.
 

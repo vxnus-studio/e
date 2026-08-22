@@ -1,5 +1,10 @@
 # E
- 
+
+[![npm (core)](https://img.shields.io/npm/v/@vxnus/e?label=%40vxnus%2Fe)](https://www.npmjs.com/package/@vxnus/e)
+[![npm (postgres)](https://img.shields.io/npm/v/@vxnus/e-postgres?label=%40vxnus%2Fe-postgres)](https://www.npmjs.com/package/@vxnus/e-postgres)
+[![npm (sqlite)](https://img.shields.io/npm/v/@vxnus/e-sqlite?label=%40vxnus%2Fe-sqlite)](https://www.npmjs.com/package/@vxnus/e-sqlite)
+[![npm profile](https://img.shields.io/badge/npm-~vxnus-CB3837?logo=npm)](https://www.npmjs.com/~vxnus)
+
 E is a **domain-agnostic knowledge runtime and graph query layer**.
  
 > **Version 0.1.0 (Early / Experimental)**  
@@ -7,13 +12,13 @@ E is a **domain-agnostic knowledge runtime and graph query layer**.
 
 It provides a unified schema, query contract, and retrieval engine so that AI systems can retrieve structured, evidence-backed knowledge across different domains (e.g., fictional universes, software architecture, internal wikis) without needing to guess via unstructured RAG or reverse-engineer SQL.
 
-## Repository Structure
+## Repository Structure & Packages
 
-This repository is a monorepo containing the following packages:
+All published packages are available on npm under [@vxnus](https://www.npmjs.com/~vxnus):
 
-- [`packages/core`](packages/core) (`e`): The foundational TypeScript types, query contracts, error definitions, and lightweight `InMemoryEngine`.
-- [`packages/postgres`](packages/postgres) (`@e/postgres`): PostgreSQL / Neon persistence adapter and canonical SQL schema.
-- [`packages/sqlite`](packages/sqlite) (`@e/sqlite`): SQLite persistence adapter using `better-sqlite3`.
+- [`packages/core`](packages/core) ([`@vxnus/e`](https://www.npmjs.com/package/@vxnus/e)): The foundational TypeScript types, query contracts, error definitions, and lightweight `InMemoryEngine`.
+- [`packages/postgres`](packages/postgres) ([`@vxnus/e-postgres`](https://www.npmjs.com/package/@vxnus/e-postgres)): PostgreSQL / Neon persistence adapter and canonical SQL schema.
+- [`packages/sqlite`](packages/sqlite) ([`@vxnus/e-sqlite`](https://www.npmjs.com/package/@vxnus/e-sqlite)): SQLite persistence adapter using `better-sqlite3`.
 
 ## Architecture & Semantics
 
@@ -26,19 +31,19 @@ E operates as a unified contract bridging underlying databases and knowledge con
 
 ```bash
 # Core contract and in-memory engine
-npm install e
+npm install @vxnus/e
 
 # PostgreSQL adapter
-npm install e @e/postgres pg
+npm install @vxnus/e @vxnus/e-postgres pg
 
 # SQLite adapter
-npm install e @e/sqlite better-sqlite3
+npm install @vxnus/e @vxnus/e-sqlite better-sqlite3
 ```
 
 ## Quick Start
 
 ```typescript
-import { InMemoryEngine } from "e";
+import { InMemoryEngine } from "@vxnus/e";
 
 const engine = new InMemoryEngine();
 engine.insertEntity({

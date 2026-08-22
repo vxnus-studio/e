@@ -1,8 +1,10 @@
-# `e` (E Core)
+# `@vxnus/e` (E Core)
 
-`e` is the foundational TypeScript library defining the **generic knowledge graph runtime and query contract**.
+[![npm](https://img.shields.io/npm/v/@vxnus/e)](https://www.npmjs.com/package/@vxnus/e)
 
-> **Note:** E is currently pre-1.0 (`0.1.0`) and under active development. APIs and schema conventions may evolve.
+`@vxnus/e` is the foundational TypeScript library defining the **generic knowledge graph runtime and query contract**.
+
+> **Note:** E is currently pre-1.0 (`0.1.0`) and under active development. APIs and schema conventions may evolve. Published by [@vxnus](https://www.npmjs.com/~vxnus).
 
 ## Purpose
 
@@ -35,14 +37,14 @@ The core query interface is `EQueryEngine`, executing structured `QueryRequest` 
 ## Installation
 
 ```bash
-npm install e
+npm install @vxnus/e
 ```
 
 ## Usage
 
 ```typescript
-import { InMemoryEngine } from "e";
-import type { QueryRequest, KnowledgeResult } from "e";
+import { InMemoryEngine } from "@vxnus/e";
+import type { QueryRequest, KnowledgeResult } from "@vxnus/e";
 
 // Initialize the lightweight in-memory engine
 const engine = new InMemoryEngine();
@@ -68,9 +70,9 @@ console.log(result.entities);
 
 ## Available Packages
 
-- `e`: Core interfaces, error classes, types, and `InMemoryEngine`.
-- `@e/postgres`: PostgreSQL / Neon adapter.
-- `@e/sqlite`: SQLite adapter using `better-sqlite3`.
+- `@vxnus/e`: Core interfaces, error classes, types, and `InMemoryEngine`.
+- `@vxnus/e-postgres`: PostgreSQL / Neon adapter.
+- `@vxnus/e-sqlite`: SQLite adapter using `better-sqlite3`.
 
 ## License
 

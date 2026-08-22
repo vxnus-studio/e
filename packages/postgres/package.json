@@ -1,5 +1,5 @@
 {
-  "name": "@e/postgres",
+  "name": "@vxnus/e-postgres",
   "version": "0.1.0",
   "description": "PostgreSQL adapter and schema for E knowledge graph runtime",
   "type": "module",
@@ -48,11 +48,11 @@
     "pg": "^8.11.3"
   },
   "peerDependencies": {
-    "e": "^0.1.0"
+    "@vxnus/e": "^0.1.0"
   },
   "devDependencies": {
     "@types/pg": "^8.10.2",
-    "e": "*",
+    "@vxnus/e": "*",
     "typescript": "^5.0.0",
     "vitest": "^4.1.11"
   }

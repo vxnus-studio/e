@@ -1,5 +1,5 @@
 {
-  "name": "@e/differential",
+  "name": "@vxnus/differential",
   "version": "1.0.0",
   "private": true,
   "type": "module",
@@ -12,9 +12,9 @@
     "@types/better-sqlite3": "^7.6.9"
   },
   "dependencies": {
-    "e": "*",
-    "@e/sqlite": "*",
-    "@e/postgres": "*",
+    "@vxnus/e": "*",
+    "@vxnus/e-sqlite": "*",
+    "@vxnus/e-postgres": "*",
     "pg": "^8.11.3",
     "better-sqlite3": "^11.2.1"
   }
