@@ -28,8 +28,13 @@ import {
   UnsupportedOperationError,
   MAX_SAFE_SEARCH_LIMIT,
   MAX_SAFE_SEARCH_QUERY_LENGTH,
+  validateEntity,
+  validateAlias,
+  validateRelation,
+  validateClaim,
+  validateDocument,
+  validateBatchDataset,
 } from "@vxnus/e";
-
 
 export class SqliteEngine implements EQueryEngine, EFixtureMutator, EBatchMutator {
   private db: SqliteDatabase;
@@ -134,6 +139,9 @@ export class SqliteEngine implements EQueryEngine, EFixtureMutator, EBatchMutato
           break;
         }
         case "resolve": {
+          if (!request.alias || typeof request.alias !== "string") {
+            throw new QueryError("Invalid alias: must be a non-empty string");
+          }
           let queryText = `
             SELECT DISTINCT e.* FROM e_entities e
             JOIN e_aliases a ON e.id = a.entity_id
@@ -144,11 +152,15 @@ export class SqliteEngine implements EQueryEngine, EFixtureMutator, EBatchMutato
             queryText += ` AND e.namespace = ?`;
             params.push(request.namespace);
           }
+          queryText += ` ORDER BY e.id COLLATE BINARY ASC`;
           const rows = this.db.prepare(queryText).all(params);
           result.entities = rows.map(r => this.mapEntity(r));
           break;
         }
         case "getEntity": {
+          if (!request.id || typeof request.id !== "string") {
+            throw new QueryError("Invalid id: must be a non-empty string");
+          }
           const row = this.db.prepare("SELECT * FROM e_entities WHERE id = ?").get(request.id);
           if (row) {
             result.entities = [this.mapEntity(row)];
@@ -175,6 +187,7 @@ export class SqliteEngine implements EQueryEngine, EFixtureMutator, EBatchMutato
             params.push(request.predicate);
           }
 
+          queryText += ` ORDER BY id COLLATE BINARY ASC`;
           const rows = this.db.prepare(queryText).all(params);
           result.relations = rows.map(r => this.mapRelation(r));
 
@@ -187,7 +200,7 @@ export class SqliteEngine implements EQueryEngine, EFixtureMutator, EBatchMutato
             if (entityIds.size > 0) {
               const placeholders = Array.from(entityIds).map(() => "?").join(",");
               const entitiesRes = this.db.prepare(
-                `SELECT * FROM e_entities WHERE id IN (${placeholders})`
+                `SELECT * FROM e_entities WHERE id IN (${placeholders}) ORDER BY id COLLATE BINARY ASC`
               ).all(Array.from(entityIds));
               result.entities = entitiesRes.map(r => this.mapEntity(r));
             }
@@ -195,12 +208,18 @@ export class SqliteEngine implements EQueryEngine, EFixtureMutator, EBatchMutato
           break;
         }
         case "findClaims": {
-          const rows = this.db.prepare("SELECT * FROM e_claims WHERE entity_id = ?").all(request.entityId);
+          if (!request.entityId || typeof request.entityId !== "string") {
+            throw new QueryError("Invalid entityId: must be a non-empty string");
+          }
+          const rows = this.db.prepare("SELECT * FROM e_claims WHERE entity_id = ? ORDER BY id COLLATE BINARY ASC").all(request.entityId);
           result.claims = rows.map(r => this.mapClaim(r));
           break;
         }
         case "findDocuments": {
-          const rows = this.db.prepare("SELECT * FROM e_documents WHERE entity_id = ?").all(request.entityId);
+          if (!request.entityId || typeof request.entityId !== "string") {
+            throw new QueryError("Invalid entityId: must be a non-empty string");
+          }
+          const rows = this.db.prepare("SELECT * FROM e_documents WHERE entity_id = ? ORDER BY id COLLATE BINARY ASC").all(request.entityId);
           result.documents = rows.map(r => this.mapDocument(r));
           break;
         }
@@ -645,6 +664,7 @@ export class SqliteEngine implements EQueryEngine, EFixtureMutator, EBatchMutato
   }
 
   insertEntity(entity: Entity): void {
+    validateEntity(entity);
     try {
       this.db.prepare(`
         INSERT INTO e_entities (id, namespace, kind, slug, name, data, identities, provenance, temporal)
@@ -664,6 +684,7 @@ export class SqliteEngine implements EQueryEngine, EFixtureMutator, EBatchMutato
   }
 
   insertAlias(alias: Alias): void {
+    validateAlias(alias);
     try {
       this.db.prepare("INSERT INTO e_aliases (id, entity_id, alias) VALUES (?, ?, ?)").run(
         alias.id, alias.entityId, alias.alias
@@ -672,6 +693,7 @@ export class SqliteEngine implements EQueryEngine, EFixtureMutator, EBatchMutato
   }
 
   insertRelation(relation: Relation): void {
+    validateRelation(relation);
     try {
       this.db.prepare(`
         INSERT INTO e_relations (id, subject_id, predicate, object_id, provenance, temporal, metadata)
@@ -689,6 +711,7 @@ export class SqliteEngine implements EQueryEngine, EFixtureMutator, EBatchMutato
   }
 
   insertClaim(claim: Claim): void {
+    validateClaim(claim);
     try {
       this.db.prepare(`
         INSERT INTO e_claims (id, entity_id, statement, confidence, source, provenance, temporal)
@@ -706,6 +729,7 @@ export class SqliteEngine implements EQueryEngine, EFixtureMutator, EBatchMutato
   }
 
   insertDocument(doc: Document): void {
+    validateDocument(doc);
     try {
       this.db.prepare(`
         INSERT INTO e_documents (id, entity_id, content, provenance)
@@ -721,6 +745,7 @@ export class SqliteEngine implements EQueryEngine, EFixtureMutator, EBatchMutato
 
   // --- EBatchMutator Implementation (Atomic Transactions) ---
   async ingestBatch(dataset: BatchDataset): Promise<BatchIngestResult> {
+    validateBatchDataset(dataset);
     const startTime = Date.now();
     const insertEntityStmt = this.db.prepare(`
       INSERT INTO e_entities (id, namespace, kind, slug, name, data, identities, provenance, temporal)

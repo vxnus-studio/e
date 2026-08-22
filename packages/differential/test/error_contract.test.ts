@@ -170,4 +170,124 @@ describe("Error Contract & Boundary Validation Audit", () => {
       }
     }
   });
+
+  test("Input validation rejection parity: empty and whitespace fields throw ConstraintError across all engines", async () => {
+    for (const e of engines) {
+      // 1. Empty/Whitespace Entity ID
+      await expect(async () => {
+        await e.engine.insertEntity({ id: "", namespace: "ns", kind: "node", slug: "slug", name: "Name", data: {} });
+      }).rejects.toThrow();
+
+      await expect(async () => {
+        await e.engine.insertEntity({ id: "   ", namespace: "ns", kind: "node", slug: "slug", name: "Name", data: {} });
+      }).rejects.toThrow();
+
+      // 2. Empty/Whitespace Entity Namespace
+      await expect(async () => {
+        await e.engine.insertEntity({ id: "ent-valid", namespace: "", kind: "node", slug: "slug", name: "Name", data: {} });
+      }).rejects.toThrow();
+
+      // 3. Empty/Whitespace Entity Kind
+      await expect(async () => {
+        await e.engine.insertEntity({ id: "ent-valid", namespace: "ns", kind: "  ", slug: "slug", name: "Name", data: {} });
+      }).rejects.toThrow();
+
+      // 4. Empty/Whitespace Entity Slug
+      await expect(async () => {
+        await e.engine.insertEntity({ id: "ent-valid", namespace: "ns", kind: "node", slug: "", name: "Name", data: {} });
+      }).rejects.toThrow();
+
+      // 5. Empty/Whitespace Alias
+      await expect(async () => {
+        await e.engine.insertAlias({ id: "al-1", entityId: "trav-root", alias: "" });
+      }).rejects.toThrow();
+
+      await expect(async () => {
+        await e.engine.insertAlias({ id: "al-1", entityId: "trav-root", alias: "   " });
+      }).rejects.toThrow();
+
+      // 6. Empty/Whitespace Relation Predicate
+      await expect(async () => {
+        await e.engine.insertRelation({ id: "rel-1", subjectId: "trav-root", predicate: "", objectId: "trav-root" });
+      }).rejects.toThrow();
+
+      // 7. Invalid Claim Confidence level
+      await expect(async () => {
+        await e.engine.insertClaim({
+          id: "cl-inv",
+          entityId: "trav-root",
+          statement: "Invalid confidence statement",
+          confidence: "not-a-valid-level" as any,
+          source: "Source"
+        });
+      }).rejects.toThrow();
+
+      // 8. Empty/Whitespace Claim Statement
+      await expect(async () => {
+        await e.engine.insertClaim({
+          id: "cl-empty",
+          entityId: "trav-root",
+          statement: "   ",
+          confidence: "canon",
+          source: "Source"
+        });
+      }).rejects.toThrow();
+
+      // 9. Malformed Document (missing content string)
+      await expect(async () => {
+        await e.engine.insertDocument({
+          id: "doc-bad",
+          entityId: "trav-root",
+          content: 123 as any
+        });
+      }).rejects.toThrow();
+    }
+  });
+
+  test("Deterministic query result ordering: out-of-order inserts return canonical ID sorted results", async () => {
+    for (const e of engines) {
+      // Insert entities out of alphabetical order: z, a, m
+      const entZ = { id: "ord-ent-z", namespace: "ord", kind: "node", slug: "z", name: "Z", data: {} };
+      const entA = { id: "ord-ent-a", namespace: "ord", kind: "node", slug: "a", name: "A", data: {} };
+      const entM = { id: "ord-ent-m", namespace: "ord", kind: "node", slug: "m", name: "M", data: {} };
+
+      await e.engine.insertEntity(entZ);
+      await e.engine.insertEntity(entA);
+      await e.engine.insertEntity(entM);
+
+      // Insert aliases pointing to same alias name out of order
+      await e.engine.insertAlias({ id: "al-z", entityId: "ord-ent-z", alias: "common-alias" });
+      await e.engine.insertAlias({ id: "al-a", entityId: "ord-ent-a", alias: "common-alias" });
+      await e.engine.insertAlias({ id: "al-m", entityId: "ord-ent-m", alias: "common-alias" });
+
+      // 1. Resolve must return entities sorted by id ASC
+      const resResolve = await e.engine.query({ type: "resolve", alias: "common-alias" });
+      expect(resResolve.entities?.map((ent: any) => ent.id)).toEqual(["ord-ent-a", "ord-ent-m", "ord-ent-z"]);
+
+      // 2. Relations inserted out of order
+      await e.engine.insertRelation({ id: "rel-z", subjectId: "ord-ent-a", predicate: "links", objectId: "ord-ent-z" });
+      await e.engine.insertRelation({ id: "rel-a", subjectId: "ord-ent-a", predicate: "links", objectId: "ord-ent-m" });
+      await e.engine.insertRelation({ id: "rel-m", subjectId: "ord-ent-a", predicate: "links", objectId: "ord-ent-a" });
+
+      const resRel = await e.engine.query({ type: "findRelations", subjectId: "ord-ent-a" });
+      expect(resRel.relations?.map((r: any) => r.id)).toEqual(["rel-a", "rel-m", "rel-z"]);
+      expect(resRel.entities?.map((ent: any) => ent.id)).toEqual(["ord-ent-a", "ord-ent-m", "ord-ent-z"]);
+
+      // 3. Claims inserted out of order
+      await e.engine.insertClaim({ id: "cl-z", entityId: "ord-ent-a", statement: "Z claim", confidence: "canon", source: "src" });
+      await e.engine.insertClaim({ id: "cl-a", entityId: "ord-ent-a", statement: "A claim", confidence: "canon", source: "src" });
+      await e.engine.insertClaim({ id: "cl-m", entityId: "ord-ent-a", statement: "M claim", confidence: "canon", source: "src" });
+
+      const resClaims = await e.engine.query({ type: "findClaims", entityId: "ord-ent-a" });
+      expect(resClaims.claims?.map((c: any) => c.id)).toEqual(["cl-a", "cl-m", "cl-z"]);
+
+      // 4. Documents inserted out of order
+      await e.engine.insertDocument({ id: "doc-z", entityId: "ord-ent-a", content: "Z doc" });
+      await e.engine.insertDocument({ id: "doc-a", entityId: "ord-ent-a", content: "A doc" });
+      await e.engine.insertDocument({ id: "doc-m", entityId: "ord-ent-a", content: "M doc" });
+
+      const resDocs = await e.engine.query({ type: "findDocuments", entityId: "ord-ent-a" });
+      expect(resDocs.documents?.map((d: any) => d.id)).toEqual(["doc-a", "doc-m", "doc-z"]);
+    }
+  });
 });

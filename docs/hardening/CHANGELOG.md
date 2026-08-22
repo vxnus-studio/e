@@ -4,6 +4,19 @@ All notable hardening changes across the E runtime are recorded in this document
 
 ---
 
+## [Phase 10] - Contract, Error, Ordering & Input Correctness
+- **P1-1: Runtime Contract & Input Validation**:
+  - Implemented centralized input validation in `packages/core/src/validation.ts` covering non-empty strings, whitespace trimming, allowable lengths, confidence enums, and nested structures.
+  - Enforced validation across `InMemoryEngine`, `SqliteEngine`, and `PostgresEngine` single and batch mutators.
+- **P1-2: Error Taxonomy & Parity**:
+  - Mapped all validation and constraint failures to `ConstraintError`, malformed queries to `QueryError`, and unsupported queries to `UnsupportedOperationError`.
+- **P1-3: Deterministic Ordering**:
+  - Enforced canonical `ORDER BY id ASC` across `resolve`, `findRelations`, `findClaims`, and `findDocuments`.
+- **P1-4: Cascade Deletion & False-Confidence Test Remediation**:
+  - Updated cascade test to actually execute SQL `DELETE` / state eviction and assert complete child cascading deletion.
+
+---
+
 ## [Phase 9] - Traversal Safety & Atomic Batch Ingestion Hardening
 - **P0-1: Traversal Resource Safety Remediation**:
   - Bound intermediate candidate relation expansion (`maxRelationsExpanded`, default 100,000) and entity hydration (`maxEntitiesHydrated`, default 50,000) across InMemory, SQLite, and PostgreSQL.

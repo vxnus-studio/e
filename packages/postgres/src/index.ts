@@ -27,6 +27,12 @@ import {
   UnsupportedOperationError,
   MAX_SAFE_SEARCH_LIMIT,
   MAX_SAFE_SEARCH_QUERY_LENGTH,
+  validateEntity,
+  validateAlias,
+  validateRelation,
+  validateClaim,
+  validateDocument,
+  validateBatchDataset,
 } from "@vxnus/e";
 
 export class PostgresEngine implements EQueryEngine, EFixtureMutator, EBatchMutator {
@@ -71,10 +77,14 @@ export class PostgresEngine implements EQueryEngine, EFixtureMutator, EBatchMuta
           break;
         }
         case "resolve": {
+          if (!request.alias || typeof request.alias !== "string") {
+            throw new QueryError("Invalid alias: must be a non-empty string");
+          }
           const queryText = `
             SELECT DISTINCT e.* FROM e_entities e
             JOIN e_aliases a ON e.id = a.entity_id
             WHERE a.alias = $1 ${request.namespace ? "AND e.namespace = $2" : ""}
+            ORDER BY e.id COLLATE "C" ASC
           `;
           const params = request.namespace ? [request.alias, request.namespace] : [request.alias];
           const res = await this.pool.query(queryText, params);
@@ -82,6 +92,9 @@ export class PostgresEngine implements EQueryEngine, EFixtureMutator, EBatchMuta
           break;
         }
         case "getEntity": {
+          if (!request.id || typeof request.id !== "string") {
+            throw new QueryError("Invalid id: must be a non-empty string");
+          }
           const res = await this.pool.query("SELECT * FROM e_entities WHERE id = $1", [request.id]);
           if (res.rows.length > 0) {
             result.entities = [this.mapEntity(res.rows[0])];
@@ -108,6 +121,7 @@ export class PostgresEngine implements EQueryEngine, EFixtureMutator, EBatchMuta
             queryText += ` AND predicate = $${params.length}`;
           }
 
+          queryText += ` ORDER BY id COLLATE "C" ASC`;
           const res = await this.pool.query(queryText, params);
           result.relations = res.rows.map(this.mapRelation);
 
@@ -119,7 +133,7 @@ export class PostgresEngine implements EQueryEngine, EFixtureMutator, EBatchMuta
             }
             if (entityIds.size > 0) {
               const entitiesRes = await this.pool.query(
-                `SELECT * FROM e_entities WHERE id = ANY($1::varchar[])`,
+                `SELECT * FROM e_entities WHERE id = ANY($1::varchar[]) ORDER BY id COLLATE "C" ASC`,
                 [Array.from(entityIds)]
               );
               result.entities = entitiesRes.rows.map(this.mapEntity);
@@ -128,12 +142,18 @@ export class PostgresEngine implements EQueryEngine, EFixtureMutator, EBatchMuta
           break;
         }
         case "findClaims": {
-          const res = await this.pool.query("SELECT * FROM e_claims WHERE entity_id = $1", [request.entityId]);
+          if (!request.entityId || typeof request.entityId !== "string") {
+            throw new QueryError("Invalid entityId: must be a non-empty string");
+          }
+          const res = await this.pool.query("SELECT * FROM e_claims WHERE entity_id = $1 ORDER BY id COLLATE \"C\" ASC", [request.entityId]);
           result.claims = res.rows.map(this.mapClaim);
           break;
         }
         case "findDocuments": {
-          const res = await this.pool.query("SELECT * FROM e_documents WHERE entity_id = $1", [request.entityId]);
+          if (!request.entityId || typeof request.entityId !== "string") {
+            throw new QueryError("Invalid entityId: must be a non-empty string");
+          }
+          const res = await this.pool.query("SELECT * FROM e_documents WHERE entity_id = $1 ORDER BY id COLLATE \"C\" ASC", [request.entityId]);
           result.documents = res.rows.map(this.mapDocument);
           break;
         }
@@ -565,6 +585,7 @@ export class PostgresEngine implements EQueryEngine, EFixtureMutator, EBatchMuta
   }
 
   async insertEntity(entity: Entity): Promise<void> {
+    validateEntity(entity);
     try {
       await this.pool.query(
         `INSERT INTO e_entities (id, namespace, kind, slug, name, data, identities, provenance, temporal)
@@ -585,6 +606,7 @@ export class PostgresEngine implements EQueryEngine, EFixtureMutator, EBatchMuta
   }
 
   async insertAlias(alias: Alias): Promise<void> {
+    validateAlias(alias);
     try {
       await this.pool.query(
         "INSERT INTO e_aliases (id, entity_id, alias) VALUES ($1, $2, $3)",
@@ -594,6 +616,7 @@ export class PostgresEngine implements EQueryEngine, EFixtureMutator, EBatchMuta
   }
 
   async insertRelation(relation: Relation): Promise<void> {
+    validateRelation(relation);
     try {
       await this.pool.query(
         `INSERT INTO e_relations (id, subject_id, predicate, object_id, provenance, temporal, metadata)
@@ -612,6 +635,7 @@ export class PostgresEngine implements EQueryEngine, EFixtureMutator, EBatchMuta
   }
 
   async insertClaim(claim: Claim): Promise<void> {
+    validateClaim(claim);
     try {
       await this.pool.query(
         `INSERT INTO e_claims (id, entity_id, statement, confidence, source, provenance, temporal)
@@ -630,6 +654,7 @@ export class PostgresEngine implements EQueryEngine, EFixtureMutator, EBatchMuta
   }
 
   async insertDocument(doc: Document): Promise<void> {
+    validateDocument(doc);
     try {
       await this.pool.query(
         `INSERT INTO e_documents (id, entity_id, content, provenance)
@@ -646,6 +671,7 @@ export class PostgresEngine implements EQueryEngine, EFixtureMutator, EBatchMuta
 
   // --- EBatchMutator Implementation (Atomic Transactions) ---
   async ingestBatch(dataset: BatchDataset): Promise<BatchIngestResult> {
+    validateBatchDataset(dataset);
     const startTime = Date.now();
     const client = await this.pool.connect();
     try {

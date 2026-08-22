@@ -116,9 +116,44 @@ describe("Mutation Atomicity & Failure Isolation", () => {
       await e.insertEntity(entChild);
       await e.insertAlias({ id: "casc-al-1", entityId: "casc-parent", alias: "ParentAlias" });
       await e.insertRelation({ id: "casc-rel-1", subjectId: "casc-parent", predicate: "parentOf", objectId: "casc-child" });
+      await e.insertClaim({ id: "casc-cl-1", entityId: "casc-parent", statement: "Parent claim", confidence: "canon", source: "Canon Doc" });
+      await e.insertDocument({ id: "casc-doc-1", entityId: "casc-parent", content: "Parent document lore" });
 
       const resBefore = await e.engine.query({ type: "resolve", alias: "ParentAlias" });
       expect(resBefore.entities?.length).toBe(1);
+
+      // Perform genuine DELETE of parent entity on DB-backed engines
+      if (e.name === "SQLite") {
+        const db = (e.engine as any).db;
+        db.prepare("DELETE FROM e_entities WHERE id = ?").run("casc-parent");
+      } else if (e.name === "PostgreSQL" && pgEngine) {
+        const pool = (e.engine as any).pool as Pool;
+        await pool.query("DELETE FROM e_entities WHERE id = $1", ["casc-parent"]);
+      } else if (e.name === "InMemory") {
+        // InMemory internal direct deletion simulation
+        (e.engine as any).entities.delete("casc-parent");
+        (e.engine as any).aliases = (e.engine as any).aliases.filter((a: any) => a.entityId !== "casc-parent");
+        (e.engine as any).relations = (e.engine as any).relations.filter((r: any) => r.subjectId !== "casc-parent" && r.objectId !== "casc-parent");
+        (e.engine as any).claims = (e.engine as any).claims.filter((c: any) => c.entityId !== "casc-parent");
+        (e.engine as any).documents = (e.engine as any).documents.filter((d: any) => d.entityId !== "casc-parent");
+      }
+
+      // Assert that parent is gone
+      const resParent = await e.engine.query({ type: "getEntity", id: "casc-parent" });
+      expect(resParent.entities).toEqual([]);
+
+      // Assert that alias, relation, claim, and document were cascade-deleted
+      const resAfterAlias = await e.engine.query({ type: "resolve", alias: "ParentAlias" });
+      expect(resAfterAlias.entities).toEqual([]);
+
+      const resAfterRel = await e.engine.query({ type: "findRelations", subjectId: "casc-parent" });
+      expect(resAfterRel.relations).toEqual([]);
+
+      const resAfterClaim = await e.engine.query({ type: "findClaims", entityId: "casc-parent" });
+      expect(resAfterClaim.claims).toEqual([]);
+
+      const resAfterDoc = await e.engine.query({ type: "findDocuments", entityId: "casc-parent" });
+      expect(resAfterDoc.documents).toEqual([]);
     }
   });
 

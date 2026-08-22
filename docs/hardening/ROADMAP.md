@@ -85,3 +85,7 @@ gantt
 ### [Phase 9 — Traversal Safety & Atomic Batch Ingestion](./PHASE-9.md)
 - **Goal**: Harden intermediate traversal candidate expansion/hydration and establish atomic multi-record batch ingestion with rollback across all engines.
 - **Status**: Completed. Resolved P0-1 (traversal resource safety) and P0-2 (transactional batch ingestion).
+
+### [Phase 10 — Contract, Error, Ordering & Input Correctness](./PHASE-10.md)
+- **Goal**: Runtime validation parity, standardized error taxonomy, deterministic query ordering, and cascade deletion test integrity.
+- **Status**: Completed. Resolved P1-1, P1-2, P1-3, and P1-4.

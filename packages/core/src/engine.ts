@@ -26,6 +26,14 @@ import {
   MAX_SAFE_SEARCH_QUERY_LENGTH,
 } from "./types.js";
 import { ConstraintError, QueryError, UnsupportedOperationError } from "./errors.js";
+import {
+  validateEntity,
+  validateAlias,
+  validateRelation,
+  validateClaim,
+  validateDocument,
+  validateBatchDataset,
+} from "./validation.js";
 
 function cloneValue<T>(val: T): T {
   if (val === undefined || val === null) return val;
@@ -43,6 +51,7 @@ export class InMemoryEngine implements EQueryEngine, EFixtureMutator, EBatchMuta
   private documents: Document[] = [];
 
   insertEntity(entity: Entity) {
+    validateEntity(entity);
     if (this.entities.has(entity.id)) {
       throw new ConstraintError(`UNIQUE constraint failed: entity id ${entity.id}`, undefined, "UNIQUE_VIOLATION");
     }
@@ -50,6 +59,7 @@ export class InMemoryEngine implements EQueryEngine, EFixtureMutator, EBatchMuta
   }
 
   insertAlias(alias: Alias) {
+    validateAlias(alias);
     if (this.aliases.some(a => a.id === alias.id)) {
       throw new ConstraintError(`UNIQUE constraint failed: alias id ${alias.id}`, undefined, "UNIQUE_VIOLATION");
     }
@@ -60,6 +70,7 @@ export class InMemoryEngine implements EQueryEngine, EFixtureMutator, EBatchMuta
   }
 
   insertRelation(relation: Relation) {
+    validateRelation(relation);
     if (this.relations.some(r => r.id === relation.id)) {
       throw new ConstraintError("Relation ID must be unique", undefined, "UNIQUE_VIOLATION");
     }
@@ -70,6 +81,7 @@ export class InMemoryEngine implements EQueryEngine, EFixtureMutator, EBatchMuta
   }
 
   insertClaim(claim: Claim) {
+    validateClaim(claim);
     if (this.claims.some(c => c.id === claim.id)) {
       throw new ConstraintError(`UNIQUE constraint failed: claim id ${claim.id}`, undefined, "UNIQUE_VIOLATION");
     }
@@ -80,6 +92,7 @@ export class InMemoryEngine implements EQueryEngine, EFixtureMutator, EBatchMuta
   }
 
   insertDocument(doc: Document) {
+    validateDocument(doc);
     if (this.documents.some(d => d.id === doc.id)) {
       throw new ConstraintError(`UNIQUE constraint failed: document id ${doc.id}`, undefined, "UNIQUE_VIOLATION");
     }
@@ -90,6 +103,7 @@ export class InMemoryEngine implements EQueryEngine, EFixtureMutator, EBatchMuta
   }
 
   async ingestBatch(dataset: BatchDataset): Promise<BatchIngestResult> {
+    validateBatchDataset(dataset);
     const startTime = Date.now();
     // Snapshot existing state for atomic rollback on failure
     const prevEntities = new Map(this.entities);
@@ -176,6 +190,9 @@ export class InMemoryEngine implements EQueryEngine, EFixtureMutator, EBatchMuta
         break;
       }
       case "resolve": {
+        if (!request.alias || typeof request.alias !== "string") {
+          throw new QueryError("Invalid alias: must be a non-empty string");
+        }
         const matches = this.aliases.filter(
           (a) => a.alias === request.alias
         );
@@ -192,9 +209,14 @@ export class InMemoryEngine implements EQueryEngine, EFixtureMutator, EBatchMuta
             }
           }
         }
+        // Deterministic ordering by entity.id ASC
+        result.entities!.sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
         break;
       }
       case "getEntity": {
+        if (!request.id || typeof request.id !== "string") {
+          throw new QueryError("Invalid id: must be a non-empty string");
+        }
         const entity = this.entities.get(request.id);
         if (entity) {
           result.entities!.push(entity);
@@ -211,32 +233,45 @@ export class InMemoryEngine implements EQueryEngine, EFixtureMutator, EBatchMuta
             (!request.objectId || r.objectId === request.objectId) &&
             (!request.predicate || r.predicate === request.predicate)
         );
+        // Deterministic ordering by relation.id ASC
+        matchingRelations.sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
         result.relations = matchingRelations;
         
-        // Hydrate related entities
+        // Hydrate related entities in deterministic order (by entity.id ASC)
+        const hydratedMap = new Map<string, Entity>();
         for (const rel of matchingRelations) {
           const subj = this.entities.get(rel.subjectId);
-          if (subj && !result.entities!.some(e => e.id === subj.id)) {
-            result.entities!.push(subj);
-          }
+          if (subj) hydratedMap.set(subj.id, subj);
           const obj = this.entities.get(rel.objectId);
-          if (obj && !result.entities!.some(e => e.id === obj.id)) {
-            result.entities!.push(obj);
-          }
+          if (obj) hydratedMap.set(obj.id, obj);
         }
+        const sortedEntities = Array.from(hydratedMap.values()).sort((a, b) =>
+          a.id < b.id ? -1 : a.id > b.id ? 1 : 0
+        );
+        result.entities = sortedEntities;
         break;
       }
       case "findClaims": {
+        if (!request.entityId || typeof request.entityId !== "string") {
+          throw new QueryError("Invalid entityId: must be a non-empty string");
+        }
         const matchingClaims = this.claims.filter(
           (c) => c.entityId === request.entityId
         );
+        // Deterministic ordering by claim.id ASC
+        matchingClaims.sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
         result.claims = matchingClaims;
         break;
       }
       case "findDocuments": {
+        if (!request.entityId || typeof request.entityId !== "string") {
+          throw new QueryError("Invalid entityId: must be a non-empty string");
+        }
         const matchingDocs = this.documents.filter(
           (d) => d.entityId === request.entityId
         );
+        // Deterministic ordering by document.id ASC
+        matchingDocs.sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
         result.documents = matchingDocs;
         break;
       }
