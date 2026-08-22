@@ -181,6 +181,27 @@ describe("Traversal Adversarial & Boundary Verification", () => {
     }
   });
 
+  test("Zero hydration budget never returns the start entity", async () => {
+    const f = {
+      entities: [createEntity("ZERO-ROOT"), createEntity("ZERO-LEAF")],
+      relations: [{ id: "zero-rel", subjectId: "ZERO-ROOT", predicate: "next", objectId: "ZERO-LEAF" }],
+    };
+    for (const e of engines) {
+      await e.insert(f);
+      const result = await e.engine.query({
+        type: "traverse",
+        startId: "ZERO-ROOT",
+        maxEntitiesHydrated: 0,
+        maxDepth: 0,
+        maxPaths: 10,
+      });
+      expect(result.traversal?.entities, `Engine ${e.name} exceeded zero hydration budget`).toEqual([]);
+      expect(result.traversal?.paths).toEqual([]);
+      expect(result.metadata.partial).toBe(true);
+      expect(result.metadata.warnings).toContain("Traversal truncated: maxEntitiesHydrated limit reached");
+    }
+  });
+
   test("Relation work budget is shared across frontier nodes instead of starving later nodes", async () => {
     const entities = ["FAIR-ROOT", "FAIR-B", "FAIR-C"]
       .concat(Array.from({ length: 6 }, (_, i) => `FAIR-B-${i}`))

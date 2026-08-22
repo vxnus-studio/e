@@ -370,6 +370,15 @@ export class InMemoryEngine implements EQueryEngine, EFixtureMutator, EBatchMuta
           break;
         }
 
+        if (maxEntitiesHydrated === 0) {
+          result.traversal = { entities: [], relations: [], paths: [] };
+          result.entities = [];
+          result.relations = [];
+          result.metadata.partial = true;
+          result.metadata.warnings = ["Traversal truncated: maxEntitiesHydrated limit reached"];
+          break;
+        }
+
         const startEntity = this.entities.get(request.startId);
         if (!startEntity) {
           result.traversal = { entities: [], relations: [], paths: [] };

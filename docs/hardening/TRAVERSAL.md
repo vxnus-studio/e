@@ -27,6 +27,8 @@ To prevent unbounded memory growth on pathological high-fan-out graphs ($A \to B
 - **`maxRelationsExpanded`**: Hard limit on total relation edges expanded and returned. Observable relations never exceed `maxRelationsExpanded` (default `100,000`).
 - **`maxEntitiesHydrated`**: Hard limit on total entity records hydrated and returned. Observable entities never exceed `maxEntitiesHydrated` (default `50,000`).
 
+`maxEntitiesHydrated` includes the start entity when positive. When it is `0`, no entity—including the start entity—is hydrated, no paths are returned, and the result is marked partial with a `maxEntitiesHydrated` warning. This rule also applies when `maxDepth` is `0`.
+
 Database fetch queries in `SqliteEngine` and `PostgresEngine` bound intermediate edge fetching to the remaining expansion budget, preventing driver materialization of massive edge sets on high-degree nodes. Rows fetched beyond remaining budgets are strictly excluded from returned entities, visited relations, path expansion, and result counters.
 
 The remaining relation budget is allocated deterministically across the entities in the current frontier (`floor(remainingBudget / frontierEntityCount)`, with the remainder assigned to the earliest frontier entities), so a high-degree entity cannot consume the entire fetch budget and starve later frontier entities. InMemory uses the same round-robin edge expansion order. SQLite uses bounded per-frontier fetches. PostgreSQL applies the same allocation with one set-based `ANY`/`unnest` query per BFS level, avoiding query amplification while retaining fairness.

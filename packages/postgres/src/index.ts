@@ -259,6 +259,15 @@ export class PostgresEngine implements EQueryEngine, EFixtureMutator, EBatchMuta
             break;
           }
 
+          if (maxEntitiesHydrated === 0) {
+            result.traversal = { entities: [], relations: [], paths: [] };
+            result.entities = [];
+            result.relations = [];
+            result.metadata.partial = true;
+            result.metadata.warnings = ["Traversal truncated: maxEntitiesHydrated limit reached"];
+            break;
+          }
+
           const startRes = await this.pool.query("SELECT * FROM e_entities WHERE id = $1", [request.startId]);
           if (startRes.rows.length === 0) {
             result.traversal = { entities: [], relations: [], paths: [] };

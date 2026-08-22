@@ -401,6 +401,15 @@ export class SqliteEngine implements EQueryEngine, EFixtureMutator, EBatchMutato
             break;
           }
 
+          if (maxEntitiesHydrated === 0) {
+            result.traversal = { entities: [], relations: [], paths: [] };
+            result.entities = [];
+            result.relations = [];
+            result.metadata.partial = true;
+            result.metadata.warnings = ["Traversal truncated: maxEntitiesHydrated limit reached"];
+            break;
+          }
+
           const startEntityRow = this.db.prepare("SELECT * FROM e_entities WHERE id = ?").get(request.startId);
           if (!startEntityRow) {
             result.traversal = { entities: [], relations: [], paths: [] };
