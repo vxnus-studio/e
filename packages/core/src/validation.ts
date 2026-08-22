@@ -89,6 +89,93 @@ export function validateIdentities(identities: unknown): void {
   }
 }
 
+export function validateCanonicalJson(
+  val: unknown,
+  fieldName: string,
+  seen: Set<unknown> = new Set()
+): void {
+  if (val === null) {
+    return;
+  }
+  const t = typeof val;
+  if (t === "string" || t === "boolean") {
+    return;
+  }
+  if (t === "number") {
+    if (!Number.isFinite(val)) {
+      throw new ConstraintError(
+        `Invalid ${fieldName}: number values must be finite (received ${val})`,
+        undefined,
+        "VALIDATION_ERROR"
+      );
+    }
+    return;
+  }
+  if (t === "undefined") {
+    throw new ConstraintError(
+      `Invalid ${fieldName}: undefined is not allowed in canonical JSON`,
+      undefined,
+      "VALIDATION_ERROR"
+    );
+  }
+  if (t === "bigint" || t === "symbol" || t === "function") {
+    throw new ConstraintError(
+      `Invalid ${fieldName}: type '${t}' is not supported in canonical JSON`,
+      undefined,
+      "VALIDATION_ERROR"
+    );
+  }
+  if (t === "object") {
+    if (seen.has(val)) {
+      throw new ConstraintError(
+        `Invalid ${fieldName}: cyclic structures are not allowed`,
+        undefined,
+        "VALIDATION_ERROR"
+      );
+    }
+    seen.add(val);
+
+    if (Array.isArray(val)) {
+      for (let i = 0; i < val.length; i++) {
+        validateCanonicalJson(val[i], `${fieldName}[${i}]`, seen);
+      }
+      seen.delete(val);
+      return;
+    }
+
+    const obj = val as Record<string, unknown>;
+    const proto = Object.getPrototypeOf(obj);
+    if (proto !== null && proto !== Object.prototype) {
+      const ctorName = (obj as any).constructor?.name || "non-plain object";
+      throw new ConstraintError(
+        `Invalid ${fieldName}: custom class or non-plain object instance (${ctorName}) is not allowed in canonical JSON`,
+        undefined,
+        "VALIDATION_ERROR"
+      );
+    }
+
+    for (const key of Object.keys(obj)) {
+      const childVal = obj[key];
+      if (childVal === undefined) {
+        throw new ConstraintError(
+          `Invalid ${fieldName}.${key}: undefined object properties are not allowed in canonical JSON`,
+          undefined,
+          "VALIDATION_ERROR"
+        );
+      }
+      validateCanonicalJson(childVal, `${fieldName}.${key}`, seen);
+    }
+    seen.delete(val);
+    return;
+  }
+
+  throw new ConstraintError(
+    `Invalid ${fieldName}: unsupported value of type '${t}'`,
+    undefined,
+    "VALIDATION_ERROR"
+  );
+}
+
 export function validateEntity(entity: unknown): asserts entity is Entity {
   if (!entity || typeof entity !== "object" || Array.isArray(entity)) {
     throw new ConstraintError("Entity must be a non-null object", undefined, "VALIDATION_ERROR");
@@ -100,9 +187,10 @@ export function validateEntity(entity: unknown): asserts entity is Entity {
   validateNonEmptyString(e.slug, "entity.slug", 500);
   validateNonEmptyString(e.name, "entity.name", 1000);
 
-  if (e.data !== undefined && (typeof e.data !== "object" || e.data === null || Array.isArray(e.data))) {
-    throw new ConstraintError("Invalid entity.data: must be an object", undefined, "VALIDATION_ERROR");
+  if (e.data === undefined || typeof e.data !== "object" || e.data === null || Array.isArray(e.data)) {
+    throw new ConstraintError("Invalid entity.data: must be a non-null object", undefined, "VALIDATION_ERROR");
   }
+  validateCanonicalJson(e.data, "entity.data");
 
   validateIdentities(e.identities);
   validateProvenance(e.provenance);
@@ -129,8 +217,11 @@ export function validateRelation(relation: unknown): asserts relation is Relatio
   validateNonEmptyString(r.predicate, "relation.predicate", 200);
   validateNonEmptyString(r.objectId, "relation.objectId", 500);
 
-  if (r.metadata !== undefined && (typeof r.metadata !== "object" || r.metadata === null || Array.isArray(r.metadata))) {
-    throw new ConstraintError("Invalid relation.metadata: must be an object", undefined, "VALIDATION_ERROR");
+  if (r.metadata !== undefined) {
+    if (typeof r.metadata !== "object" || r.metadata === null || Array.isArray(r.metadata)) {
+      throw new ConstraintError("Invalid relation.metadata: must be an object", undefined, "VALIDATION_ERROR");
+    }
+    validateCanonicalJson(r.metadata, "relation.metadata");
   }
 
   validateProvenance(r.provenance);

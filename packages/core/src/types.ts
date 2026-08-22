@@ -18,6 +18,15 @@ export interface TemporalSemantics {
   validUntil?: string;
 }
 
+export type CanonicalJsonPrimitive = string | number | boolean | null;
+
+export type CanonicalJsonValue =
+  | CanonicalJsonPrimitive
+  | CanonicalJsonValue[]
+  | { [key: string]: CanonicalJsonValue };
+
+export type CanonicalJsonObject = { [key: string]: CanonicalJsonValue };
+
 export interface IdentityMapping {
   provider: string;
   externalId: string;
@@ -29,7 +38,7 @@ export interface Entity {
   kind: string;
   slug: string;
   name: string;
-  data: Record<string, unknown>;
+  data: CanonicalJsonObject;
   identities?: IdentityMapping[];
   provenance?: Provenance;
   temporal?: TemporalSemantics;
@@ -48,7 +57,7 @@ export interface Relation {
   objectId: string;
   provenance?: Provenance;
   temporal?: TemporalSemantics;
-  metadata?: Record<string, unknown>;
+  metadata?: CanonicalJsonObject;
 }
 
 export interface Claim {

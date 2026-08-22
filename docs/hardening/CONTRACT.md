@@ -12,7 +12,7 @@ This document defines the strict, authoritative semantic contract for `@vxnus/e`
 - **`kind`** (`string`, Non-empty): Entity type/category.
 - **`slug`** (`string`, Non-empty): URL-safe human identifier.
 - **`name`** (`string`): Display name.
-- **`data`** (`Record<string, unknown>`): Arbitrary structured JSON data payload.
+- **`data`** (`CanonicalJsonObject`): Canonical structured JSON object. Must only contain canonical JSON primitives (strings, finite numbers, booleans, nulls), arrays, and plain objects. Rejects `undefined`, `NaN`, `Infinity`, `BigInt`, `Date`, `Map`, `Set`, cyclic structures, and custom class instances with `ConstraintError (VALIDATION_ERROR)`.
 - **`identities`** (`IdentityMapping[]`, Optional): External provider identifiers (`provider`, `externalId`).
 - **`provenance`** (`Provenance`, Optional): Source lineage metadata (`provider`, `source`, `confidence`, etc.).
 - **`temporal`** (`TemporalSemantics`, Optional): Validity and observation timestamps.
@@ -29,7 +29,7 @@ This document defines the strict, authoritative semantic contract for `@vxnus/e`
 - **`objectId`** (`string`): Foreign key referencing `Entity.id`. Cascade delete required.
 - **`provenance`** (`Provenance`, Optional): Source metadata.
 - **`temporal`** (`TemporalSemantics`, Optional): Temporal validity.
-- **`metadata`** (`Record<string, unknown>`, Optional): Structured relation properties.
+- **`metadata`** (`CanonicalJsonObject`, Optional): Canonical structured relation properties conforming to canonical JSON constraints.
 
 ### 1.4 `Claim`
 - **`id`** (`string`, Non-empty): Unique primary key.

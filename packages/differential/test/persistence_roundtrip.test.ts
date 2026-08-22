@@ -284,4 +284,131 @@ describe("Cross-Backend Persistence Round-Trip Contract Audit", () => {
       expect(res.entities![0].data, `Engine ${e.name} complex JSON roundtrip mismatch`).toEqual(complexEntity.data);
     }
   });
+
+  test("Canonical JSON rejection: non-JSON and invalid values throw ConstraintError uniformly", async () => {
+    for (const e of engines) {
+      // 1. undefined in object property
+      await expect(async () => {
+        await e.engine.insertEntity({
+          id: "ent-bad-undef",
+          namespace: "test",
+          kind: "test",
+          slug: "bad-undef",
+          name: "Bad Undef",
+          data: { invalidProp: undefined as any }
+        });
+      }).rejects.toThrow(/undefined/);
+
+      // 2. NaN
+      await expect(async () => {
+        await e.engine.insertEntity({
+          id: "ent-bad-nan",
+          namespace: "test",
+          kind: "test",
+          slug: "bad-nan",
+          name: "Bad NaN",
+          data: { score: NaN }
+        });
+      }).rejects.toThrow(/finite/);
+
+      // 3. Infinity / -Infinity
+      await expect(async () => {
+        await e.engine.insertEntity({
+          id: "ent-bad-inf",
+          namespace: "test",
+          kind: "test",
+          slug: "bad-inf",
+          name: "Bad Inf",
+          data: { score: Infinity }
+        });
+      }).rejects.toThrow(/finite/);
+
+      // 4. BigInt
+      await expect(async () => {
+        await e.engine.insertEntity({
+          id: "ent-bad-bigint",
+          namespace: "test",
+          kind: "test",
+          slug: "bad-bigint",
+          name: "Bad BigInt",
+          data: { big: BigInt(123) as any }
+        });
+      }).rejects.toThrow(/bigint/);
+
+      // 5. Date object
+      await expect(async () => {
+        await e.engine.insertEntity({
+          id: "ent-bad-date",
+          namespace: "test",
+          kind: "test",
+          slug: "bad-date",
+          name: "Bad Date",
+          data: { createdAt: new Date() as any }
+        });
+      }).rejects.toThrow(/custom class or non-plain object/);
+
+      // 6. Map / Set
+      await expect(async () => {
+        await e.engine.insertEntity({
+          id: "ent-bad-map",
+          namespace: "test",
+          kind: "test",
+          slug: "bad-map",
+          name: "Bad Map",
+          data: { map: new Map() as any }
+        });
+      }).rejects.toThrow(/custom class or non-plain object/);
+
+      await expect(async () => {
+        await e.engine.insertEntity({
+          id: "ent-bad-set",
+          namespace: "test",
+          kind: "test",
+          slug: "bad-set",
+          name: "Bad Set",
+          data: { set: new Set() as any }
+        });
+      }).rejects.toThrow(/custom class or non-plain object/);
+
+      // 7. Cyclic structure
+      const cyclicObj: any = { name: "cyclic" };
+      cyclicObj.self = cyclicObj;
+      await expect(async () => {
+        await e.engine.insertEntity({
+          id: "ent-bad-cycle",
+          namespace: "test",
+          kind: "test",
+          slug: "bad-cycle",
+          name: "Bad Cycle",
+          data: cyclicObj
+        });
+      }).rejects.toThrow(/cyclic/);
+
+      // 8. Custom class instance
+      class CustomItem {
+        value = 42;
+      }
+      await expect(async () => {
+        await e.engine.insertEntity({
+          id: "ent-bad-class",
+          namespace: "test",
+          kind: "test",
+          slug: "bad-class",
+          name: "Bad Class",
+          data: { item: new CustomItem() as any }
+        });
+      }).rejects.toThrow(/custom class or non-plain object/);
+
+      // 9. Relation metadata with non-JSON values
+      await expect(async () => {
+        await e.engine.insertRelation({
+          id: "rel-bad-meta",
+          subjectId: "ent-full-1",
+          predicate: "links",
+          objectId: "ent-full-2",
+          metadata: { num: NaN }
+        });
+      }).rejects.toThrow(/finite/);
+    }
+  });
 });
