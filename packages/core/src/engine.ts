@@ -15,6 +15,14 @@ import type {
 import { DEFAULT_MAX_DEPTH, MAX_SAFE_SEARCH_LIMIT, MAX_SAFE_SEARCH_QUERY_LENGTH } from "./types.js";
 import { ConstraintError, QueryError, UnsupportedOperationError } from "./errors.js";
 
+function cloneValue<T>(val: T): T {
+  if (val === undefined || val === null) return val;
+  if (typeof structuredClone === "function") {
+    return structuredClone(val);
+  }
+  return JSON.parse(JSON.stringify(val));
+}
+
 export class InMemoryEngine implements EQueryEngine, EFixtureMutator {
   private entities: Map<string, Entity> = new Map();
   private aliases: Alias[] = [];
@@ -26,7 +34,7 @@ export class InMemoryEngine implements EQueryEngine, EFixtureMutator {
     if (this.entities.has(entity.id)) {
       throw new ConstraintError(`UNIQUE constraint failed: entity id ${entity.id}`, undefined, "UNIQUE_VIOLATION");
     }
-    this.entities.set(entity.id, entity);
+    this.entities.set(entity.id, cloneValue(entity));
   }
 
   insertAlias(alias: Alias) {
@@ -36,7 +44,7 @@ export class InMemoryEngine implements EQueryEngine, EFixtureMutator {
     if (!this.entities.has(alias.entityId)) {
       throw new ConstraintError(`FOREIGN KEY constraint failed: entityId ${alias.entityId} does not exist`, undefined, "FOREIGN_KEY_VIOLATION");
     }
-    this.aliases.push(alias);
+    this.aliases.push(cloneValue(alias));
   }
 
   insertRelation(relation: Relation) {
@@ -46,7 +54,7 @@ export class InMemoryEngine implements EQueryEngine, EFixtureMutator {
     if (!this.entities.has(relation.subjectId) || !this.entities.has(relation.objectId)) {
       throw new ConstraintError("FOREIGN KEY constraint failed: subjectId or objectId does not exist", undefined, "FOREIGN_KEY_VIOLATION");
     }
-    this.relations.push(relation);
+    this.relations.push(cloneValue(relation));
   }
 
   insertClaim(claim: Claim) {
@@ -56,7 +64,7 @@ export class InMemoryEngine implements EQueryEngine, EFixtureMutator {
     if (!this.entities.has(claim.entityId)) {
       throw new ConstraintError(`FOREIGN KEY constraint failed: entityId ${claim.entityId} does not exist`, undefined, "FOREIGN_KEY_VIOLATION");
     }
-    this.claims.push(claim);
+    this.claims.push(cloneValue(claim));
   }
 
   insertDocument(doc: Document) {
@@ -66,7 +74,7 @@ export class InMemoryEngine implements EQueryEngine, EFixtureMutator {
     if (!this.entities.has(doc.entityId)) {
       throw new ConstraintError(`FOREIGN KEY constraint failed: entityId ${doc.entityId} does not exist`, undefined, "FOREIGN_KEY_VIOLATION");
     }
-    this.documents.push(doc);
+    this.documents.push(cloneValue(doc));
   }
 
   async query(request: QueryRequest): Promise<KnowledgeResult> {
@@ -211,13 +219,6 @@ export class InMemoryEngine implements EQueryEngine, EFixtureMutator {
         break;
       }
       case "traverse": {
-        const startEntity = this.entities.get(request.startId);
-        if (!startEntity) {
-          result.traversal = { entities: [], relations: [], paths: [] };
-          break; // missing start entity yields empty result
-        }
-
-        
         let maxDepth = request.maxDepth !== undefined ? request.maxDepth : DEFAULT_MAX_DEPTH;
         if (typeof maxDepth !== 'number' || isNaN(maxDepth) || !Number.isInteger(maxDepth) || maxDepth < 0 || maxDepth > 100) {
           throw new QueryError("Invalid maxDepth: must be an integer between 0 and 100");
@@ -233,6 +234,13 @@ export class InMemoryEngine implements EQueryEngine, EFixtureMutator {
           result.relations = [];
           break;
         }
+
+        const startEntity = this.entities.get(request.startId);
+        if (!startEntity) {
+          result.traversal = { entities: [], relations: [], paths: [] };
+          break; // missing start entity yields empty result
+        }
+
         if (maxDepth === 0) {
           result.traversal = { entities: [startEntity], relations: [], paths: [{ startId: request.startId, endId: request.startId, edges: [], depth: 0 }] };
           result.entities = result.traversal.entities;
@@ -394,6 +402,6 @@ export class InMemoryEngine implements EQueryEngine, EFixtureMutator {
     }
 
     result.metadata.timeMs = Date.now() - startTime;
-    return result;
+    return cloneValue(result);
   }
 }

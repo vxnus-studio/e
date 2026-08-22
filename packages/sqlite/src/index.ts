@@ -91,7 +91,7 @@ export class SqliteEngine implements EQueryEngine, EFixtureMutator {
   async query(request: QueryRequest): Promise<KnowledgeResult> {
     const startTime = Date.now();
     if (!request || typeof request !== "object") {
-      throw new Error("QueryRequest must be an object");
+      throw new QueryError("QueryRequest must be an object");
     }
     const result: KnowledgeResult = {
       entities: [],
@@ -192,7 +192,7 @@ export class SqliteEngine implements EQueryEngine, EFixtureMutator {
         case "search": {
           const sq = request.search;
           if (!sq || typeof sq !== "object") {
-            throw new Error("Search query must be an object");
+            throw new QueryError("Search query must be an object");
           }
           if (sq.mode && sq.mode !== "lexical") {
             throw new UnsupportedOperationError(`Search mode '${sq.mode}' is not supported by this engine.`);
@@ -237,28 +237,28 @@ export class SqliteEngine implements EQueryEngine, EFixtureMutator {
           break;
         }
         case "traverse": {
+          let maxDepth = request.maxDepth !== undefined ? request.maxDepth : DEFAULT_MAX_DEPTH;
+          if (typeof maxDepth !== 'number' || isNaN(maxDepth) || !Number.isInteger(maxDepth) || maxDepth < 0 || maxDepth > 100) {
+            throw new QueryError("Invalid maxDepth: must be an integer between 0 and 100");
+          }
+          
+          let maxPaths = request.maxPaths !== undefined ? request.maxPaths : 1000;
+          if (typeof maxPaths !== 'number' || isNaN(maxPaths) || !Number.isInteger(maxPaths) || maxPaths < 0 || maxPaths > 100000) {
+            throw new QueryError("Invalid maxPaths: must be an integer between 0 and 100000");
+          }
+          if (maxPaths === 0) {
+            result.traversal = { entities: [], relations: [], paths: [] };
+            result.entities = [];
+            result.relations = [];
+            break;
+          }
+
           const startEntityRow = this.db.prepare("SELECT * FROM e_entities WHERE id = ?").get(request.startId);
           if (!startEntityRow) {
             result.traversal = { entities: [], relations: [], paths: [] };
             break;
           }
           const startEntity = this.mapEntity(startEntityRow);
-
-          let maxDepth = request.maxDepth !== undefined ? request.maxDepth : DEFAULT_MAX_DEPTH;
-        if (typeof maxDepth !== 'number' || isNaN(maxDepth) || !Number.isInteger(maxDepth) || maxDepth < 0 || maxDepth > 100) {
-          throw new QueryError("Invalid maxDepth: must be an integer between 0 and 100");
-        }
-        
-        let maxPaths = request.maxPaths !== undefined ? request.maxPaths : 1000;
-        if (typeof maxPaths !== 'number' || isNaN(maxPaths) || !Number.isInteger(maxPaths) || maxPaths < 0 || maxPaths > 100000) {
-          throw new QueryError("Invalid maxPaths: must be an integer between 0 and 100000");
-        }
-        if (maxPaths === 0) {
-          result.traversal = { entities: [], relations: [], paths: [] };
-          result.entities = [];
-          result.relations = [];
-          break;
-        }
 
           const steps = request.steps || (request.predicates ? [{ predicates: request.predicates, direction: "out" as const }] : []);
 
@@ -465,7 +465,7 @@ export class SqliteEngine implements EQueryEngine, EFixtureMutator {
         }
         default: {
           const req = request as Record<string, unknown>;
-          throw new Error(`Unknown query type: ${req.type}`);
+          throw new UnsupportedOperationError(`Unknown query type: ${req.type}`);
         }
       }
     } catch (e: any) {
@@ -536,8 +536,19 @@ export class SqliteEngine implements EQueryEngine, EFixtureMutator {
 
   insertEntity(entity: Entity): void {
     try {
-      this.db.prepare("INSERT INTO e_entities (id, namespace, kind, slug, name, data) VALUES (?, ?, ?, ?, ?, ?)").run(
-        entity.id, entity.namespace, entity.kind, entity.slug, entity.name, JSON.stringify(entity.data || {})
+      this.db.prepare(`
+        INSERT INTO e_entities (id, namespace, kind, slug, name, data, identities, provenance, temporal)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `).run(
+        entity.id,
+        entity.namespace,
+        entity.kind,
+        entity.slug,
+        entity.name,
+        JSON.stringify(entity.data || {}),
+        entity.identities !== undefined ? JSON.stringify(entity.identities) : null,
+        entity.provenance !== undefined ? JSON.stringify(entity.provenance) : null,
+        entity.temporal !== undefined ? JSON.stringify(entity.temporal) : null
       );
     } catch (e: any) { this.handleSqliteError(e); }
   }
@@ -552,24 +563,48 @@ export class SqliteEngine implements EQueryEngine, EFixtureMutator {
 
   insertRelation(relation: Relation): void {
     try {
-      this.db.prepare("INSERT INTO e_relations (id, subject_id, predicate, object_id) VALUES (?, ?, ?, ?)").run(
-        relation.id, relation.subjectId, relation.predicate, relation.objectId
+      this.db.prepare(`
+        INSERT INTO e_relations (id, subject_id, predicate, object_id, provenance, temporal, metadata)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+      `).run(
+        relation.id,
+        relation.subjectId,
+        relation.predicate,
+        relation.objectId,
+        relation.provenance !== undefined ? JSON.stringify(relation.provenance) : null,
+        relation.temporal !== undefined ? JSON.stringify(relation.temporal) : null,
+        relation.metadata !== undefined ? JSON.stringify(relation.metadata) : null
       );
     } catch (e: any) { this.handleSqliteError(e); }
   }
 
   insertClaim(claim: Claim): void {
     try {
-      this.db.prepare("INSERT INTO e_claims (id, entity_id, statement, confidence, source) VALUES (?, ?, ?, ?, ?)").run(
-        claim.id, claim.entityId, claim.statement, claim.confidence, claim.source
+      this.db.prepare(`
+        INSERT INTO e_claims (id, entity_id, statement, confidence, source, provenance, temporal)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+      `).run(
+        claim.id,
+        claim.entityId,
+        claim.statement,
+        claim.confidence,
+        claim.source,
+        claim.provenance !== undefined ? JSON.stringify(claim.provenance) : null,
+        claim.temporal !== undefined ? JSON.stringify(claim.temporal) : null
       );
     } catch (e: any) { this.handleSqliteError(e); }
   }
 
   insertDocument(doc: Document): void {
     try {
-      this.db.prepare("INSERT INTO e_documents (id, entity_id, content) VALUES (?, ?, ?)").run(
-        doc.id, doc.entityId, doc.content
+      this.db.prepare(`
+        INSERT INTO e_documents (id, entity_id, content, provenance)
+        VALUES (?, ?, ?, ?)
+      `).run(
+        doc.id,
+        doc.entityId,
+        doc.content,
+        doc.provenance !== undefined ? JSON.stringify(doc.provenance) : null
       );
     } catch (e: any) { this.handleSqliteError(e); }
   }

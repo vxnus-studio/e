@@ -29,7 +29,7 @@ export class PostgresEngine implements EQueryEngine, EFixtureMutator {
   async query(request: QueryRequest): Promise<KnowledgeResult> {
     const startTime = Date.now();
     if (!request || typeof request !== "object") {
-      throw new Error("QueryRequest must be an object");
+      throw new QueryError("QueryRequest must be an object");
     }
     const result: KnowledgeResult = {
       entities: [],
@@ -126,7 +126,7 @@ export class PostgresEngine implements EQueryEngine, EFixtureMutator {
         case "search": {
           const sq = request.search;
           if (!sq || typeof sq !== "object") {
-            throw new Error("Search query must be an object");
+            throw new QueryError("Search query must be an object");
           }
           if (sq.mode && sq.mode !== "lexical") {
             throw new UnsupportedOperationError(`Search mode '${sq.mode}' is not supported by this engine.`);
@@ -376,7 +376,7 @@ export class PostgresEngine implements EQueryEngine, EFixtureMutator {
         }
         default: {
           const req = request as Record<string, unknown>;
-          throw new Error(`Unknown query type: ${req.type}`);
+          throw new UnsupportedOperationError(`Unknown query type: ${req.type}`);
         }
       }
     } catch (e: any) {
@@ -448,8 +448,19 @@ export class PostgresEngine implements EQueryEngine, EFixtureMutator {
   async insertEntity(entity: Entity): Promise<void> {
     try {
       await this.pool.query(
-        "INSERT INTO e_entities (id, namespace, kind, slug, name, data) VALUES ($1, $2, $3, $4, $5, $6)",
-        [entity.id, entity.namespace, entity.kind, entity.slug, entity.name, JSON.stringify(entity.data || {})]
+        `INSERT INTO e_entities (id, namespace, kind, slug, name, data, identities, provenance, temporal)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+        [
+          entity.id,
+          entity.namespace,
+          entity.kind,
+          entity.slug,
+          entity.name,
+          JSON.stringify(entity.data || {}),
+          entity.identities !== undefined ? JSON.stringify(entity.identities) : null,
+          entity.provenance !== undefined ? JSON.stringify(entity.provenance) : null,
+          entity.temporal !== undefined ? JSON.stringify(entity.temporal) : null
+        ]
       );
     } catch (e: any) { this.handlePostgresError(e); }
   }
@@ -466,8 +477,17 @@ export class PostgresEngine implements EQueryEngine, EFixtureMutator {
   async insertRelation(relation: Relation): Promise<void> {
     try {
       await this.pool.query(
-        "INSERT INTO e_relations (id, subject_id, predicate, object_id) VALUES ($1, $2, $3, $4)",
-        [relation.id, relation.subjectId, relation.predicate, relation.objectId]
+        `INSERT INTO e_relations (id, subject_id, predicate, object_id, provenance, temporal, metadata)
+         VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+        [
+          relation.id,
+          relation.subjectId,
+          relation.predicate,
+          relation.objectId,
+          relation.provenance !== undefined ? JSON.stringify(relation.provenance) : null,
+          relation.temporal !== undefined ? JSON.stringify(relation.temporal) : null,
+          relation.metadata !== undefined ? JSON.stringify(relation.metadata) : null
+        ]
       );
     } catch (e: any) { this.handlePostgresError(e); }
   }
@@ -475,8 +495,17 @@ export class PostgresEngine implements EQueryEngine, EFixtureMutator {
   async insertClaim(claim: Claim): Promise<void> {
     try {
       await this.pool.query(
-        "INSERT INTO e_claims (id, entity_id, statement, confidence, source) VALUES ($1, $2, $3, $4, $5)",
-        [claim.id, claim.entityId, claim.statement, claim.confidence, claim.source]
+        `INSERT INTO e_claims (id, entity_id, statement, confidence, source, provenance, temporal)
+         VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+        [
+          claim.id,
+          claim.entityId,
+          claim.statement,
+          claim.confidence,
+          claim.source,
+          claim.provenance !== undefined ? JSON.stringify(claim.provenance) : null,
+          claim.temporal !== undefined ? JSON.stringify(claim.temporal) : null
+        ]
       );
     } catch (e: any) { this.handlePostgresError(e); }
   }
@@ -484,8 +513,14 @@ export class PostgresEngine implements EQueryEngine, EFixtureMutator {
   async insertDocument(doc: Document): Promise<void> {
     try {
       await this.pool.query(
-        "INSERT INTO e_documents (id, entity_id, content) VALUES ($1, $2, $3)",
-        [doc.id, doc.entityId, doc.content]
+        `INSERT INTO e_documents (id, entity_id, content, provenance)
+         VALUES ($1, $2, $3, $4)`,
+        [
+          doc.id,
+          doc.entityId,
+          doc.content,
+          doc.provenance !== undefined ? JSON.stringify(doc.provenance) : null
+        ]
       );
     } catch (e: any) { this.handlePostgresError(e); }
   }
