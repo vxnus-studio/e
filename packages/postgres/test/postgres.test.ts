@@ -51,3 +51,52 @@ if (testDbUrl) {
     test("skipped because TEST_DATABASE_URL is not set", () => {});
   });
 }
+
+if (testDbUrl) {
+  describe("PostgreSQL alias resolution regression", () => {
+    test("deduplicates entities, filters namespaces, orders IDs, and returns no matches", async () => {
+      const engine = new PostgresEngine({ connectionString: testDbUrl });
+      const pool = (engine as any).pool as Pool;
+      const ids = ["alias-reg-z", "alias-reg-a", "alias-reg-other"];
+
+      try {
+        const schemaSql = fs.readFileSync(path.join(__dirname, "../schema.sql"), "utf-8");
+        await pool.query(schemaSql);
+        await pool.query(
+          "INSERT INTO e_entities (id, namespace, kind, slug, name, data) VALUES ($1, $2, $3, $4, $5, $6), ($7, $8, $9, $10, $11, $12), ($13, $14, $15, $16, $17, $18)",
+          [
+            ids[0], "regression", "node", "z", "Z", "{}",
+            ids[1], "regression", "node", "a", "A", "{}",
+            ids[2], "other", "node", "other", "Other", "{}",
+          ],
+        );
+        await pool.query(
+          "INSERT INTO e_aliases (id, entity_id, alias) VALUES ($1, $2, $3), ($4, $5, $6), ($7, $8, $9), ($10, $11, $12)",
+          [
+            "alias-reg-z-1", ids[0], "shared",
+            "alias-reg-z-2", ids[0], "shared",
+            "alias-reg-a", ids[1], "shared",
+            "alias-reg-other", ids[2], "shared",
+          ],
+        );
+
+        const allMatches = await engine.query({ type: "resolve", alias: "shared" });
+        expect(allMatches.entities?.map((entity) => entity.id)).toEqual([ids[1], ids[2], ids[0]]);
+
+        const namespaceMatches = await engine.query({
+          type: "resolve",
+          alias: "shared",
+          namespace: "regression",
+        });
+        expect(namespaceMatches.entities?.map((entity) => entity.id)).toEqual([ids[1], ids[0]]);
+
+        const noMatches = await engine.query({ type: "resolve", alias: "missing" });
+        expect(noMatches.entities).toEqual([]);
+      } finally {
+        await pool.query("DELETE FROM e_aliases WHERE entity_id = ANY($1::varchar[])", [ids]);
+        await pool.query("DELETE FROM e_entities WHERE id = ANY($1::varchar[])", [ids]);
+        await engine.close();
+      }
+    });
+  });
+}

@@ -226,9 +226,11 @@ export class PostgresEngine implements EQueryEngine, EFixtureMutator, EBatchMuta
             throw new QueryError("Invalid alias: must be a non-empty string");
           }
           const queryText = `
-            SELECT DISTINCT e.* FROM e_entities e
-            JOIN e_aliases a ON e.id = a.entity_id
-            WHERE a.alias = $1 ${request.namespace ? "AND e.namespace = $2" : ""}
+            SELECT e.* FROM e_entities e
+            WHERE EXISTS (
+              SELECT 1 FROM e_aliases a
+              WHERE a.entity_id = e.id AND a.alias = $1
+            ) ${request.namespace ? "AND e.namespace = $2" : ""}
             ORDER BY e.id COLLATE "C" ASC
           `;
           const params = request.namespace ? [request.alias, request.namespace] : [request.alias];
