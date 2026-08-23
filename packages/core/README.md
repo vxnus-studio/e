@@ -4,7 +4,7 @@
 
 `@vxnus/e` is the foundational TypeScript library defining the **generic knowledge graph runtime and query contract**.
 
-> **Note:** E is currently pre-1.0 (`0.1.0`) and under active development. APIs and schema conventions may evolve. Published by [@vxnus](https://www.npmjs.com/~vxnus).
+> **Note:** E is currently pre-1.0 (`0.2.0`) and under active development. APIs and schema conventions may evolve. Published by [@vxnus](https://www.npmjs.com/~vxnus).
 
 ## Purpose
 

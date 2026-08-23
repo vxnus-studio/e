@@ -7,7 +7,7 @@
 
 E is a **domain-agnostic knowledge runtime and graph query layer**.
  
-> **Version 0.1.0 (Early / Experimental)**  
+> **Version 0.2.0 (Early / Experimental)**
 > E is pre-1.0 and under active development. APIs and schema conventions may evolve.
 
 It provides a unified schema, query contract, and retrieval engine so that AI systems can retrieve structured, evidence-backed knowledge across different domains (e.g., fictional universes, software architecture, internal wikis) without needing to guess via unstructured RAG or reverse-engineer SQL.
@@ -83,4 +83,3 @@ TEST_DATABASE_URL="postgres://postgres:postgres@localhost:5432/postgres" npm tes
 ## License
 
 E is licensed under the [E Architecture Non-Commercial License](LICENSE).
-

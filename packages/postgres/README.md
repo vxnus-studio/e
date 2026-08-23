@@ -4,7 +4,7 @@
 
 PostgreSQL / Neon storage adapter and schema for the **E** knowledge graph runtime.
 
-> **Note:** E is currently pre-1.0 (`0.1.0`) and experimental. Published by [@vxnus](https://www.npmjs.com/~vxnus).
+> **Note:** E is currently pre-1.0 (`0.2.0`) and experimental. Published by [@vxnus](https://www.npmjs.com/~vxnus).
 
 ## Installation
 

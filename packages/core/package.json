@@ -1,6 +1,6 @@
 {
   "name": "@vxnus/e",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Generic knowledge graph runtime and query contract",
   "type": "module",
   "license": "SEE LICENSE IN LICENSE",
@@ -47,4 +47,3 @@
     "vitest": "^4.1.11"
   }
 }
-

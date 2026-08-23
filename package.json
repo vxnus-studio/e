@@ -21,9 +21,9 @@
     "@types/better-sqlite3": "^9.6.0",
     "@types/node": "^26.2.0",
     "@types/pg": "^8.23.1",
-    "@vxnus/e": "^0.1.0",
-    "@vxnus/e-postgres": "^0.1.0",
-    "@vxnus/e-sqlite": "^0.1.0",
+    "@vxnus/e": "^0.2.0",
+    "@vxnus/e-postgres": "^0.2.0",
+    "@vxnus/e-sqlite": "^0.2.0",
     "better-sqlite3": "^13.0.3",
     "pg": "^8.23.0"
   }
