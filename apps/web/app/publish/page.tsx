@@ -7,6 +7,7 @@ import { PublishForm } from "./publish-form";
 import "./workspace.css";
 import "./dashboard.css";
 import { UsernameSetup } from "./username-setup";
+import { LogoutButton } from "./logout-button";
 
 export const dynamic = "force-dynamic";
 
@@ -20,7 +21,7 @@ export default async function PublishPage() {
   const project = projects.find((item) => item.publisher === "vxnuslabs") ?? projects[0];
   const published = releases.filter((release) => release.status === "published").length;
   return <main className="dashboard-page">
-    <aside className="dashboard-sidebar"><Link className="dashboard-logo" href="/"><span className="brand-mark">E</span><span>knowledge hub</span></Link><div className="sidebar-group"><span className="sidebar-label">Workspace</span><Link className="sidebar-link active" href="/publish"><span className="sidebar-icon">/</span>Overview</Link><Link className="sidebar-link" href="#projects"><span className="sidebar-icon">□</span>Projects</Link><Link className="sidebar-link" href="#releases"><span className="sidebar-icon">↗</span>Releases</Link></div><div className="sidebar-group sidebar-bottom"><span className="sidebar-label">Account</span><Link className="sidebar-link" href="/">Catalog</Link><span className="sidebar-user">{session.user.email || "Publisher"}</span></div></aside>
+    <aside className="dashboard-sidebar"><Link className="dashboard-logo" href="/"><span className="brand-mark">E</span><span>knowledge hub</span></Link><div className="sidebar-group"><span className="sidebar-label">Workspace</span><Link className="sidebar-link active" href="/publish"><span className="sidebar-icon">/</span>Overview</Link><Link className="sidebar-link" href="#projects"><span className="sidebar-icon">□</span>Projects</Link><Link className="sidebar-link" href="#releases"><span className="sidebar-icon">↗</span>Releases</Link></div><div className="sidebar-group sidebar-bottom"><span className="sidebar-label">Account</span><Link className="sidebar-link" href="/">Catalog</Link><span className="sidebar-user">{session.user.email || "Publisher"}</span><LogoutButton /></div></aside>
     <section className="dashboard-main"><header className="dashboard-topbar"><div><span className="breadcrumb">Workspace <b>/</b> Overview</span><h1>Good to see you back.</h1></div><ProjectCreator /></header>
       {!ready && <div className="workspace-notice"><strong>Connect the Supabase database to start publishing.</strong><span>Set <code>DATABASE_URL</code> and apply the project migrations.</span></div>}
       <div className="metric-grid"><article><span>Projects</span><strong>{projects.length}</strong><small>owned namespaces</small></article><article><span>Releases</span><strong>{published}</strong><small>published versions</small></article><article><span>Health</span><strong className="metric-good">{ready ? "Ready" : "Setup"}</strong><small>{ready ? "control plane online" : "awaiting database"}</small></article></div>
