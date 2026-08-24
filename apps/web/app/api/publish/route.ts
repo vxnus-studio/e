@@ -5,6 +5,7 @@ import { join } from "node:path";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { loadPack } from "@vxnus/e-knowledge";
+import { validateManifest } from "@vxnus/e";
 import { auth } from "@/lib/auth-server";
 import { createR2ArchiveStore } from "@/lib/r2";
 import { publishPack } from "@/lib/supabase-registry";
@@ -28,6 +29,24 @@ export async function POST(request: Request) {
   const form = await request.formData();
   const projectId = form.get("projectId");
   if (typeof projectId !== "string" || !projectId) return Response.json({ message: "A project is required before publishing." }, { status: 400 });
+  const kind = form.get("kind");
+  if (kind === "url") {
+    const rawUrl = String(form.get("url") || "").trim();
+    let url: URL;
+    try { url = new URL(rawUrl); } catch { return Response.json({ message: "Enter a valid provider URL." }, { status: 400 }); }
+    if (!["http:", "https:"].includes(url.protocol)) return Response.json({ message: "Provider URLs must use HTTP or HTTPS." }, { status: 400 });
+    try {
+      const response = await fetch(`${rawUrl.replace(/\/+$/, "")}/manifest`, { cache: "no-store", signal: AbortSignal.timeout(10000) });
+      if (!response.ok) throw new Error(`Provider manifest returned HTTP ${response.status}.`);
+      const rawManifest = await response.json() as Record<string, unknown>;
+      if (!Array.isArray(rawManifest.sources) || rawManifest.sources.length === 0) rawManifest.sources = [{ id: "unknown", title: "unknown", license: "unknown" }];
+      const manifest = validateManifest(rawManifest);
+      const revisionId = `provider-${manifest.version}`;
+      const pack = { ...manifest, publisherId: session.user.id, verified: false, distribution: { kind: "provider" as const, url: rawUrl.replace(/\/+$/, "") } };
+      await publishPack({ projectId, ownerId: session.user.id, revisionId, revisionManifest: manifest, pack });
+      return Response.json({ packageId: pack.id, version: pack.version, revision: revisionId, owner: session.user.id }, { status: 201 });
+    } catch (error) { return Response.json({ message: error instanceof Error ? error.message : "The provider could not be published." }, { status: 400 }); }
+  }
   const file = form.get("pack");
   if (!(file instanceof File)) return Response.json({ message: "A .tar.gz pack is required." }, { status: 400 });
   if (file.size === 0 || file.size > MAX_BYTES) return Response.json({ message: "Pack archives must be between 1 byte and 25 MB." }, { status: 400 });
