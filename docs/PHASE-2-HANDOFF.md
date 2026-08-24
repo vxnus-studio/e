@@ -1,7 +1,7 @@
 # Phase 2 handoff — hosted provider promotion
 
 **Phase:** 2 — hosted E provider and Hub promotion
-**Status:** planned
+**Status:** local verification complete; hosted deployment pending
 **Prerequisite:** Phase 1 implementation is pushed; hosted verification remains.
 
 ## Outcome
