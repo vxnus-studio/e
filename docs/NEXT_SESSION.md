@@ -13,83 +13,55 @@ Packages published to npm:
 
 The Hub is `apps/web`, hosted at `https://e.vxnus.xyz`.
 
-## Working system (pre-Supabase pivot)
+## Working system
 
-- Neon stores registry metadata in `registry_packs`.
+- Supabase Auth owns Hub identities and sessions.
+- Drizzle uses Supabase PostgreSQL for publisher projects and registry metadata.
+- Supabase tables are defined in `apps/web/db/schema.ts` and applied through
+  `003_publisher_control_plane.sql` and `004_registry_packs.sql`.
 - R2 bucket `e-knowledge` serves archives through
   `https://knowledge.e.vxnus.xyz`.
-- `@vxnus/siduri-basics` is seeded in Neon and its archive is uploaded.
+- E-Teyvat remains an independent Neon-backed provider.
 - Hub registry API:
   - `GET /api/packs`
   - `GET /api/packs/vxnus/siduri-basics?version=0.1.0`
-- Neon Auth UI:
+- Custom Supabase Auth pages:
   - `/auth/sign-up`
   - `/auth/sign-in`
-  - `/api/auth/[...path]`
-- The Hub selects Neon with `HUB_REGISTRY_MODE=neon`; `static` is the explicit
-  offline fallback.
+  - `/auth/callback`
+- `/publish` is the Supabase/Drizzle publisher dashboard.
 
-The next implementation pivot moves Hub Auth, publisher identity, registry
-metadata, and dashboard state to Supabase. Neon remains only in E-Teyvat for
-provider data until the reversible Hub migration is complete.
-
-## Phase 6 progress: publisher adoption and release
+## Phase 8 progress: Supabase publisher workspace
 
 The authenticated publisher implementation is complete locally. Phase 6 now
 focuses on the first production publisher, production verification, and the E
 release checklist.
 
-Implemented:
-
-- Hub-themed responsive Neon sign-up and sign-in shells.
-- Authenticated `/publish` page and archive upload form.
-- `/api/publish` reads the Neon Auth server session and never accepts an owner
-  ID from the browser.
-- `.tar.gz`/`.tgz` path-safety checks, E pack validation, archive SHA-256,
-  immutable R2 upload, and ownership-aware registry insert.
-- `e-knowledge-validate` publisher CLI, authoring guide, and release checklist.
-
-Remaining verification:
-
-1. Verify `NEON_AUTH_BASE_URL` and `NEON_AUTH_COOKIE_SECRET` in deployment
-   environment settings. Keep the cookie domain host-only unless cross-subdomain
-   sessions are required.
-2. Run anonymous and authenticated upload checks against deployed services,
-   including duplicate versions and invalid archives.
-3. Confirm the R2 object checksum equals the Neon distribution checksum.
-4. Reconcile any R2 object if cleanup itself fails after a registry insert error.
-
-Remaining Phase 6 handoff:
-
-1. Run the production anonymous/authenticated publisher checks on `e.vxnus.xyz`.
-2. Confirm the R2 object checksum equals the Neon distribution checksum and
-   duplicate package versions are rejected without a second catalog record.
-3. Confirm the first publisher can install the published pack through the
-   existing catalog/distribution path.
-4. Prepare the E package release after the production checks pass.
-   The `0.1.2` release commit is pushed; npm currently requires an interactive
-   one-time password before publishing.
+Implemented: Supabase Auth, Drizzle repositories, project ownership, dashboard
+UI, project-scoped publishing, transactional release records, and Supabase
+schema application. The next session should perform the live account and
+release checks below.
 
 Do not put auth, database, R2, or upload lifecycle code into `@vxnus/e`.
 Do not use a browser-supplied publisher ID as authorization. Preserve the
 package identity format `@publisher/name`; do not introduce slugs.
 
-## Next objective: Supabase publisher dashboard
+## Next objective: live publisher verification
 
 See [the pivot decision](PIVOT-SUPABASE-PUBLISHER-DASHBOARD.md) and
-[Phase 8 handoff](PHASE-8-HANDOFF.md). The current `/publish` route is still an
-upload flow and must become a user-owned project/revision/release workspace.
+[Phase 8 handoff](PHASE-8-HANDOFF.md). Sign up on the live Hub, create a
+project, publish a valid archive, and verify the dashboard/public catalog.
 
 ## Verification gates
 
 - Anonymous users can browse the catalog but cannot upload.
 - An authenticated publisher can upload a valid pack.
-- Invalid or mismatched packs fail before an R2/Neon record is published.
+- Invalid or mismatched packs fail before an R2/Supabase record is published.
 - A publisher cannot modify or delete another account's pack.
-- The R2 object checksum equals the Neon distribution checksum.
+- The R2 object checksum equals the Supabase distribution checksum.
 - Fresh Vercel install resolves `@vxnus/e-registry` from npm, not a local file.
 - Run root `npm test`, then `npm run lint` and `npm run build` in `apps/web`.
-- Update this handoff, commit, and push when the phase is complete.
+- Update this handoff, commit, and push after live verification is complete.
 
 ## Useful commands
 
