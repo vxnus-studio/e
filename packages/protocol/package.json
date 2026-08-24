@@ -3,7 +3,7 @@
   "version": "0.1.2",
   "description": "Portable knowledge-pack and provider contract for Siduri",
   "type": "module",
-  "license": "SEE LICENSE IN LICENSE",
+  "license": "Apache-2.0",
   "repository": { "type": "git", "url": "git+https://github.com/vxnuslabs/e.git", "directory": "packages/protocol" },
   "main": "./dist/index.js",
   "module": "./dist/index.js",
