@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 import { readFile, readdir } from "node:fs/promises";
 import { join } from "node:path";
 import type { KnowledgePackManifest, KnowledgeProvider, PackChunk, PackDocument, PackEntity, PackRelation, PackRevision, PackSource, RetrievalRequest, RetrievalResponse, RetrievalResult } from "@vxnus/e";
-import { validateManifest } from "@vxnus/e";
+import { validateManifest, validateRetrievalRequest, validateRetrievalResponse } from "@vxnus/e";
 
 export interface LoadedPack {
   manifest: KnowledgePackManifest;
@@ -72,15 +72,17 @@ export async function loadPack(root: string): Promise<LoadedPack> {
   const provider: KnowledgeProvider = {
     manifest: () => manifest,
     retrieve: async (request: RetrievalRequest): Promise<RetrievalResponse> => {
+      validateRetrievalRequest(request);
       const limit = request.limit ?? 10;
-      if (!Number.isInteger(limit) || limit < 0) throw new Error("retrieval limit must be a non-negative integer");
+      if (request.mode && request.mode !== "lexical") throw new Error(`retrieval mode '${request.mode}' is not supported`);
       if (request.revision && request.revision !== revision.id) throw new Error(`revision not found: ${request.revision}`);
       const query = request.query.toLocaleLowerCase();
       const results: RetrievalResult[] = chunks.filter(chunk => chunk.content.toLocaleLowerCase().includes(query)).sort((a, b) => a.id.localeCompare(b.id)).slice(0, limit).map(chunk => {
         const document = documents.find(item => item.id === chunk.documentId)!;
         return { id: chunk.id, content: chunk.content, revision: revision.id, citations: [{ sourceId: document.sourceId, documentId: document.id, chunkId: chunk.id }] };
       });
-      return { results, revision: revision.id, ...(results.length < chunks.filter(chunk => chunk.content.toLocaleLowerCase().includes(query)).length ? { partial: true } : {}) };
+      const response = { results, revision: revision.id, ...(results.length < chunks.filter(chunk => chunk.content.toLocaleLowerCase().includes(query)).length ? { partial: true } : {}) };
+      return validateRetrievalResponse(response, manifest);
     }
   };
   return { manifest, revision, sources, documents, chunks, entities, relations, provider };

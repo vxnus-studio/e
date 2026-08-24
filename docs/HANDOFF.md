@@ -103,7 +103,7 @@ Acceptance:
 
 ## Phase 3 — Retrieval and conformance
 
-Owner: E.
+Owner: E. Status: complete.
 
 Deliverables:
 
@@ -112,11 +112,20 @@ Deliverables:
 - Require citations for factual retrieval results.
 - Add a provider conformance runner that any implementation can execute.
 
+Implemented in `packages/protocol`:
+
+- `validateRetrievalRequest()` defines mode and limit validation.
+- `validateRetrievalResponse()` requires revisions and citations on every
+  result.
+- `assertConformantProvider()` checks deterministic bounded retrieval,
+  response shape, and rejection of unsupported semantic retrieval.
+
 Acceptance:
 
 - The sample local provider passes all conformance tests.
 - A provider can explicitly advertise unsupported semantic search or relations.
 - Results are deterministic for the same pack, revision, and request.
+- `npm test` passes the provider conformance suite against the local pack.
 
 ## Phase 4 — Siduri KnowledgeOrgan integration
 

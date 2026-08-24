@@ -11,7 +11,7 @@ export interface PackRelation { id: string; subjectId: string; predicate: string
 export interface PackRevision { id: string; createdAt: string; parentId?: string; contentHash?: string; }
 export interface PackCapabilities { lexicalSearch: boolean; semanticSearch: boolean; structuredEntities: boolean; relations: boolean; revisions: boolean; }
 export interface KnowledgePackManifest extends PackIdentity { description?: string; sources: PackSource[]; capabilities: PackCapabilities; }
-export interface RetrievalRequest { query: string; limit?: number; revision?: string; filters?: JsonObject; }
+export interface RetrievalRequest { query: string; mode?: "lexical" | "semantic" | "hybrid"; limit?: number; revision?: string; filters?: JsonObject; }
 export interface RetrievalCitation { sourceId: string; documentId?: string; chunkId?: string; locator?: string; }
 export interface RetrievalResult { id: string; content: string; citations: RetrievalCitation[]; revision: string; score?: number; metadata?: JsonObject; }
 export interface RetrievalResponse { results: RetrievalResult[]; revision: string; partial?: boolean; }
@@ -25,6 +25,15 @@ export class ManifestValidationError extends Error {
   constructor(issues: ManifestValidationIssue[]) {
     super(`Invalid knowledge pack manifest: ${issues.map(issue => `${issue.path} ${issue.message}`).join("; ")}`);
     this.name = "ManifestValidationError";
+    this.issues = issues;
+  }
+}
+
+export class RetrievalValidationError extends Error {
+  readonly issues: ManifestValidationIssue[];
+  constructor(issues: ManifestValidationIssue[]) {
+    super(`Invalid retrieval response: ${issues.map(issue => `${issue.path} ${issue.message}`).join("; ")}`);
+    this.name = "RetrievalValidationError";
     this.issues = issues;
   }
 }
