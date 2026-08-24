@@ -1,6 +1,8 @@
 /* eslint-disable @next/next/no-html-link-for-pages */
 import { registry } from "@/lib/registry";
 
+export const dynamic = "force-dynamic";
+
 export default async function Home() {
   const pack = await registry.get("@vxnus/siduri-basics", "0.1.0");
   if (!pack) throw new Error("catalog pack is missing");

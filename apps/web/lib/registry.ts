@@ -44,18 +44,7 @@ export const staticRegistry: KnowledgeRegistry = {
 
 export { packs };
 
-// Supabase is authoritative when configured, while the built-in catalog keeps
-// the first-party provider discoverable before its registry seed is applied.
+// Supabase is authoritative once configured. Static metadata is only used when
+// the control plane is unavailable during local development.
 const remoteRegistry = isSupabaseRegistryConfigured() ? createSupabaseRegistry() : undefined;
-export const registry: KnowledgeRegistry = remoteRegistry ? {
-  async search(request) {
-    const result = await remoteRegistry.search(request);
-    const staticResult = await staticRegistry.search(request);
-    const visible = new Map(result.packs.map((pack) => [pack.id, pack]));
-    for (const pack of staticResult.packs) if (!visible.has(pack.id)) visible.set(pack.id, pack);
-    return { packs: [...visible.values()].slice(0, Math.min(Math.max(request.limit ?? 20, 1), 100)) };
-  },
-  async get(packId, version) {
-    return await remoteRegistry.get(packId, version) ?? staticRegistry.get(packId, version);
-  },
-} : staticRegistry;
+export const registry: KnowledgeRegistry = remoteRegistry ?? staticRegistry;
