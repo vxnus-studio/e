@@ -2,11 +2,9 @@
 
 import type { ReactNode } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { NeonAuthUIProvider } from "@neondatabase/auth-ui";
 import { authClient } from "@/lib/auth-client";
 
 export function Providers({ children }: { children: ReactNode }) {
-  const router = useRouter();
-  return <NeonAuthUIProvider authClient={authClient} navigate={router.push} replace={router.replace} onSessionChange={() => router.refresh()} redirectTo="/" Link={Link}>{children}</NeonAuthUIProvider>;
+  return <NeonAuthUIProvider authClient={authClient} defaultTheme="light" navigate={(href) => window.location.assign(href)} replace={(href) => window.location.replace(href)} redirectTo="/publish" Link={Link}>{children}</NeonAuthUIProvider>;
 }

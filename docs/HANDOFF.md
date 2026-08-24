@@ -152,7 +152,7 @@ E should only change here when the interoperability contract is incomplete.
 
 ## Phase 5 — Hosted Knowledge Hub and remote providers
 
-Owner: Siduri Knowledge Hub, with E conformance support. Status: in progress.
+Owner: Siduri Knowledge Hub, with E conformance support. Status: implementation complete; deployment verification pending.
 
 Deliverables:
 
@@ -217,9 +217,8 @@ records in the next upload phase; public catalog reads remain unauthenticated.
   `@vxnus/e-knowledge`, fingerprints the immutable archive, uploads it to R2,
   and records the authenticated Neon user ID as `publisher_id` in the registry.
 - The existing registry schema already includes `publisher_id`; no ownership
-  migration was needed for this first flow. Runtime verification with deployed
-  Neon Auth, R2, and Neon credentials remains before marking the upload phase
-  complete.
+  migration was needed for this first flow. Local verification passes; deployed
+  Neon Auth, R2, and Neon credentials still need the final end-to-end check.
 - Add authentication, trust, timeout, size, and rate-limit policy outside E.
 - Add install/update verification and publisher revision visibility.
 
@@ -232,7 +231,7 @@ Acceptance:
 
 ## Phase 6 — Publisher adoption and release
 
-Owner: E plus the first production publisher.
+Owner: E plus the first production publisher. Status: next.
 
 Deliverables:
 
@@ -240,6 +239,9 @@ Deliverables:
 - Publish conformance tooling and a reference implementation.
 - Establish compatibility policy for future schema versions.
 - Release E 0.1.1 as the first npm package release after the clean-break pivot.
+- Verify the first Hub publisher flow in production, including email/session
+  behavior, archive checksum parity, duplicate-version handling, and failed
+  persistence cleanup.
 
 Acceptance:
 

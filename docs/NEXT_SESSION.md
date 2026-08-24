@@ -2,7 +2,8 @@
 
 ## Current state
 
-The E monorepo is clean and pushed on `main` at commit `3bad560`.
+The E monorepo is clean and pushed on `main`; see `git log -1` for the latest
+handoff commit.
 
 Packages published to npm:
 
@@ -28,10 +29,11 @@ The Hub is `apps/web`, hosted at `https://e.vxnus.xyz`.
 - The Hub selects Neon with `HUB_REGISTRY_MODE=neon`; `static` is the explicit
   offline fallback.
 
-## Current objective: verify authenticated publishing
+## Next objective: publisher adoption and release
 
-The first publisher flow is implemented. Verify it against deployed Neon Auth,
-R2, and Neon credentials, then harden and complete the phase gates.
+The authenticated publisher implementation is complete locally. Phase 6 now
+focuses on the first production publisher, production verification, and the E
+release checklist.
 
 Implemented:
 
@@ -51,6 +53,16 @@ Remaining verification:
    including duplicate versions and invalid archives.
 3. Confirm the R2 object checksum equals the Neon distribution checksum.
 4. Reconcile any R2 object if cleanup itself fails after a registry insert error.
+
+Phase 6 handoff:
+
+1. Run the production anonymous/authenticated publisher checks on `e.vxnus.xyz`.
+2. Confirm the R2 object checksum equals the Neon distribution checksum and
+   duplicate package versions are rejected without a second catalog record.
+3. Confirm the first publisher can install the published pack through the
+   existing catalog/distribution path.
+4. Publish the pack authoring guide and release checklist, then prepare the E
+   package release.
 
 Do not put auth, database, R2, or upload lifecycle code into `@vxnus/e`.
 Do not use a browser-supplied publisher ID as authorization. Preserve the

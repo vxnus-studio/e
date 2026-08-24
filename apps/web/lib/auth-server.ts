@@ -11,6 +11,6 @@ export const auth = createNeonAuth({
   baseUrl,
   cookies: {
     secret: cookieSecret,
-    domain: process.env.NEON_AUTH_COOKIE_DOMAIN || undefined,
+    domain: process.env.NODE_ENV === "production" ? process.env.NEON_AUTH_COOKIE_DOMAIN || undefined : undefined,
   },
 });
