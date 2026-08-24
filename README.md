@@ -28,7 +28,14 @@ The monorepo also contains:
   pack distribution surface.
 
 ```bash
-npm install @vxnus/e
+npm install @vxnus/e@0.1.1
+```
+
+The companion packages are published separately:
+
+```bash
+npm install @vxnus/e-registry@0.1.1
+npm install @vxnus/e-knowledge@0.1.1
 ```
 
 ## Development
@@ -44,3 +51,6 @@ See [the pivot decision](docs/PIVOT.md) for the boundary between E, Siduri,
 and knowledge publishers. See the [implementation handoff](docs/HANDOFF.md)
 for the phased delivery plan, and [the monorepo architecture](docs/MONOREPO.md)
 for package and hosting boundaries.
+
+See [the release handoff](docs/RELEASING.md) for the publish order and clean
+release procedure.

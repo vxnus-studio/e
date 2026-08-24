@@ -31,7 +31,7 @@ Status: complete.
 Deliverables:
 
 - Remove the generic database engines and their compatibility surface.
-- Keep `@vxnus/e` as the protocol package, `@vxnus/e-registry` as the registry
+  - Keep `@vxnus/e` as the protocol package, `@vxnus/e-registry` as the registry
   domain package, and establish `apps/hub` as the hosted product boundary.
 - Record the E/Siduri/publisher boundary in [PIVOT.md](./PIVOT.md).
 
@@ -158,16 +158,16 @@ Deliverables:
 - Define pack discovery and publisher metadata for the Hub.
 - Serve archives and remote E provider metadata using the same contract.
 
-First slice implemented in `apps/web`: a static landing/catalog page and pack
-detail route for `@vxnus/siduri-basics`, with manifest metadata, revision, source,
-content hash, capabilities, and local Siduri installation guidance. Registry
-data and distribution are still static until the Hub API is introduced.
+Implemented in `apps/web`: a landing/catalog page, pack detail route, Neon
+registry API, Neon Auth entry points, and R2 archive distribution for
+`@vxnus/siduri-basics`. The page exposes manifest metadata, revision, source,
+content hash, capabilities, and local Siduri installation guidance.
 
 The detail route is available at `/packs/vxnus/siduri-basics`; the canonical
 package identity remains `@vxnus/siduri-basics`. Its displayed fact and
 metadata mirror the checked-in fixture at
-`packages/knowledge/fixtures/siduri-basics/`; this is deliberately duplicated
-as static Hub data until the registry API exists.
+`packages/knowledge/fixtures/siduri-basics/`; the static adapter remains only
+as an explicit offline fallback.
 
 Local integration proof: Siduri's `EKnowledgeAdapter` loads that fixture and
 returns `Siduri is a persistent companion runtime.` with revision `r1` and
@@ -196,7 +196,7 @@ Neon record carries that checksum. `apps/web/lib/neon-registry.ts` and
 server-only.
 
 Environment handoff: `apps/web/.env.example` defines the Neon registry, Hub
-origin, R2, and Neon Auth configuration. The local environment uses Neon for
+origin, R2, and Neon Auth configuration. The deployed Hub uses Neon for
 registry reads; credentials remain server-only.
 
 Auth phase: Neon Auth is wired through `@neondatabase/auth` and
@@ -227,7 +227,7 @@ Deliverables:
 - Publish a pack authoring guide and release checklist.
 - Publish conformance tooling and a reference implementation.
 - Establish compatibility policy for future schema versions.
-- Release E 0.1.0 as the first clean-break contract release.
+- Release E 0.1.1 as the first npm package release after the clean-break pivot.
 
 Acceptance:
 

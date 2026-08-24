@@ -28,10 +28,10 @@ at `/auth/sign-in` and `/auth/sign-up`.
 
 ## Current slice
 
-- Static landing page at `/`
+- Landing page at `/`
 - `@vxnus/siduri-basics` catalog entry
 - Pack detail page at `/packs/vxnus/siduri-basics` (`@vxnus/siduri-basics` identity)
-- Static registry API at `/api/packs` and `/api/packs/vxnus/siduri-basics`
+- Registry API at `/api/packs` and `/api/packs/vxnus/siduri-basics`
 - Local installation guidance for Siduri
 - Publisher entry point
 
