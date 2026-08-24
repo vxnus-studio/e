@@ -29,7 +29,7 @@ The Hub is `apps/web`, hosted at `https://e.vxnus.xyz`.
 - The Hub selects Neon with `HUB_REGISTRY_MODE=neon`; `static` is the explicit
   offline fallback.
 
-## Next objective: publisher adoption and release
+## Phase 6 progress: publisher adoption and release
 
 The authenticated publisher implementation is complete locally. Phase 6 now
 focuses on the first production publisher, production verification, and the E
@@ -43,6 +43,7 @@ Implemented:
   ID from the browser.
 - `.tar.gz`/`.tgz` path-safety checks, E pack validation, archive SHA-256,
   immutable R2 upload, and ownership-aware registry insert.
+- `e-knowledge-validate` publisher CLI, authoring guide, and release checklist.
 
 Remaining verification:
 
@@ -54,15 +55,14 @@ Remaining verification:
 3. Confirm the R2 object checksum equals the Neon distribution checksum.
 4. Reconcile any R2 object if cleanup itself fails after a registry insert error.
 
-Phase 6 handoff:
+Remaining Phase 6 handoff:
 
 1. Run the production anonymous/authenticated publisher checks on `e.vxnus.xyz`.
 2. Confirm the R2 object checksum equals the Neon distribution checksum and
    duplicate package versions are rejected without a second catalog record.
 3. Confirm the first publisher can install the published pack through the
    existing catalog/distribution path.
-4. Publish the pack authoring guide and release checklist, then prepare the E
-   package release.
+4. Prepare the E package release after the production checks pass.
 
 Do not put auth, database, R2, or upload lifecycle code into `@vxnus/e`.
 Do not use a browser-supplied publisher ID as authorization. Preserve the
