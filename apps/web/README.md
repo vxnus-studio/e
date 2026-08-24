@@ -4,6 +4,8 @@ The hosted discovery surface for E knowledge packs. This app is intentionally
 small in the first slice: it presents the catalog, explains local Siduri
 installation, and gives publishers a place to start.
 
+The current hosted origin is <https://e.vxnus.xyz>.
+
 ## Run locally
 
 From this directory, run:

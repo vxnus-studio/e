@@ -12,7 +12,7 @@ const packs: RegistryPack[] = [
     capabilities: { lexicalSearch: true, semanticSearch: false, structuredEntities: false, relations: false, revisions: true },
     publisherId: "vxnuslabs",
     verified: true,
-    distribution: { kind: "archive", url: "https://hub.vxnuslabs.com/packs/@vxnus/siduri-basics/-/siduri-basics-0.1.0.tar.gz", checksum: "db6338c160c3691c82bb6f7dcca078fcbe9dddb51512aff06c5a73f777a75386" },
+    distribution: { kind: "archive", url: "https://e.vxnus.xyz/packs/@vxnus/siduri-basics/-/siduri-basics-0.1.0.tar.gz", checksum: "db6338c160c3691c82bb6f7dcca078fcbe9dddb51512aff06c5a73f777a75386" },
   },
 ];
 
