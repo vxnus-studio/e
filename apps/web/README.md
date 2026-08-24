@@ -17,8 +17,8 @@ Open <http://localhost:3000>.
 ## Current slice
 
 - Static landing page at `/`
-- `siduri-basics` catalog entry
-- Pack detail page at `/packs/siduri-basics`
+- `@vxnus/siduri-basics` catalog entry
+- Pack detail page at `/packs/vxnus/siduri-basics` (`@vxnus/siduri-basics` identity)
 - Local installation guidance for Siduri
 - Publisher entry point
 

@@ -159,11 +159,12 @@ Deliverables:
 - Serve archives and remote E provider metadata using the same contract.
 
 First slice implemented in `apps/web`: a static landing/catalog page and pack
-detail route for `siduri-basics`, with manifest metadata, revision, source,
+detail route for `@vxnus/siduri-basics`, with manifest metadata, revision, source,
 content hash, capabilities, and local Siduri installation guidance. Registry
 data and distribution are still static until the Hub API is introduced.
 
-The detail route is available at `/packs/siduri-basics`. Its displayed fact and
+The detail route is available at `/packs/vxnus/siduri-basics`; the canonical
+package identity remains `@vxnus/siduri-basics`. Its displayed fact and
 metadata mirror the checked-in fixture at
 `packages/knowledge/fixtures/siduri-basics/`; this is deliberately duplicated
 as static Hub data until the registry API exists.
