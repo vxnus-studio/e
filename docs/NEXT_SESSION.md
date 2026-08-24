@@ -2,7 +2,7 @@
 
 ## Current state
 
-The E monorepo is clean and pushed on `main` at commit `38f8598`.
+The E monorepo is clean and pushed on `main` at commit `3bad560`.
 
 Packages published to npm:
 
@@ -50,7 +50,7 @@ Remaining verification:
 2. Run anonymous and authenticated upload checks against deployed services,
    including duplicate versions and invalid archives.
 3. Confirm the R2 object checksum equals the Neon distribution checksum.
-4. Add cleanup/rollback handling for a failed registry insert after R2 upload.
+4. Reconcile any R2 object if cleanup itself fails after a registry insert error.
 
 Do not put auth, database, R2, or upload lifecycle code into `@vxnus/e`.
 Do not use a browser-supplied publisher ID as authorization. Preserve the

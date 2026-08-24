@@ -8,7 +8,7 @@ import { neon } from "@neondatabase/serverless";
 import { loadPack } from "@vxnus/e-knowledge";
 import { auth } from "@/lib/auth-server";
 import { createR2ArchiveStore } from "@/lib/r2";
-import { PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
+import { DeleteObjectCommand, PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
 
 const run = promisify(execFile);
 const MAX_BYTES = 25 * 1024 * 1024;
@@ -31,6 +31,7 @@ export async function POST(request: Request) {
   if (file.size === 0 || file.size > MAX_BYTES) return Response.json({ message: "Pack archives must be between 1 byte and 25 MB." }, { status: 400 });
   if (!file.name.endsWith(".tar.gz") && !file.name.endsWith(".tgz")) return Response.json({ message: "Use a .tar.gz or .tgz archive." }, { status: 400 });
   const work = await mkdtemp(join(tmpdir(), "e-publish-"));
+  let uploadedArchive: { client: S3Client; bucket: string; key: string } | undefined;
   try {
     const archive = join(work, "pack.tar.gz");
     const bytes = Buffer.from(await file.arrayBuffer());
@@ -57,10 +58,15 @@ export async function POST(request: Request) {
     const client = new S3Client({ region: "auto", endpoint: `https://${accountId}.r2.cloudflarestorage.com`, credentials: { accessKeyId, secretAccessKey } });
     if (await r2.exists(key)) return Response.json({ message: "That package version already exists." }, { status: 409 });
     await client.send(new PutObjectCommand({ Bucket: bucket, Key: key, Body: bytes, ContentType: "application/gzip" }));
+    uploadedArchive = { client, bucket, key };
     const sql = neon(process.env.NEON_DATABASE_URL);
     await sql`INSERT INTO registry_packs (package_id, name, publisher, version, schema_version, description, sources, capabilities, publisher_id, distribution, verified) VALUES (${pack.manifest.id}, ${pack.manifest.name}, ${pack.manifest.publisher}, ${pack.manifest.version}, ${pack.manifest.schemaVersion}, ${pack.manifest.description || null}, ${JSON.stringify(pack.manifest.sources)}::jsonb, ${JSON.stringify(pack.manifest.capabilities)}::jsonb, ${session.user.id}, ${JSON.stringify({ kind: "archive", url: r2.publicUrl(key), checksum })}::jsonb, FALSE)`;
     return Response.json({ packageId: pack.manifest.id, version: pack.manifest.version, revision: pack.revision.id, checksum, owner: session.user.id }, { status: 201 });
   } catch (error) {
+    if (uploadedArchive) {
+      try { await uploadedArchive.client.send(new DeleteObjectCommand({ Bucket: uploadedArchive.bucket, Key: uploadedArchive.key })); }
+      catch { /* Preserve the original publish error; the object can be reconciled by checksum. */ }
+    }
     const message = error instanceof Error ? error.message : "The pack could not be published.";
     return Response.json({ message }, { status: 400 });
   } finally { await rm(work, { recursive: true, force: true }); }
