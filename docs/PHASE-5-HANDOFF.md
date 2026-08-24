@@ -1,7 +1,7 @@
 # Phase 5 handoff — hosted provider promotion
 
 **Phase:** 5 — production deployment and cross-boundary verification
-**Status:** Hub deployed; Teyvat deployment configuration pending
+**Status:** complete
 **Prerequisite:** deployment owners provide hosting access and server-side
 `DATABASE_URL` configuration for E-Teyvat and E Hub.
 
@@ -29,3 +29,7 @@ can retrieve cited, revisioned knowledge through the public URLs.
 - lexical retrieval returns cited results and one revision;
 - Siduri Hub resolution succeeds;
 - no database URL or embedding credential appears in public responses.
+
+Verified against production after deployment: Hub lookup and catalog search
+return Teyvat, Teyvat returns the active revision and cited lexical results, and
+the cross-repo smoke check passes.
