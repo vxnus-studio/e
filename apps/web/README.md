@@ -18,6 +18,7 @@ Open <http://localhost:3000>.
 
 - Static landing page at `/`
 - `siduri-basics` catalog entry
+- Pack detail page at `/packs/siduri-basics`
 - Local installation guidance for Siduri
 - Publisher entry point
 
