@@ -21,7 +21,7 @@ export function PublishForm({ projectId }: { projectId?: string }) {
       const response = await fetch("/api/publish", { method: "POST", body });
       const result = await response.json() as { message?: string; packageId?: string; version?: string };
       if (!response.ok) throw new Error(result.message || "The pack could not be published.");
-      setStatus({ kind: "success", message: `${result.packageId} v${result.version} is ready in the catalog.` }); setFile(null); event.currentTarget.reset();
+      setStatus({ kind: "success", message: `${result.packageId} v${result.version} is ready in the catalog.` }); setFile(null); form.reset();
     } catch (error) { setStatus({ kind: "error", message: error instanceof Error ? error.message : "The pack could not be published." }); }
     finally { setBusy(false); }
   }
