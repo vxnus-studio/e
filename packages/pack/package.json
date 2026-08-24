@@ -10,6 +10,6 @@
   "exports": { ".": { "types": "./dist/index.d.ts", "import": "./dist/index.js", "default": "./dist/index.js" } },
   "files": ["dist", "fixtures", "README.md", "LICENSE"],
   "scripts": { "build": "tsc", "prepack": "npm run build" },
-  "peerDependencies": { "@vxnus/e": ">=0.3.0" },
+  "peerDependencies": { "@vxnus/e": ">=0.1.0" },
   "devDependencies": { "@vxnus/e": "*", "typescript": "^5.9.3" }
 }

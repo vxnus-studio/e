@@ -175,7 +175,7 @@ Deliverables:
 - Publish a pack authoring guide and release checklist.
 - Publish conformance tooling and a reference implementation.
 - Establish compatibility policy for future schema versions.
-- Release E 0.3 as the first clean-break contract release.
+- Release E 0.1.0 as the first clean-break contract release.
 
 Acceptance:
 
