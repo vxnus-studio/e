@@ -2,9 +2,22 @@ import "server-only";
 import { and, asc, desc, eq, ilike, or } from "drizzle-orm";
 import type { KnowledgeRegistry, RegistryPack, RegistrySearchRequest, RegistrySearchResponse } from "@vxnus/e-registry";
 import { getDatabase } from "@/db";
-import { registryPacks } from "@/db/schema";
+import { publisherAuditEvents, publisherDistributions, publisherProjects, publisherReleases, publisherRevisions, registryPacks } from "@/db/schema";
 
 function toPack(row: typeof registryPacks.$inferSelect): RegistryPack { return { id: row.packageId, name: row.name, publisher: row.publisher, version: row.version, schemaVersion: row.schemaVersion, description: row.description || undefined, sources: row.sources as RegistryPack["sources"], capabilities: row.capabilities as RegistryPack["capabilities"], publisherId: row.publisherId, verified: row.verified, distribution: row.distribution as RegistryPack["distribution"] }; }
-export function isSupabaseRegistryConfigured() { return Boolean(process.env.DATABASE_URL); }
+export function isSupabaseRegistryConfigured() { return Boolean(process.env.DATABASE_URL || process.env.SUPABASE_URL); }
 export async function insertRegistryPack(pack: RegistryPack, publisherId: string) { try { const rows = await getDatabase().insert(registryPacks).values({ packageId: pack.id, name: pack.name, publisher: pack.publisher, version: pack.version, schemaVersion: pack.schemaVersion, description: pack.description || null, sources: pack.sources, capabilities: pack.capabilities, publisherId, distribution: pack.distribution, verified: pack.verified }).returning(); return toPack(rows[0]); } catch (error) { if (error instanceof Error && /unique|duplicate/i.test(error.message)) { const duplicate = new Error("That package version already exists."); duplicate.name = "DuplicateRelease"; throw duplicate; } throw error; } }
+export async function publishPack(input: { projectId: string; ownerId: string; pack: RegistryPack; revisionManifest: unknown; revisionId: string }) {
+  const database = getDatabase();
+  const owned = await database.select({ id: publisherProjects.id }).from(publisherProjects).where(and(eq(publisherProjects.id, input.projectId), eq(publisherProjects.ownerId, input.ownerId))).limit(1);
+  if (!owned[0]) throw new Error("You do not own this project.");
+  return database.transaction(async (tx) => {
+    const revisions = await tx.insert(publisherRevisions).values({ projectId: input.projectId, revisionId: input.revisionId, manifest: input.revisionManifest, checksum: input.pack.distribution.kind === "archive" ? input.pack.distribution.checksum : null, status: "valid" }).returning({ id: publisherRevisions.id });
+    const registry = await tx.insert(registryPacks).values({ packageId: input.pack.id, name: input.pack.name, publisher: input.pack.publisher, version: input.pack.version, schemaVersion: input.pack.schemaVersion, description: input.pack.description || null, sources: input.pack.sources, capabilities: input.pack.capabilities, publisherId: input.ownerId, distribution: input.pack.distribution, verified: input.pack.verified }).returning();
+    const releases = await tx.insert(publisherReleases).values({ projectId: input.projectId, revisionId: revisions[0].id, packageId: input.pack.id, version: input.pack.version }).returning({ id: publisherReleases.id });
+    await tx.insert(publisherDistributions).values({ releaseId: releases[0].id, kind: input.pack.distribution.kind, url: input.pack.distribution.url, checksum: input.pack.distribution.kind === "archive" ? input.pack.distribution.checksum : null });
+    await tx.insert(publisherAuditEvents).values({ projectId: input.projectId, actorId: input.ownerId, action: "release.published", metadata: { packageId: input.pack.id, version: input.pack.version } });
+    return toPack(registry[0]);
+  });
+}
 export function createSupabaseRegistry(): KnowledgeRegistry { return { async search(input: RegistrySearchRequest): Promise<RegistrySearchResponse> { const query = input.query?.trim() ?? ""; const limit = Math.min(Math.max(input.limit ?? 20, 1), 100); const filters = query ? or(ilike(registryPacks.packageId, `%${query}%`), ilike(registryPacks.name, `%${query}%`), ilike(registryPacks.publisher, `%${query}%`)) : undefined; const rows = await getDatabase().select().from(registryPacks).where(filters).orderBy(asc(registryPacks.packageId), desc(registryPacks.version)).limit(limit); return { packs: rows.map(toPack) }; }, async get(packageId: string, version?: string) { const filter = version ? and(eq(registryPacks.packageId, packageId), eq(registryPacks.version, version)) : eq(registryPacks.packageId, packageId); const rows = await getDatabase().select().from(registryPacks).where(filter).orderBy(desc(registryPacks.version)).limit(1); return rows[0] ? toPack(rows[0]) : undefined; } }; }

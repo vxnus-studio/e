@@ -7,7 +7,7 @@ import { promisify } from "node:util";
 import { loadPack } from "@vxnus/e-knowledge";
 import { auth } from "@/lib/auth-server";
 import { createR2ArchiveStore } from "@/lib/r2";
-import { insertRegistryPack } from "@/lib/supabase-registry";
+import { publishPack } from "@/lib/supabase-registry";
 import { DeleteObjectCommand, PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
 
 const run = promisify(execFile);
@@ -26,6 +26,8 @@ export async function POST(request: Request) {
   const { data: session } = await auth.getSession();
   if (!session?.user) return Response.json({ message: "Sign in to publish a pack." }, { status: 401 });
   const form = await request.formData();
+  const projectId = form.get("projectId");
+  if (typeof projectId !== "string" || !projectId) return Response.json({ message: "A project is required before publishing." }, { status: 400 });
   const file = form.get("pack");
   if (!(file instanceof File)) return Response.json({ message: "A .tar.gz pack is required." }, { status: 400 });
   if (file.size === 0 || file.size > MAX_BYTES) return Response.json({ message: "Pack archives must be between 1 byte and 25 MB." }, { status: 400 });
@@ -58,7 +60,7 @@ export async function POST(request: Request) {
     if (await r2.exists(key)) return Response.json({ message: "That package version already exists." }, { status: 409 });
     await client.send(new PutObjectCommand({ Bucket: bucket, Key: key, Body: bytes, ContentType: "application/gzip" }));
     uploadedArchive = { client, bucket, key };
-    await insertRegistryPack({ id: pack.manifest.id, name: pack.manifest.name, publisher: pack.manifest.publisher, version: pack.manifest.version, schemaVersion: pack.manifest.schemaVersion, description: pack.manifest.description, sources: pack.manifest.sources, capabilities: pack.manifest.capabilities, publisherId: session.user.id, verified: false, distribution: { kind: "archive", url: r2.publicUrl(key), checksum } }, session.user.id);
+    await publishPack({ projectId, ownerId: session.user.id, revisionId: pack.revision.id, revisionManifest: pack.manifest, pack: { id: pack.manifest.id, name: pack.manifest.name, publisher: pack.manifest.publisher, version: pack.manifest.version, schemaVersion: pack.manifest.schemaVersion, description: pack.manifest.description, sources: pack.manifest.sources, capabilities: pack.manifest.capabilities, publisherId: session.user.id, verified: false, distribution: { kind: "archive", url: r2.publicUrl(key), checksum } } });
     return Response.json({ packageId: pack.manifest.id, version: pack.manifest.version, revision: pack.revision.id, checksum, owner: session.user.id }, { status: 201 });
   } catch (error) {
     if (uploadedArchive) {

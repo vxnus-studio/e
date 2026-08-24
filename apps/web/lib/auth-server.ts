@@ -9,10 +9,11 @@ async function client() {
   const cookieStore = await cookies();
   return createServerClient(url, key, { cookies: { getAll() { return cookieStore.getAll(); }, setAll(values) { try { values.forEach(({ name, value, options }) => cookieStore.set(name, value, options)); } catch { /* Server Components cannot always set cookies. */ } } } });
 }
+export async function createAuthServerClient() { return client(); }
 
 export const auth = {
   async getSession() {
-    const result = await (await client()).auth.getSession();
-    return { data: { session: result.data.session, user: result.data.session?.user ?? null }, error: result.error };
+    const result = await (await client()).auth.getUser();
+    return { data: { session: result.data.user ? { user: result.data.user } : null, user: result.data.user ?? null }, error: result.error };
   },
 };

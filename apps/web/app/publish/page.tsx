@@ -19,6 +19,6 @@ export default async function PublishPage() {
       {!isControlPlaneConfigured() && <div className="workspace-notice"><strong>Supabase is the next connection.</strong><span>Apply <code>003_publisher_control_plane.sql</code> and add the server credentials to unlock owned projects.</span></div>}
       {projects.length ? <div className="project-list">{projects.map((project, index) => <article className="project-row" key={project.id}><span className="project-index">0{index + 1}</span><div><h3>@{project.publisher}</h3><p>{project.description || project.name}</p></div><span className={`visibility ${project.visibility}`}>{project.visibility}</span><span className="project-arrow">↗</span></article>)}</div> : <div className="workspace-empty"><span className="empty-mark">+</span><div><h3>Your first project starts here.</h3><p>Create a namespace, then upload a validated revision into it.</p></div></div>}
     </section>
-    <section className="release-strip"><div><p className="eyebrow">Ingestion</p><h2>Have a pack ready?</h2><p>Upload a <code>.tar.gz</code> archive to validate its manifest, fingerprint its contents, and publish an immutable release.</p></div><PublishForm /></section>
+    <section className="release-strip"><div><p className="eyebrow">Ingestion</p><h2>Have a pack ready?</h2><p>Upload a <code>.tar.gz</code> archive to validate its manifest, fingerprint its contents, and publish an immutable release.</p></div><PublishForm projectId={projects[0]?.id} /></section>
   </main>;
 }

@@ -23,8 +23,11 @@ The registry uses Supabase when configured and falls back to the built-in
 catalog for offline development. Auth pages are custom Hub pages backed by
 Supabase Auth at `/auth/sign-in` and `/auth/sign-up`.
 The publisher workspace control plane uses the server-only pooled
-`DATABASE_URL` connection string. Apply `db/migrations/003_publisher_control_plane.sql`
+`DATABASE_URL` connection string (the existing `SUPABASE_URL` is accepted as a
+temporary fallback). Apply `db/migrations/003_publisher_control_plane.sql`
 and `004_registry_packs.sql` to Supabase before enabling project creation.
+For a schema-only development database, `npm run db:push` uses the Drizzle
+schema in `db/schema.ts`; production should apply the reviewed SQL migrations.
 
 ## Current slice
 

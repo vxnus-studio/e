@@ -2,7 +2,7 @@
 
 import { FormEvent, useState } from "react";
 
-export function PublishForm() {
+export function PublishForm({ projectId }: { projectId?: string }) {
   const [file, setFile] = useState<File | null>(null);
   const [status, setStatus] = useState<{ kind: "error" | "success"; message: string } | null>(null);
   const [busy, setBusy] = useState(false);
@@ -11,7 +11,8 @@ export function PublishForm() {
     event.preventDefault();
     if (!file) return setStatus({ kind: "error", message: "Choose a .tar.gz pack to continue." });
     setBusy(true); setStatus(null);
-    const body = new FormData(); body.append("pack", file);
+    if (!projectId) return setStatus({ kind: "error", message: "Create a project before publishing a pack." });
+    const body = new FormData(); body.append("pack", file); body.append("projectId", projectId);
     try {
       const response = await fetch("/api/publish", { method: "POST", body });
       const result = await response.json() as { message?: string; packageId?: string; version?: string };
