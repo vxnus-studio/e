@@ -1,11 +1,12 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth-server";
-import { isControlPlaneConfigured, listPublisherProjects, listPublisherReleases } from "@/lib/supabase-control-plane";
+import { getPublisherProfile, isControlPlaneConfigured, listPublisherProjects, listPublisherReleases } from "@/lib/supabase-control-plane";
 import { ProjectCreator } from "./project-creator";
 import { PublishForm } from "./publish-form";
 import "./workspace.css";
 import "./dashboard.css";
+import { UsernameSetup } from "./username-setup";
 
 export const dynamic = "force-dynamic";
 
@@ -13,6 +14,8 @@ export default async function PublishPage() {
   const { data: session } = await auth.getSession();
   if (!session?.user) redirect("/auth/sign-in?redirectTo=/publish");
   const ready = isControlPlaneConfigured();
+  const profile = ready ? await getPublisherProfile(session.user.id) : undefined;
+  if (ready && !profile) return <main className="dashboard-page"><section className="dashboard-main"><UsernameSetup /></section></main>;
   const [projects, releases] = ready ? await Promise.all([listPublisherProjects(session.user.id), listPublisherReleases(session.user.id)]) : [[], []];
   const project = projects.find((item) => item.publisher === "vxnuslabs") ?? projects[0];
   const published = releases.filter((release) => release.status === "published").length;
