@@ -177,16 +177,23 @@ Verification note: the adapter package builds and the direct smoke check
 passes. Its Jest runner remains blocked before test execution by the existing
 Jest runtime error `clearMocksOnScope is not a function`.
 
-Registry API slice: `apps/web/lib/registry.ts` is the current in-memory
-implementation of `KnowledgeRegistry`. `GET /api/packs` supports `q` and
-`limit`; `GET /api/packs/vxnus/siduri-basics?version=0.1.0` returns the
-versioned `RegistryPack`; unknown packages return `pack_not_found` with HTTP
-404. The catalog is intentionally the only thing to replace when Neon is
-introduced. Archive URLs and checksums remain part of the registry record;
-R2 distribution is the next storage integration.
+Registry API slice: `apps/web/lib/registry.ts` selects the Neon implementation
+when `HUB_REGISTRY_MODE=neon` and the in-memory implementation when explicitly
+set to `static`. `GET /api/packs` supports `q` and `limit`;
+`GET /api/packs/vxnus/siduri-basics?version=0.1.0` returns the versioned
+`RegistryPack`; unknown packages return `pack_not_found` with HTTP 404. The
+Hub pages consume this registry boundary rather than maintaining their own
+pack metadata.
 
-The Hub pages now consume this registry boundary rather than maintaining their
-own pack metadata. The API remains static until the Neon/R2 storage phase.
+Storage phase proof: Neon schema `db/migrations/001_registry_packs.sql` and
+seed `002_seed_siduri_basics.sql` are applied. The 0.1.0 fixture archive is
+uploaded to R2 at
+`https://knowledge.e.vxnus.xyz/@vxnus/siduri-basics/0.1.0.tar.gz` and its
+object head check passes. Its archive SHA-256 is
+`5ec9107e12877b494d2a9fd1de82cb131d8cdb2492b50539eb395f7926df6f42`, and the
+Neon record carries that checksum. `apps/web/lib/neon-registry.ts` and
+`apps/web/lib/r2.ts` are server-only adapters; Neon and R2 credentials remain
+server-only.
 
 Environment handoff: `apps/web/.env.example` defines placeholders for the
 Neon registry connection, the current Hub origin (`https://e.vxnus.xyz`), R2

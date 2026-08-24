@@ -31,6 +31,6 @@ Never expose `NEON_DATABASE_URL` or R2 credentials through `NEXT_PUBLIC_*`.
 - Local installation guidance for Siduri
 - Publisher entry point
 
-The registry is currently backed by a typed static catalog. Neon will replace
-that catalog for registry metadata; R2 will replace the placeholder archive
-distribution URL for immutable pack artifacts.
+The registry uses Neon when `HUB_REGISTRY_MODE=neon`; use `static` for local
+offline development. R2 serves immutable pack artifacts through
+`knowledge.e.vxnus.xyz`.

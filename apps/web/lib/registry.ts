@@ -1,4 +1,5 @@
 import type { KnowledgeRegistry, RegistryPack, RegistrySearchRequest, RegistrySearchResponse } from "@vxnus/e-registry";
+import { createNeonRegistry } from "./neon-registry";
 
 const packs: RegistryPack[] = [
   {
@@ -12,11 +13,11 @@ const packs: RegistryPack[] = [
     capabilities: { lexicalSearch: true, semanticSearch: false, structuredEntities: false, relations: false, revisions: true },
     publisherId: "vxnuslabs",
     verified: true,
-    distribution: { kind: "archive", url: "https://e.vxnus.xyz/packs/@vxnus/siduri-basics/-/siduri-basics-0.1.0.tar.gz", checksum: "db6338c160c3691c82bb6f7dcca078fcbe9dddb51512aff06c5a73f777a75386" },
+    distribution: { kind: "archive", url: "https://knowledge.e.vxnus.xyz/@vxnus/siduri-basics/0.1.0.tar.gz", checksum: "5ec9107e12877b494d2a9fd1de82cb131d8cdb2492b50539eb395f7926df6f42" },
   },
 ];
 
-export const registry: KnowledgeRegistry = {
+export const staticRegistry: KnowledgeRegistry = {
   async search(request: RegistrySearchRequest): Promise<RegistrySearchResponse> {
     const query = request.query?.trim().toLowerCase();
     const filtered = packs.filter((pack) => !query || [pack.id, pack.name, pack.publisher, pack.description].some((value) => value?.toLowerCase().includes(query)));
@@ -29,3 +30,5 @@ export const registry: KnowledgeRegistry = {
 };
 
 export { packs };
+
+export const registry = process.env.HUB_REGISTRY_MODE === "neon" ? createNeonRegistry() : staticRegistry;
