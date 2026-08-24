@@ -22,10 +22,9 @@ Copy `.env.example` to `.env.local` when preparing the Supabase and R2 adapters.
 The registry uses Supabase when configured and falls back to the built-in
 catalog for offline development. Auth pages are custom Hub pages backed by
 Supabase Auth at `/auth/sign-in` and `/auth/sign-up`.
-The publisher workspace control plane uses `SUPABASE_URL` (the same value as
-`NEXT_PUBLIC_SUPABASE_URL`) and `SUPABASE_SERVICE_ROLE_KEY` server-side. Apply
-`db/migrations/003_publisher_control_plane.sql` to Supabase before enabling
-project creation. The service key must never use a `NEXT_PUBLIC_*` name.
+The publisher workspace control plane uses the server-only pooled
+`DATABASE_URL` connection string. Apply `db/migrations/003_publisher_control_plane.sql`
+and `004_registry_packs.sql` to Supabase before enabling project creation.
 
 ## Current slice
 

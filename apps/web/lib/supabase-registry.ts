@@ -1,21 +1,10 @@
 import "server-only";
+import { and, asc, desc, eq, ilike, or } from "drizzle-orm";
 import type { KnowledgeRegistry, RegistryPack, RegistrySearchRequest, RegistrySearchResponse } from "@vxnus/e-registry";
+import { getDatabase } from "@/db";
+import { registryPacks } from "@/db/schema";
 
-type RegistryRow = RegistryPack;
-function settings() { const url = process.env.SUPABASE_URL; const key = process.env.SUPABASE_SERVICE_ROLE_KEY; return url && key ? { url: url.replace(/\/$/, ""), key } : null; }
-async function request<T>(path: string, init?: RequestInit): Promise<{ status: number; data: T }> {
-  const config = settings(); if (!config) throw new Error("SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are required.");
-  const response = await fetch(`${config.url}/rest/v1/${path}`, { ...init, headers: { apikey: config.key, Authorization: `Bearer ${config.key}`, "Content-Type": "application/json", Prefer: "return=representation", ...init?.headers }, cache: "no-store" });
-  const data = await response.json().catch(() => null) as T;
-  return { status: response.status, data };
-}
-export function isSupabaseRegistryConfigured() { return settings() !== null; }
-export async function insertRegistryPack(pack: RegistryPack, publisherId: string) {
-  const result = await request<RegistryRow[]>("registry_packs", { method: "POST", body: JSON.stringify({ package_id: pack.id, name: pack.name, publisher: pack.publisher, version: pack.version, schema_version: pack.schemaVersion, description: pack.description || null, sources: pack.sources, capabilities: pack.capabilities, publisher_id: publisherId, distribution: pack.distribution, verified: pack.verified }) });
-  if (result.status === 409) { const error = new Error("That package version already exists."); error.name = "DuplicateRelease"; throw error; }
-  if (result.status >= 400) throw new Error("Supabase registry insert failed.");
-  return result.data[0];
-}
-export function createSupabaseRegistry(): KnowledgeRegistry {
-  return { async search(input: RegistrySearchRequest): Promise<RegistrySearchResponse> { const query = input.query?.trim() ?? ""; const limit = Math.min(Math.max(input.limit ?? 20, 1), 100); const filter = query ? `&or=(package_id.ilike.*${encodeURIComponent(query)}*,name.ilike.*${encodeURIComponent(query)}*,publisher.ilike.*${encodeURIComponent(query)}*)` : ""; const result = await request<RegistryRow[]>(`registry_packs?select=*&order=package_id.asc,version.desc&limit=${limit}${filter}`); if (result.status >= 400) throw new Error("Supabase registry request failed."); return { packs: result.data }; }, async get(packId: string, version?: string) { const versionFilter = version ? `&version=eq.${encodeURIComponent(version)}` : "&order=version.desc&limit=1"; const result = await request<RegistryRow[]>(`registry_packs?select=*&package_id=eq.${encodeURIComponent(packId)}${versionFilter}`); if (result.status >= 400) throw new Error("Supabase registry request failed."); return result.data[0]; } };
-}
+function toPack(row: typeof registryPacks.$inferSelect): RegistryPack { return { id: row.packageId, name: row.name, publisher: row.publisher, version: row.version, schemaVersion: row.schemaVersion, description: row.description || undefined, sources: row.sources as RegistryPack["sources"], capabilities: row.capabilities as RegistryPack["capabilities"], publisherId: row.publisherId, verified: row.verified, distribution: row.distribution as RegistryPack["distribution"] }; }
+export function isSupabaseRegistryConfigured() { return Boolean(process.env.DATABASE_URL); }
+export async function insertRegistryPack(pack: RegistryPack, publisherId: string) { try { const rows = await getDatabase().insert(registryPacks).values({ packageId: pack.id, name: pack.name, publisher: pack.publisher, version: pack.version, schemaVersion: pack.schemaVersion, description: pack.description || null, sources: pack.sources, capabilities: pack.capabilities, publisherId, distribution: pack.distribution, verified: pack.verified }).returning(); return toPack(rows[0]); } catch (error) { if (error instanceof Error && /unique|duplicate/i.test(error.message)) { const duplicate = new Error("That package version already exists."); duplicate.name = "DuplicateRelease"; throw duplicate; } throw error; } }
+export function createSupabaseRegistry(): KnowledgeRegistry { return { async search(input: RegistrySearchRequest): Promise<RegistrySearchResponse> { const query = input.query?.trim() ?? ""; const limit = Math.min(Math.max(input.limit ?? 20, 1), 100); const filters = query ? or(ilike(registryPacks.packageId, `%${query}%`), ilike(registryPacks.name, `%${query}%`), ilike(registryPacks.publisher, `%${query}%`)) : undefined; const rows = await getDatabase().select().from(registryPacks).where(filters).orderBy(asc(registryPacks.packageId), desc(registryPacks.version)).limit(limit); return { packs: rows.map(toPack) }; }, async get(packageId: string, version?: string) { const filter = version ? and(eq(registryPacks.packageId, packageId), eq(registryPacks.version, version)) : eq(registryPacks.packageId, packageId); const rows = await getDatabase().select().from(registryPacks).where(filter).orderBy(desc(registryPacks.version)).limit(1); return rows[0] ? toPack(rows[0]) : undefined; } }; }
