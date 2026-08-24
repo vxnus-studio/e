@@ -39,3 +39,8 @@ Archive the pack without changing record bytes, calculate the archive SHA-256,
 and publish the archive and manifest together. A registry entry should retain
 the package ID (`@publisher/name`), semantic version, revision, source metadata,
 capabilities, distribution URL, and archive checksum.
+
+For a remote provider, publish the provider URL instead of an archive and
+follow [Remote provider verification](./REMOTE-PROVIDER-VERIFICATION.md). The
+provider URL is public for consumers; its verification key is used only by the
+Hub to prove publisher control.
