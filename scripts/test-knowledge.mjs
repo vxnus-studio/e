@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { loadPack } from "../packages/knowledge/dist/index.js";
+import { createRemoteProvider, loadPack } from "../packages/knowledge/dist/index.js";
 import { assertConformantProvider, RetrievalValidationError, validateRetrievalResponse } from "../packages/protocol/dist/index.js";
 
 const pack = await loadPack(new URL("../packages/knowledge/fixtures/sample", import.meta.url).pathname);
@@ -15,4 +15,12 @@ const basics = await loadPack(new URL("../packages/knowledge/fixtures/siduri-bas
 const basicsResult = await basics.provider.retrieve({ query: "persistent companion" });
 assert.equal(basicsResult.results[0].citations[0].sourceId, "siduri-handbook");
 await assert.rejects(() => loadPack(new URL("../packages/knowledge/fixtures/sample-invalid", import.meta.url).pathname));
+const remoteManifest = { ...pack.manifest };
+const remoteResponse = { revision: "r1", results: [{ id: "intro-1", content: "remote cited fact", revision: "r1", citations: [{ sourceId: "handbook", documentId: "intro", chunkId: "intro-1" }] }] };
+const originalFetch = globalThis.fetch;
+globalThis.fetch = async (url) => ({ ok: true, status: 200, json: async () => String(url).endsWith("/manifest") ? remoteManifest : remoteResponse });
+const remote = createRemoteProvider({ baseUrl: "https://example.test/provider/", timeoutMs: 1000 });
+assert.equal((await remote.manifest()).id, "sample-knowledge");
+assert.equal((await remote.retrieve({ query: "hello", mode: "lexical" })).results[0].citations[0].sourceId, "handbook");
+globalThis.fetch = originalFetch;
 console.log("Pack fixtures passed.");

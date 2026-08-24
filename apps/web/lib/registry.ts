@@ -3,6 +3,19 @@ import { createNeonRegistry } from "./neon-registry";
 
 const packs: RegistryPack[] = [
   {
+    id: "@vxnus/teyvat",
+    name: "Teyvat Genshin Knowledge Base",
+    publisher: "vxnuslabs",
+    version: "1.0.0",
+    schemaVersion: "1.0",
+    description: "Structured Genshin Impact knowledge from the normalized gi-data projection.",
+    sources: [{ id: "gi-data", title: "gi-data", license: "see source metadata", uri: "https://github.com/vxnuslabs/gi-data" }],
+    capabilities: { lexicalSearch: true, semanticSearch: false, structuredEntities: true, relations: true, revisions: true },
+    publisherId: "vxnuslabs",
+    verified: false,
+    distribution: { kind: "provider", url: "https://eteyvat.vxnus.xyz/api/knowledge" },
+  },
+  {
     id: "@vxnus/siduri-basics",
     name: "Siduri Basics",
     publisher: "vxnuslabs",

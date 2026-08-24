@@ -15,6 +15,59 @@ export interface LoadedPack {
   provider: KnowledgeProvider;
 }
 
+export interface RemoteProviderConfig {
+  baseUrl: string;
+  timeoutMs?: number;
+  retries?: number;
+  headers?: Record<string, string>;
+}
+
+const remoteRequest = async (url: string, init: RequestInit, config: RemoteProviderConfig): Promise<unknown> => {
+  const timeoutMs = Math.max(100, config.timeoutMs ?? 5000);
+  const retries = Math.max(0, Math.min(config.retries ?? 2, 3));
+  let lastError: unknown;
+  for (let attempt = 0; attempt <= retries; attempt += 1) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
+    try {
+      const response = await fetch(url, { ...init, headers: { accept: "application/json", ...config.headers, ...init.headers }, signal: controller.signal });
+      if (!response.ok) {
+        const error = new Error(`knowledge provider returned HTTP ${response.status}`);
+        if (response.status < 500 || attempt === retries) throw error;
+        lastError = error;
+      } else {
+        return await response.json();
+      }
+    } catch (error) {
+      lastError = error;
+      if (attempt === retries) throw error;
+    } finally {
+      clearTimeout(timer);
+    }
+    await new Promise((resolve) => setTimeout(resolve, Math.min(100 * 2 ** attempt, 500)));
+  }
+  throw lastError instanceof Error ? lastError : new Error("knowledge provider request failed");
+};
+
+export function createRemoteProvider(config: RemoteProviderConfig): KnowledgeProvider {
+  const baseUrl = config.baseUrl.replace(/\/+$/, "");
+  if (!/^https?:\/\//i.test(baseUrl)) throw new Error("remote knowledge provider baseUrl must be an HTTP(S) URL");
+  let manifestPromise: Promise<KnowledgePackManifest> | undefined;
+  const provider: KnowledgeProvider = {
+    manifest: () => {
+      manifestPromise ??= remoteRequest(`${baseUrl}/manifest`, { method: "GET" }, config).then((value) => validateManifest(value));
+      return manifestPromise;
+    },
+    retrieve: async (request) => {
+      const validatedRequest = validateRetrievalRequest(request);
+      const manifest = await provider.manifest();
+      const response = await remoteRequest(`${baseUrl}/retrieve`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(validatedRequest) }, config);
+      return validateRetrievalResponse(response, manifest);
+    },
+  };
+  return provider;
+}
+
 const isRecord = (value: unknown): value is Record<string, unknown> => typeof value === "object" && value !== null && !Array.isArray(value);
 const parse = async (path: string): Promise<unknown> => JSON.parse(await readFile(path, "utf8"));
 const stable = (value: unknown): string => {

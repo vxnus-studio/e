@@ -1,7 +1,7 @@
 # Phase 1 handoff — E remote provider contract
 
 **Phase:** 1 — E-compatible remote provider
-**Status:** planned
+**Status:** implementation complete; hosted verification pending
 **Scope:** lexical retrieval, structured metadata, revisions, and citations.
 Vector search is explicitly out of scope.
 
