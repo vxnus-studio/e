@@ -1,0 +1,40 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://e.vxnuslabs.com/schema/manifest-1.0.json",
+  "title": "E Knowledge Pack Manifest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["id", "name", "publisher", "version", "schemaVersion", "sources", "capabilities"],
+  "properties": {
+    "id": { "type": "string", "minLength": 1 },
+    "name": { "type": "string", "minLength": 1 },
+    "publisher": { "type": "string", "minLength": 1 },
+    "version": { "type": "string", "pattern": "^(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.(0|[1-9]\\d*)(?:-[0-9A-Za-z-]+(?:\\.[0-9A-Za-z-]+)*)?(?:\\+[0-9A-Za-z-]+(?:\\.[0-9A-Za-z-]+)*)?$" },
+    "schemaVersion": { "type": "string", "pattern": "^(0|[1-9]\\d*)\\.(0|[1-9]\\d*)$" },
+    "description": { "type": "string" },
+    "sources": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/source" }, "uniqueItems": true },
+    "capabilities": { "$ref": "#/$defs/capabilities" }
+  },
+  "$defs": {
+    "source": {
+      "type": "object", "additionalProperties": false,
+      "required": ["id", "title", "license"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "title": { "type": "string", "minLength": 1 },
+        "license": { "type": "string", "minLength": 1 },
+        "uri": { "type": "string", "format": "uri" },
+        "publishedAt": { "type": "string", "minLength": 1 }
+      }
+    },
+    "capabilities": {
+      "type": "object", "additionalProperties": false,
+      "required": ["lexicalSearch", "semanticSearch", "structuredEntities", "relations", "revisions"],
+      "properties": {
+        "lexicalSearch": { "type": "boolean" }, "semanticSearch": { "type": "boolean" },
+        "structuredEntities": { "type": "boolean" }, "relations": { "type": "boolean" },
+        "revisions": { "type": "boolean" }
+      }
+    }
+  }
+}

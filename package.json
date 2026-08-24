@@ -3,6 +3,6 @@
   "private": true,
   "type": "module",
   "workspaces": ["packages/*"],
-  "scripts": { "build": "tsc -p packages/protocol && tsc -p packages/registry" },
+  "scripts": { "build": "tsc -p packages/protocol && tsc -p packages/registry", "test": "npm run build && node scripts/test-manifests.mjs" },
   "devDependencies": { "typescript": "^5.9.3" }
 }

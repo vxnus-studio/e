@@ -1,0 +1,21 @@
+{
+  "id": "e-teyvat",
+  "name": "E-Teyvat",
+  "publisher": "vxnuslabs",
+  "version": "1.2.0",
+  "schemaVersion": "1.0",
+  "description": "A cited knowledge pack for Teyvat.",
+  "sources": [{
+    "id": "genshin-wiki",
+    "title": "Genshin Impact Wiki",
+    "license": "CC BY-SA 3.0",
+    "uri": "https://example.com/source"
+  }],
+  "capabilities": {
+    "lexicalSearch": true,
+    "semanticSearch": false,
+    "structuredEntities": true,
+    "relations": true,
+    "revisions": true
+  }
+}

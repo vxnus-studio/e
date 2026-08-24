@@ -1,0 +1,9 @@
+{
+  "id": "broken-pack",
+  "name": "Broken Pack",
+  "publisher": "example",
+  "version": "1.0",
+  "schemaVersion": "1",
+  "sources": [],
+  "capabilities": { "lexicalSearch": true, "semanticSearch": false, "structuredEntities": false, "relations": true, "revisions": true }
+}

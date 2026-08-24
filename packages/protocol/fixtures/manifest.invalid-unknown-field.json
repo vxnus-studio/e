@@ -1,0 +1,10 @@
+{
+  "id": "broken-pack",
+  "name": "Broken Pack",
+  "publisher": "example",
+  "version": "1.0.0",
+  "schemaVersion": "1.0",
+  "sources": [{ "id": "source", "title": "Source", "license": "MIT" }],
+  "capabilities": { "lexicalSearch": true, "semanticSearch": false, "structuredEntities": false, "relations": false, "revisions": true },
+  "database": "postgres"
+}

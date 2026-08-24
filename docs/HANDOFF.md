@@ -43,7 +43,7 @@ Acceptance:
 
 ## Phase 1 — Pack manifest and validation
 
-Owner: E.
+Owner: E. Status: complete.
 
 Deliverables:
 
@@ -55,11 +55,21 @@ Deliverables:
 - Document whether unknown fields are ignored or rejected; default to rejected
   for the first version.
 
+Implemented in `packages/protocol`:
+
+- `schema/manifest.schema.json` is the canonical serialized shape.
+- `validateManifest(value)` is the runtime boundary.
+- `fixtures/manifest.valid.json` and three invalid fixtures cover the initial
+  conformance cases.
+- Unknown fields are rejected; pack versions use SemVer and schema versions
+  use independent `MAJOR.MINOR` numbering.
+
 Acceptance:
 
 - A publisher can validate a manifest without Siduri.
 - Every required field and capability combination has a fixture.
 - The schema version is independent of a pack's content version.
+- `npm test` passes the manifest fixture suite.
 
 Do not add storage, HTTP, database drivers, or Siduri-specific lifecycle code.
 
