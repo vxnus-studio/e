@@ -1,0 +1,15 @@
+{
+  "name": "@vxnus/e-pack",
+  "version": "0.1.0",
+  "description": "Portable filesystem knowledge packs for E",
+  "type": "module",
+  "license": "SEE LICENSE IN LICENSE",
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": { ".": { "types": "./dist/index.d.ts", "import": "./dist/index.js", "default": "./dist/index.js" } },
+  "files": ["dist", "fixtures", "README.md", "LICENSE"],
+  "scripts": { "build": "tsc", "prepack": "npm run build" },
+  "dependencies": { "@vxnus/e": "*" },
+  "devDependencies": { "@vxnus/e": "*", "typescript": "^5.9.3" }
+}

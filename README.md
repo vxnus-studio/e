@@ -22,6 +22,7 @@ installation, lifecycle, permissions, and runtime integration.
 The monorepo also contains:
 
 - `@vxnus/e-registry`: Knowledge Hub discovery and distribution contracts.
+- `@vxnus/e-pack`: portable filesystem packs and local retrieval.
 - `apps/hub`: the hosted Knowledge Hub product, landing page, registry, and
   pack distribution surface.
 

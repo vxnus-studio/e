@@ -75,7 +75,7 @@ Do not add storage, HTTP, database drivers, or Siduri-specific lifecycle code.
 
 ## Phase 2 — Portable local pack
 
-Owner: E, with a publisher fixture.
+Owner: E, with a publisher fixture. Status: complete.
 
 Deliverables:
 
@@ -86,11 +86,20 @@ Deliverables:
 - Include one tiny sample pack suitable for tests and documentation.
 - Define deterministic revision and content-hash behavior.
 
+Implemented in `packages/pack`:
+
+- `loadPack(directory)` loads the documented filesystem layout.
+- Records are checked for unique IDs and valid source/document/chunk/entity,
+  relation, and revision references.
+- Revision hashes use deterministic SHA-256 over sorted content records.
+- The sample pack provides a local lexical provider with citations.
+
 Acceptance:
 
 - A pack can be copied to another machine and validated there.
 - Retrieval results include a revision and at least one source citation.
 - Corrupt, incomplete, or mismatched packs fail before installation.
+- `npm test` passes both manifest and local-pack fixture suites.
 
 ## Phase 3 — Retrieval and conformance
 

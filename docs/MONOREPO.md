@@ -8,6 +8,7 @@ protocol to hosting infrastructure.
 | --- | --- | --- |
 | `@vxnus/e` (`packages/protocol`) | Pack manifests, content, revisions, capabilities, retrieval | HTTP, database, auth, Siduri lifecycle |
 | `@vxnus/e-registry` | Registry entries, discovery, distribution metadata, verification state | Web framework, persistence, credentials |
+| `@vxnus/e-pack` | Portable filesystem pack loading, validation, hashing, local retrieval | Hub hosting, Siduri lifecycle, remote transport |
 | `apps/hub` | Hosted npm-like Knowledge Hub: landing page, registry API, pack distribution | Siduri runtime, companion memory |
 
 The Hub application provides the concrete API, persistence, publisher
