@@ -14,6 +14,12 @@ npm run dev
 
 Open <http://localhost:3000>.
 
+## Environment
+
+Copy `.env.example` to `.env.local` when preparing the Neon and R2 adapters.
+The current API uses the static catalog, so these values are not required yet.
+Never expose `NEON_DATABASE_URL` or R2 credentials through `NEXT_PUBLIC_*`.
+
 ## Current slice
 
 - Static landing page at `/`

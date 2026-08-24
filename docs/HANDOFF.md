@@ -187,6 +187,11 @@ R2 distribution is the next storage integration.
 
 The Hub pages now consume this registry boundary rather than maintaining their
 own pack metadata. The API remains static until the Neon/R2 storage phase.
+
+Environment handoff: `apps/web/.env.example` defines placeholders for the
+Neon registry connection, R2 artifact bucket/credentials, public artifact base
+URL, and `HUB_REGISTRY_MODE=static`. It is intentionally configuration-only;
+the current static adapter does not read these values yet.
 - Add authentication, trust, timeout, size, and rate-limit policy outside E.
 - Add install/update verification and publisher revision visibility.
 
