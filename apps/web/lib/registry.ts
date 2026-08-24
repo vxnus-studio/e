@@ -44,4 +44,16 @@ export const staticRegistry: KnowledgeRegistry = {
 
 export { packs };
 
-export const registry = process.env.HUB_REGISTRY_MODE === "neon" ? createNeonRegistry() : staticRegistry;
+// Neon is authoritative for published rows, while the built-in catalog keeps
+// the first-party provider discoverable during staged deployment or before its
+// registry seed has been applied. A database row always wins.
+const neonRegistry = process.env.HUB_REGISTRY_MODE === "neon" ? createNeonRegistry() : undefined;
+export const registry: KnowledgeRegistry = neonRegistry ? {
+  async search(request) {
+    const result = await neonRegistry.search(request);
+    return result.packs.length ? result : staticRegistry.search(request);
+  },
+  async get(packId, version) {
+    return await neonRegistry.get(packId, version) ?? staticRegistry.get(packId, version);
+  },
+} : staticRegistry;

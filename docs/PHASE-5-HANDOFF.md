@@ -23,6 +23,7 @@ can retrieve cited, revisioned knowledge through the public URLs.
 ## Completion gate
 
 - Hub lookup returns the provider distribution;
+- first-party provider discovery does not depend on a separate registry seed;
 - Teyvat manifest returns 200 and validates with E;
 - lexical retrieval returns cited results and one revision;
 - Siduri Hub resolution succeeds;
