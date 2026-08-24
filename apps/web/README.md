@@ -19,8 +19,10 @@ Open <http://localhost:3000>.
 - Static landing page at `/`
 - `@vxnus/siduri-basics` catalog entry
 - Pack detail page at `/packs/vxnus/siduri-basics` (`@vxnus/siduri-basics` identity)
+- Static registry API at `/api/packs` and `/api/packs/vxnus/siduri-basics`
 - Local installation guidance for Siduri
 - Publisher entry point
 
-The next slice will add a pack detail route. Registry persistence and artifact
-storage remain intentionally outside this first static interface.
+The registry is currently backed by a typed static catalog. Neon will replace
+that catalog for registry metadata; R2 will replace the placeholder archive
+distribution URL for immutable pack artifacts.

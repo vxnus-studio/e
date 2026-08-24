@@ -176,6 +176,17 @@ citation `siduri-handbook / welcome / welcome-1`.
 Verification note: the adapter package builds and the direct smoke check
 passes. Its Jest runner remains blocked before test execution by the existing
 Jest runtime error `clearMocksOnScope is not a function`.
+
+Registry API slice: `apps/web/lib/registry.ts` is the current in-memory
+implementation of `KnowledgeRegistry`. `GET /api/packs` supports `q` and
+`limit`; `GET /api/packs/vxnus/siduri-basics?version=0.1.0` returns the
+versioned `RegistryPack`; unknown packages return `pack_not_found` with HTTP
+404. The catalog is intentionally the only thing to replace when Neon is
+introduced. Archive URLs and checksums remain part of the registry record;
+R2 distribution is the next storage integration.
+
+The Hub pages now consume this registry boundary rather than maintaining their
+own pack metadata. The API remains static until the Neon/R2 storage phase.
 - Add authentication, trust, timeout, size, and rate-limit policy outside E.
 - Add install/update verification and publisher revision visibility.
 
