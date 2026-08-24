@@ -63,6 +63,8 @@ Remaining Phase 6 handoff:
 3. Confirm the first publisher can install the published pack through the
    existing catalog/distribution path.
 4. Prepare the E package release after the production checks pass.
+   The `0.1.2` release commit is pushed; npm currently requires an interactive
+   one-time password before publishing.
 
 Do not put auth, database, R2, or upload lifecycle code into `@vxnus/e`.
 Do not use a browser-supplied publisher ID as authorization. Preserve the
