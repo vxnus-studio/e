@@ -3,6 +3,8 @@
 This document is the execution plan after the Siduri interoperability pivot.
 It is intentionally phased so each phase leaves a usable, reviewable boundary.
 
+For the next working session, start with [NEXT_SESSION.md](./NEXT_SESSION.md).
+
 ## Monorepo shape
 
 The workspace is intentionally split by responsibility:
