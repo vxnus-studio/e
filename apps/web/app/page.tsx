@@ -1,69 +1,12 @@
-import Image from "next/image";
+const pack = { id: "siduri-basics", version: "0.1.0", description: "A tiny, cited knowledge pack for testing Siduri installations.", source: "Siduri Handbook", license: "CC0-1.0" };
 
 export default function Home() {
-  return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert h-5 w-[100px]"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the{" "}
-            <code className="rounded bg-black/[.06] px-1.5 py-0.5 font-mono text-[0.9em] dark:bg-white/[.08]">
-              page.tsx
-            </code>{" "}
-            file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert h-[14px] w-4"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={14}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
-    </div>
-  );
+  return <main>
+    <nav className="site-nav" aria-label="Primary navigation"><a className="brand" href="/"><span className="brand-mark">E</span> knowledge hub</a><div className="nav-links"><a href="#catalog">Catalog</a><a href="#publish">Publish</a><a className="nav-button" href="#install">Use with Siduri</a></div></nav>
+    <section className="hero" aria-labelledby="hero-title"><div className="hero-copy"><p className="eyebrow">Open knowledge infrastructure</p><h1 id="hero-title">Knowledge your companion can trust.</h1><p className="hero-lede">Discover versioned, cited knowledge packs built to install cleanly into Siduri.</p><div className="hero-actions"><a className="button button-primary" href="#catalog">Browse the catalog</a><a className="text-link" href="#publish">Publish a pack <span aria-hidden="true">↗</span></a></div></div><div className="hero-index" aria-label="Hub status"><div className="index-orbit"><span>01</span><i /></div><div className="index-note"><span>Currently indexed</span><strong>01 knowledge pack</strong><small>Revision-aware · cited · portable</small></div></div></section>
+    <section className="catalog" id="catalog" aria-labelledby="catalog-title"><div className="section-heading"><div><p className="eyebrow">The first entry</p><h2 id="catalog-title">Start with something small.</h2></div><p>A tiny pack makes the whole path visible: publish, install, retrieve, cite.</p></div><article className="pack-card"><div className="pack-number">01</div><div className="pack-main"><div className="pack-title-row"><h3>{pack.id}</h3><span className="status"><i /> verified</span></div><p>{pack.description}</p><div className="pack-meta"><span>v{pack.version}</span><span>{pack.source}</span><span>{pack.license}</span></div></div><a className="pack-arrow" href="#install" aria-label={`View ${pack.id} installation instructions`}>↗</a></article></section>
+    <section className="install" id="install" aria-labelledby="install-title"><div><p className="eyebrow">From catalog to companion</p><h2 id="install-title">Install knowledge where it belongs.</h2><p>Siduri owns local installation and runtime state. The Hub makes the pack discoverable and distributable.</p></div><div className="install-code"><span className="code-label">LOCAL DEVELOPMENT</span><code><b>$</b> siduri create<br /><em>Knowledge pack path?</em> ./siduri-basics</code><span className="code-caption">The same contract later ships from the Hub.</span></div></section>
+    <section className="publish" id="publish" aria-labelledby="publish-title"><p className="eyebrow">For publishers</p><h2 id="publish-title">Publish once. Let Siduri handle the rest.</h2><a className="button button-dark" href="mailto:hello@vxnuslabs.com">Read the pack guide <span aria-hidden="true">↗</span></a></section>
+    <footer><span>© 2026 E Knowledge Hub</span><span>Protocol by <a href="https://github.com/vxnuslabs/e">@vxnus/e</a></span></footer>
+  </main>;
 }
