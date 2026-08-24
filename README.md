@@ -72,6 +72,9 @@ treated as the required architecture for new Siduri integrations. The next
 version of E should prioritize a stable pack manifest, portable schema,
 installation format, and retrieval contract.
 
+See [the pivot decision](docs/PIVOT.md) for the current architecture and the
+boundary between E, Siduri, and knowledge publishers.
+
 ## Historical engine installation
 
 ```bash
