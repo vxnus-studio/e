@@ -19,8 +19,12 @@ Open <http://localhost:3000>.
 ## Environment
 
 Copy `.env.example` to `.env.local` when preparing the Neon and R2 adapters.
-The current API uses the static catalog, so these values are not required yet.
+The registry uses Neon when `HUB_REGISTRY_MODE=neon`; use `static` for offline
+development. These values are required for deployed storage-backed reads.
 Never expose `NEON_DATABASE_URL` or R2 credentials through `NEXT_PUBLIC_*`.
+Neon Auth also requires `NEON_AUTH_BASE_URL` and a random
+`NEON_AUTH_COOKIE_SECRET` (at least 32 characters). Auth pages are available
+at `/auth/sign-in` and `/auth/sign-up`.
 
 ## Current slice
 

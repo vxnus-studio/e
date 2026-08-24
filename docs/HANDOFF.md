@@ -195,11 +195,19 @@ Neon record carries that checksum. `apps/web/lib/neon-registry.ts` and
 `apps/web/lib/r2.ts` are server-only adapters; Neon and R2 credentials remain
 server-only.
 
-Environment handoff: `apps/web/.env.example` defines placeholders for the
-Neon registry connection, the current Hub origin (`https://e.vxnus.xyz`), R2
-artifact bucket/credentials, public artifact base URL, and
-`HUB_REGISTRY_MODE=static`. It is intentionally configuration-only; the
-current static adapter does not read these values yet.
+Environment handoff: `apps/web/.env.example` defines the Neon registry, Hub
+origin, R2, and Neon Auth configuration. The local environment uses Neon for
+registry reads; credentials remain server-only.
+
+Auth phase: Neon Auth is wired through `@neondatabase/auth` and
+`@neondatabase/auth-ui`. Sign-up and sign-in are available at
+`/auth/sign-up` and `/auth/sign-in`; the auth proxy is mounted at
+`/api/auth/[...path]`, and the landing navigation exposes both entry points.
+Required server configuration is `NEON_AUTH_BASE_URL` and a random
+`NEON_AUTH_COOKIE_SECRET` (32+ characters). The current local env has not
+populated those two keys yet. Publisher/account ownership must be attached to
+upload records in the next upload phase; public catalog reads remain
+unauthenticated.
 - Add authentication, trust, timeout, size, and rate-limit policy outside E.
 - Add install/update verification and publisher revision visibility.
 
