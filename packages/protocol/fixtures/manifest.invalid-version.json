@@ -1,0 +1,9 @@
+{
+  "id": "bad-version",
+  "name": "Bad Version",
+  "publisher": "example",
+  "version": "1.0",
+  "schemaVersion": "1",
+  "sources": [{ "id": "source", "title": "Source", "license": "MIT" }],
+  "capabilities": { "lexicalSearch": true, "semanticSearch": false, "structuredEntities": false, "relations": false, "revisions": true }
+}

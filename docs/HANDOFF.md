@@ -59,7 +59,7 @@ Implemented in `packages/protocol`:
 
 - `schema/manifest.schema.json` is the canonical serialized shape.
 - `validateManifest(value)` is the runtime boundary.
-- `fixtures/manifest.valid.json` and three invalid fixtures cover the initial
+- `fixtures/manifest.valid*.json` and five invalid fixtures cover the initial
   conformance cases.
 - Unknown fields are rejected; pack versions use SemVer and schema versions
   use independent `MAJOR.MINOR` numbering.

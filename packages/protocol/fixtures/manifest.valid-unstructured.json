@@ -1,0 +1,9 @@
+{
+  "id": "plain-corpus",
+  "name": "Plain Corpus",
+  "publisher": "example",
+  "version": "0.1.0",
+  "schemaVersion": "1.0",
+  "sources": [{ "id": "source", "title": "Source", "license": "CC0-1.0" }],
+  "capabilities": { "lexicalSearch": true, "semanticSearch": false, "structuredEntities": false, "relations": false, "revisions": false }
+}

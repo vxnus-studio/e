@@ -34,7 +34,11 @@
         "lexicalSearch": { "type": "boolean" }, "semanticSearch": { "type": "boolean" },
         "structuredEntities": { "type": "boolean" }, "relations": { "type": "boolean" },
         "revisions": { "type": "boolean" }
-      }
+      },
+      "allOf": [{
+        "if": { "properties": { "relations": { "const": true } } },
+        "then": { "properties": { "structuredEntities": { "const": true } } }
+      }]
     }
   }
 }
