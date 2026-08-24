@@ -7,13 +7,13 @@ handoff commit.
 
 Packages published to npm:
 
-- `@vxnus/e@0.1.1`
+- `@vxnus/e@0.1.2`
 - `@vxnus/e-registry@0.1.1`
-- `@vxnus/e-knowledge@0.1.1`
+- `@vxnus/e-knowledge@0.1.2`
 
 The Hub is `apps/web`, hosted at `https://e.vxnus.xyz`.
 
-## Working system
+## Working system (pre-Supabase pivot)
 
 - Neon stores registry metadata in `registry_packs`.
 - R2 bucket `e-knowledge` serves archives through
@@ -28,6 +28,10 @@ The Hub is `apps/web`, hosted at `https://e.vxnus.xyz`.
   - `/api/auth/[...path]`
 - The Hub selects Neon with `HUB_REGISTRY_MODE=neon`; `static` is the explicit
   offline fallback.
+
+The next implementation pivot moves Hub Auth, publisher identity, registry
+metadata, and dashboard state to Supabase. Neon remains only in E-Teyvat for
+provider data until the reversible Hub migration is complete.
 
 ## Phase 6 progress: publisher adoption and release
 
@@ -69,6 +73,12 @@ Remaining Phase 6 handoff:
 Do not put auth, database, R2, or upload lifecycle code into `@vxnus/e`.
 Do not use a browser-supplied publisher ID as authorization. Preserve the
 package identity format `@publisher/name`; do not introduce slugs.
+
+## Next objective: Supabase publisher dashboard
+
+See [the pivot decision](PIVOT-SUPABASE-PUBLISHER-DASHBOARD.md) and
+[Phase 8 handoff](PHASE-8-HANDOFF.md). The current `/publish` route is still an
+upload flow and must become a user-owned project/revision/release workspace.
 
 ## Verification gates
 
