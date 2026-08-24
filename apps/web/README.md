@@ -19,18 +19,13 @@ Open <http://localhost:3000>.
 ## Environment
 
 Copy `.env.example` to `.env.local` when preparing the Neon and R2 adapters.
-The registry uses Neon when `HUB_REGISTRY_MODE=neon`; use `static` for offline
-development. These values are required for deployed storage-backed reads.
-Never expose `NEON_DATABASE_URL` or R2 credentials through `NEXT_PUBLIC_*`.
-Neon Auth also requires `NEON_AUTH_BASE_URL` and a random
-`NEON_AUTH_COOKIE_SECRET` (at least 32 characters). Auth pages are available
-at `/auth/sign-in` and `/auth/sign-up`.
+The registry remains on its current adapter during the Supabase migration; use
+`static` for offline development. Auth pages are custom Hub pages backed by
+Supabase Auth at `/auth/sign-in` and `/auth/sign-up`.
 The publisher workspace control plane uses `SUPABASE_URL` (the same value as
 `NEXT_PUBLIC_SUPABASE_URL`) and `SUPABASE_SERVICE_ROLE_KEY` server-side. Apply
 `db/migrations/003_publisher_control_plane.sql` to Supabase before enabling
-project creation, then set `SUPABASE_AUTH_ENABLED=true` only after Supabase
-Auth replaces the temporary Neon session adapter. The service key must never
-use a `NEXT_PUBLIC_*` name.
+project creation. The service key must never use a `NEXT_PUBLIC_*` name.
 
 ## Current slice
 
