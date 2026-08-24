@@ -150,13 +150,17 @@ E should only change here when the interoperability contract is incomplete.
 
 ## Phase 5 — Hosted Knowledge Hub and remote providers
 
-Owner: Siduri Knowledge Hub, with E conformance support.
+Owner: Siduri Knowledge Hub, with E conformance support. Status: in progress.
 
 Deliverables:
 
 - Build the npm-like Hub landing page and registry API in `apps/web`.
 - Define pack discovery and publisher metadata for the Hub.
 - Serve archives and remote E provider metadata using the same contract.
+
+First slice implemented in `apps/web`: a static landing/catalog page for the
+`siduri-basics` pack with local Siduri installation guidance. Registry data and
+distribution are still static until the Hub API is introduced.
 - Add authentication, trust, timeout, size, and rate-limit policy outside E.
 - Add install/update verification and publisher revision visibility.
 
