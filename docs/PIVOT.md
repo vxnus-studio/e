@@ -5,10 +5,9 @@ portable knowledge-pack and provider contract for Siduri.
 
 ## Why this change
 
-E-Teyvat demonstrated that PostgreSQL already provides a strong persistence
-layer for the knowledge primitives. Its application code owns the useful
-domain behavior, while the generic E database engines add little value and
-are often bypassed.
+The useful boundary is the knowledge pack and provider, not a shared storage
+engine. Publishers should keep control of their content pipeline while Siduri
+gets one predictable way to discover and consume knowledge.
 
 Siduri's actual need is different: Siduri is a persistent AI runtime with
 knowledge as one replaceable organ. Knowledge should provide grounded facts,
@@ -50,7 +49,7 @@ Search the Knowledge Hub or enter a pack ID:
 
 Install this knowledge base? yes
 Where should it run? local
-Database type? PostgreSQL
+Pack source? Local archive or hosted provider
 
 [Vision]
 Provider? Multimodal
@@ -76,8 +75,8 @@ Remote knowledge URL? https://knowledge.example.com/e-teyvat
 ```
 
 In both cases Siduri consumes the same E contract. The publisher does not
-need to use PostgreSQL or change its internal storage; it only provides an
-E-compatible export or provider endpoint.
+need to share its internal storage; it only provides an E-compatible export or
+provider endpoint.
 
 ## What E standardizes
 
@@ -101,9 +100,8 @@ directly.
 
 E does not require:
 
-- PostgreSQL, SQLite, or any particular database;
-- a connection pool or ORM;
-- a universal graph traversal engine;
+- any particular database or storage engine;
+- a connection pool, ORM, or generic query runtime;
 - a web framework or deployment model;
 - Teyvat, company, wiki, or corpus-specific fields;
 - Siduri memory, personality, behavior, or orchestration.
@@ -128,16 +126,11 @@ KnowledgeOrgan  = Siduri runtime dependency injection
 Knowledge Hub   = install, update, scope, and lifecycle management
 ```
 
-## Status of the existing engines
+## Implementation status
 
-`@vxnus/e-postgres`, `@vxnus/e-sqlite`, and `InMemoryEngine` are historical
-reference implementations of the earlier design. They are not required for an
-E-compatible publisher and should not define the future architecture.
-
-The next implementation focus is the pack manifest, portable export format,
-retrieval response, capability negotiation, and conformance fixtures. Storage
-adapters may remain available for experimentation, but they are no longer the
-center of E.
+The contract package now contains only the portable manifest, content,
+revision, capability, and retrieval types. Pack storage, transport, indexing,
+and lifecycle remain implementation concerns for publishers and Siduri.
 
 ## Product principle
 

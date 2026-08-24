@@ -7,22 +7,8 @@ on:
     branches: [ "main" ]
 
 jobs:
-  build-and-test:
+  build:
     runs-on: ubuntu-latest
-    
-    services:
-      postgres:
-        image: postgres:15
-        env:
-          POSTGRES_USER: postgres
-          POSTGRES_HOST_AUTH_METHOD: trust
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
 
     steps:
     - uses: actions/checkout@v3
@@ -36,17 +22,3 @@ jobs:
       
     - name: Build
       run: npm run build
-      
-    - name: Create PostgreSQL database
-      run: psql -h localhost -U postgres -c 'CREATE DATABASE e_test;'
-
-    - name: Verify PostgreSQL test gate
-      env:
-        TEST_DATABASE_URL: postgres://postgres@localhost/e_test
-        CI: true
-      run: node scripts/verify-postgres.cjs
-      
-    - name: Run Tests
-      env:
-        TEST_DATABASE_URL: postgres://postgres@localhost/e_test
-      run: npm run test

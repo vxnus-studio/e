@@ -2,29 +2,7 @@
   "name": "e-workspace",
   "private": true,
   "type": "module",
-  "workspaces": [
-    "packages/*"
-  ],
-  "scripts": {
-    "test": "npm run test --workspaces --if-present && ./scripts/check-deps.sh",
-    "build": "npm run build --workspaces --if-present"
-  },
-  "devDependencies": {
-    "typescript": "^5.9.3",
-    "vitest": "^4.1.11"
-  },
-  "allowScripts": {
-    "better-sqlite3@13.0.3": true,
-    "better-sqlite3@11.10.0": true
-  },
-  "dependencies": {
-    "@types/better-sqlite3": "^9.6.0",
-    "@types/node": "^26.2.0",
-    "@types/pg": "^8.23.1",
-    "@vxnus/e": "^0.2.0",
-    "@vxnus/e-postgres": "^0.2.0",
-    "@vxnus/e-sqlite": "^0.2.0",
-    "better-sqlite3": "^13.0.3",
-    "pg": "^8.23.0"
-  }
+  "workspaces": ["packages/*"],
+  "scripts": { "build": "tsc -p packages/protocol && tsc -p packages/registry && tsc -p packages/client" },
+  "devDependencies": { "typescript": "^5.9.3" }
 }
