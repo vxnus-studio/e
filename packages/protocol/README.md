@@ -12,7 +12,10 @@ It rejects unknown fields, requires a semantic pack version, uses an
 independent `MAJOR.MINOR` schema version, and returns actionable issues.
 
 The canonical JSON Schema is published at `schema/manifest.schema.json`; the
-fixtures in `fixtures/` are the conformance starting point.
+fixtures in `fixtures/` are the conformance starting point. When
+`semanticSearch` is enabled, a manifest must declare the public embedding
+profile (`model`, `dimensions`, and `provider`). This describes compatibility
+only; credentials never belong in the manifest.
 
 Retrieval uses `validateRetrievalRequest()` and
 `validateRetrievalResponse()`. Requests support lexical, semantic, and hybrid

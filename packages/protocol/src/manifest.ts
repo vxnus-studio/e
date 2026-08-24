@@ -85,6 +85,8 @@ export function validateManifest(input: unknown): KnowledgePackManifest {
     checkKeys(capabilities, keys, "$.capabilities", issues);
     for (const key of keys) if (typeof capabilities[key] !== "boolean") issues.push({ path: `$.capabilities.${key}`, message: "must be a boolean" });
     if (capabilities.relations === true && capabilities.structuredEntities !== true) issues.push({ path: "$.capabilities.relations", message: "requires structuredEntities=true" });
+    const retrieval = input.retrieval;
+    if (capabilities.semanticSearch === true && (!isRecord(retrieval) || !isRecord(retrieval.embedding))) issues.push({ path: "$.retrieval.embedding", message: "is required when semanticSearch=true" });
   }
   if (issues.length > 0) throw new ManifestValidationError(issues);
   return input as unknown as KnowledgePackManifest;

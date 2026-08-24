@@ -5,6 +5,10 @@
   "type": "object",
   "additionalProperties": false,
   "required": ["id", "name", "publisher", "version", "schemaVersion", "sources", "capabilities"],
+  "allOf": [{
+    "if": { "properties": { "capabilities": { "properties": { "semanticSearch": { "const": true } } } } },
+    "then": { "required": ["retrieval"], "properties": { "retrieval": { "required": ["embedding"] } } }
+  }],
   "properties": {
     "id": { "type": "string", "minLength": 1 },
     "name": { "type": "string", "minLength": 1 },

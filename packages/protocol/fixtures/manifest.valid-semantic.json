@@ -1,0 +1,10 @@
+{
+  "id": "semantic-knowledge",
+  "name": "Semantic Knowledge",
+  "publisher": "vxnuslabs",
+  "version": "1.0.0",
+  "schemaVersion": "1.0",
+  "sources": [{ "id": "handbook", "title": "Handbook", "license": "CC0-1.0" }],
+  "capabilities": { "lexicalSearch": true, "semanticSearch": true, "structuredEntities": false, "relations": false, "revisions": true },
+  "retrieval": { "embedding": { "model": "example-model", "dimensions": 768, "provider": "example-provider" } }
+}

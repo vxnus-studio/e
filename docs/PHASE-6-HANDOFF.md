@@ -8,6 +8,8 @@ pending
 
 - Added the publisher guide and release checklist.
 - Added the `e-knowledge-validate` pack validation CLI.
+- Added semantic-profile conformance fixtures, including rejection of enabled
+  semantic search without model metadata.
 - Confirmed the published package line remains `0.1.1`.
 
 ## Remaining production gate
