@@ -4,10 +4,10 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
-import { neon } from "@neondatabase/serverless";
 import { loadPack } from "@vxnus/e-knowledge";
 import { auth } from "@/lib/auth-server";
 import { createR2ArchiveStore } from "@/lib/r2";
+import { insertRegistryPack } from "@/lib/supabase-registry";
 import { DeleteObjectCommand, PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
 
 const run = promisify(execFile);
@@ -46,7 +46,6 @@ export async function POST(request: Request) {
     const match = pack.manifest.id.match(/^@([^/]+)\/([^/]+)$/);
     if (!match) throw new Error("Manifest id must use the @publisher/name format.");
     if (pack.manifest.id.includes("..")) throw new Error("Manifest id contains an invalid path.");
-    if (!process.env.NEON_DATABASE_URL) throw new Error("NEON_DATABASE_URL is required to publish.");
     const r2 = createR2ArchiveStore();
     const key = `${pack.manifest.id}/${pack.manifest.version}.tar.gz`;
     const accountId = process.env.R2_ACCOUNT_ID;
@@ -59,8 +58,7 @@ export async function POST(request: Request) {
     if (await r2.exists(key)) return Response.json({ message: "That package version already exists." }, { status: 409 });
     await client.send(new PutObjectCommand({ Bucket: bucket, Key: key, Body: bytes, ContentType: "application/gzip" }));
     uploadedArchive = { client, bucket, key };
-    const sql = neon(process.env.NEON_DATABASE_URL);
-    await sql`INSERT INTO registry_packs (package_id, name, publisher, version, schema_version, description, sources, capabilities, publisher_id, distribution, verified) VALUES (${pack.manifest.id}, ${pack.manifest.name}, ${pack.manifest.publisher}, ${pack.manifest.version}, ${pack.manifest.schemaVersion}, ${pack.manifest.description || null}, ${JSON.stringify(pack.manifest.sources)}::jsonb, ${JSON.stringify(pack.manifest.capabilities)}::jsonb, ${session.user.id}, ${JSON.stringify({ kind: "archive", url: r2.publicUrl(key), checksum })}::jsonb, FALSE)`;
+    await insertRegistryPack({ id: pack.manifest.id, name: pack.manifest.name, publisher: pack.manifest.publisher, version: pack.manifest.version, schemaVersion: pack.manifest.schemaVersion, description: pack.manifest.description, sources: pack.manifest.sources, capabilities: pack.manifest.capabilities, publisherId: session.user.id, verified: false, distribution: { kind: "archive", url: r2.publicUrl(key), checksum } }, session.user.id);
     return Response.json({ packageId: pack.manifest.id, version: pack.manifest.version, revision: pack.revision.id, checksum, owner: session.user.id }, { status: 201 });
   } catch (error) {
     if (uploadedArchive) {

@@ -18,9 +18,9 @@ Open <http://localhost:3000>.
 
 ## Environment
 
-Copy `.env.example` to `.env.local` when preparing the Neon and R2 adapters.
-The registry remains on its current adapter during the Supabase migration; use
-`static` for offline development. Auth pages are custom Hub pages backed by
+Copy `.env.example` to `.env.local` when preparing the Supabase and R2 adapters.
+The registry uses Supabase when configured and falls back to the built-in
+catalog for offline development. Auth pages are custom Hub pages backed by
 Supabase Auth at `/auth/sign-in` and `/auth/sign-up`.
 The publisher workspace control plane uses `SUPABASE_URL` (the same value as
 `NEXT_PUBLIC_SUPABASE_URL`) and `SUPABASE_SERVICE_ROLE_KEY` server-side. Apply
@@ -36,6 +36,5 @@ project creation. The service key must never use a `NEXT_PUBLIC_*` name.
 - Local installation guidance for Siduri
 - Publisher entry point
 
-The registry uses Neon when `HUB_REGISTRY_MODE=neon`; use `static` for local
-offline development. R2 serves immutable pack artifacts through
+R2 serves immutable pack artifacts through
 `knowledge.e.vxnus.xyz`.

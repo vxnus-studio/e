@@ -1,5 +1,5 @@
 import type { KnowledgeRegistry, RegistryPack, RegistrySearchRequest, RegistrySearchResponse } from "@vxnus/e-registry";
-import { createNeonRegistry } from "./neon-registry";
+import { createSupabaseRegistry, isSupabaseRegistryConfigured } from "./supabase-registry";
 
 const packs: RegistryPack[] = [
   {
@@ -44,19 +44,18 @@ export const staticRegistry: KnowledgeRegistry = {
 
 export { packs };
 
-// Neon is authoritative for published rows, while the built-in catalog keeps
-// the first-party provider discoverable during staged deployment or before its
-// registry seed has been applied. A database row always wins.
-const neonRegistry = process.env.HUB_REGISTRY_MODE === "neon" ? createNeonRegistry() : undefined;
-export const registry: KnowledgeRegistry = neonRegistry ? {
+// Supabase is authoritative when configured, while the built-in catalog keeps
+// the first-party provider discoverable before its registry seed is applied.
+const remoteRegistry = isSupabaseRegistryConfigured() ? createSupabaseRegistry() : undefined;
+export const registry: KnowledgeRegistry = remoteRegistry ? {
   async search(request) {
-    const result = await neonRegistry.search(request);
+    const result = await remoteRegistry.search(request);
     const staticResult = await staticRegistry.search(request);
     const visible = new Map(result.packs.map((pack) => [pack.id, pack]));
     for (const pack of staticResult.packs) if (!visible.has(pack.id)) visible.set(pack.id, pack);
     return { packs: [...visible.values()].slice(0, Math.min(Math.max(request.limit ?? 20, 1), 100)) };
   },
   async get(packId, version) {
-    return await neonRegistry.get(packId, version) ?? staticRegistry.get(packId, version);
+    return await remoteRegistry.get(packId, version) ?? staticRegistry.get(packId, version);
   },
 } : staticRegistry;
