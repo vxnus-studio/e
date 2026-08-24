@@ -9,7 +9,7 @@ protocol to hosting infrastructure.
 | `@vxnus/e` (`packages/protocol`) | Pack manifests, content, revisions, capabilities, retrieval | HTTP, database, auth, Siduri lifecycle |
 | `@vxnus/e-registry` | Registry entries, discovery, distribution metadata, verification state | Web framework, persistence, credentials |
 | `@vxnus/e-knowledge` | Local and remote knowledge consumption; currently filesystem loading, validation, hashing, retrieval | Hub hosting, Siduri lifecycle |
-| `apps/hub` | Hosted npm-like Knowledge Hub: landing page, registry API, pack distribution | Siduri runtime, companion memory |
+| `apps/web` | Hosted npm-like Knowledge Hub: landing page, registry API, pack distribution | Siduri runtime, companion memory |
 
 The Hub application provides the concrete API, persistence, publisher
 workflows, landing page, and deployment. Siduri and CLI tools call the hosted
@@ -22,7 +22,7 @@ Hub directly and do not import the Hub application.
    ↑
 @vxnus/e-registry
    ↑
-apps/hub
+apps/web
 ```
 
 The Hub application depends on the protocol and registry packages. Packages

@@ -11,5 +11,8 @@ assert.equal(response.results[0].revision, "r1");
 assert.deepEqual(response.results[0].citations[0], { sourceId: "handbook", documentId: "intro", chunkId: "intro-1" });
 await assertConformantProvider(pack.provider);
 assert.throws(() => validateRetrievalResponse({ results: [{ id: "x", content: "uncited", revision: "r1", citations: [] }], revision: "r1" }, pack.manifest), RetrievalValidationError);
+const basics = await loadPack(new URL("../packages/knowledge/fixtures/siduri-basics", import.meta.url).pathname);
+const basicsResult = await basics.provider.retrieve({ query: "persistent companion" });
+assert.equal(basicsResult.results[0].citations[0].sourceId, "siduri-handbook");
 await assert.rejects(() => loadPack(new URL("../packages/knowledge/fixtures/sample-invalid", import.meta.url).pathname));
 console.log("Pack fixtures passed.");

@@ -10,11 +10,11 @@ The workspace is intentionally split by responsibility:
 ```text
 packages/protocol  @vxnus/e          pack and retrieval contract
 packages/registry  @vxnus/e-registry Knowledge Hub registry domain contract
-apps/hub           hosted Knowledge Hub, registry API, landing page, delivery
+apps/web           hosted Knowledge Hub, registry API, landing page, delivery
 ```
 
 The Hub application, persistence adapter, authentication, and deployment
-configuration live under `apps/hub`. It depends on the contract packages;
+configuration live under `apps/web`. It depends on the contract packages;
 hosting concerns must not move into protocol code.
 
 ## Outcome
@@ -93,6 +93,7 @@ Implemented in `packages/knowledge`:
   relation, and revision references.
 - Revision hashes use deterministic SHA-256 over sorted content records.
 - The sample pack provides a local lexical provider with citations.
+- `fixtures/siduri-basics/` provides the first Siduri integration fixture.
 
 Acceptance:
 
@@ -153,7 +154,7 @@ Owner: Siduri Knowledge Hub, with E conformance support.
 
 Deliverables:
 
-- Build the npm-like Hub landing page and registry API in `apps/hub`.
+- Build the npm-like Hub landing page and registry API in `apps/web`.
 - Define pack discovery and publisher metadata for the Hub.
 - Serve archives and remote E provider metadata using the same contract.
 - Add authentication, trust, timeout, size, and rate-limit policy outside E.
@@ -196,4 +197,4 @@ Acceptance:
 - [ ] Contract changes are represented in types, fixtures, and docs.
 - [ ] Acceptance checks pass before moving phases.
 - [ ] Publisher content remains separate from E protocol code.
-- [ ] Siduri-specific runtime behavior remains outside `apps/hub` and this repo.
+- [ ] Siduri-specific runtime behavior remains outside `apps/web` and this repo.

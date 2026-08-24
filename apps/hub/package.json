@@ -1,7 +1,0 @@
-{
-  "name": "@vxnus/e-hub",
-  "private": true,
-  "type": "module",
-  "description": "Hosted E Knowledge Hub application",
-  "dependencies": { "@vxnus/e": "*", "@vxnus/e-registry": "*" }
-}
