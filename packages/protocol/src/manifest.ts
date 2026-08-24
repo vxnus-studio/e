@@ -42,7 +42,7 @@ function validateSource(value: unknown, index: number, issues: ManifestValidatio
 export function validateManifest(input: unknown): KnowledgePackManifest {
   const issues: ManifestValidationIssue[] = [];
   if (!isRecord(input)) throw new ManifestValidationError([{ path: "$", message: "must be an object" }]);
-  checkKeys(input, ["id", "name", "publisher", "version", "schemaVersion", "description", "sources", "capabilities"], "$", issues);
+  checkKeys(input, ["id", "name", "publisher", "version", "schemaVersion", "description", "sources", "capabilities", "retrieval"], "$", issues);
   for (const key of ["id", "name", "publisher", "version", "schemaVersion", "sources", "capabilities"]) {
     if (input[key] === undefined) issues.push({ path: `$.${key}`, message: "is required" });
   }
@@ -50,6 +50,21 @@ export function validateManifest(input: unknown): KnowledgePackManifest {
   if (typeof input.version === "string" && !SEMVER.test(input.version)) issues.push({ path: "$.version", message: "must be a valid semantic version" });
   if (typeof input.schemaVersion === "string" && !SCHEMA_VERSION.test(input.schemaVersion)) issues.push({ path: "$.schemaVersion", message: "must use MAJOR.MINOR format" });
   if (input.description !== undefined && typeof input.description !== "string") issues.push({ path: "$.description", message: "must be a string" });
+  if (input.retrieval !== undefined) {
+    if (!isRecord(input.retrieval)) issues.push({ path: "$.retrieval", message: "must be an object" });
+    else {
+      checkKeys(input.retrieval, ["embedding"], "$.retrieval", issues);
+      const embedding = input.retrieval.embedding;
+      if (embedding !== undefined) {
+        if (!isRecord(embedding)) issues.push({ path: "$.retrieval.embedding", message: "must be an object" });
+        else {
+          checkKeys(embedding, ["model", "dimensions", "provider"], "$.retrieval.embedding", issues);
+          for (const key of ["model", "provider"]) requiredString(embedding, key, "$.retrieval.embedding", issues);
+          if (!Number.isInteger(embedding.dimensions) || (embedding.dimensions as number) < 1) issues.push({ path: "$.retrieval.embedding.dimensions", message: "must be a positive integer" });
+        }
+      }
+    }
+  }
 
   if (!Array.isArray(input.sources)) issues.push({ path: "$.sources", message: "must be an array" });
   else {

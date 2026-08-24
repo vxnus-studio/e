@@ -10,7 +10,10 @@ export interface PackEntity { id: string; kind: string; name: string; aliases?: 
 export interface PackRelation { id: string; subjectId: string; predicate: string; objectId: string; metadata?: JsonObject; }
 export interface PackRevision { id: string; createdAt: string; parentId?: string; contentHash?: string; }
 export interface PackCapabilities { lexicalSearch: boolean; semanticSearch: boolean; structuredEntities: boolean; relations: boolean; revisions: boolean; }
-export interface KnowledgePackManifest extends PackIdentity { description?: string; sources: PackSource[]; capabilities: PackCapabilities; }
+/** Public retrieval metadata only; credentials and provider secrets never belong here. */
+export interface EmbeddingProfile { model: string; dimensions: number; provider: string; }
+export interface RetrievalProfile { embedding?: EmbeddingProfile; }
+export interface KnowledgePackManifest extends PackIdentity { description?: string; sources: PackSource[]; capabilities: PackCapabilities; retrieval?: RetrievalProfile; }
 export interface RetrievalRequest { query: string; mode?: "lexical" | "semantic" | "hybrid"; limit?: number; revision?: string; filters?: JsonObject; }
 export interface RetrievalCitation { sourceId: string; documentId?: string; chunkId?: string; locator?: string; }
 export interface RetrievalResult { id: string; content: string; citations: RetrievalCitation[]; revision: string; score?: number; metadata?: JsonObject; }
