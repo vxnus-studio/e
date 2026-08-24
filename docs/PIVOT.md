@@ -33,6 +33,52 @@ Siduri runtime and Brain
 Siduri owns installation, lifecycle, permissions, local storage, and organ
 composition. E defines the compatibility boundary for factual knowledge.
 
+## Siduri CLI example
+
+An E-compatible pack should make knowledge setup part of normal companion
+creation rather than a bespoke integration project:
+
+```text
+$ npx @vxnus/siduri create
+
+Companion name? Siduri
+
+[Knowledge]
+Search the Knowledge Hub or enter a pack ID:
+  09AXHFS  e-teyvat
+           Genshin Impact database
+
+Install this knowledge base? yes
+Where should it run? local
+Database type? PostgreSQL
+
+[Vision]
+Provider? Multimodal
+
+[Voice]
+Provider? VoiceVOX
+
+[Brain]
+Provider? ChatGPT
+Model? gpt-5.6-luna
+
+Creating Siduri...
+Installing e-teyvat revision 5a805b7a...
+Knowledge ready: 8,696 entities, 14,244 relations
+Siduri is ready.
+```
+
+The same pack may instead be configured as a remote provider:
+
+```text
+Install locally? no
+Remote knowledge URL? https://knowledge.example.com/e-teyvat
+```
+
+In both cases Siduri consumes the same E contract. The publisher does not
+need to use PostgreSQL or change its internal storage; it only provides an
+E-compatible export or provider endpoint.
+
 ## What E standardizes
 
 The minimum contract should cover:
@@ -97,4 +143,3 @@ center of E.
 
 > Publish knowledge once. Install it into any Siduri instance. Keep the
 > publisher's internal storage independent.
-
