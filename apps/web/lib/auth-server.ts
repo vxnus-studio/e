@@ -1,9 +1,16 @@
 import { createNeonAuth } from "@neondatabase/auth/next/server";
 
+const baseUrl = process.env.NEON_AUTH_BASE_URL;
+const cookieSecret = process.env.NEON_AUTH_COOKIE_SECRET;
+
+if (!baseUrl || !cookieSecret) {
+  throw new Error("NEON_AUTH_BASE_URL and NEON_AUTH_COOKIE_SECRET are required");
+}
+
 export const auth = createNeonAuth({
-  baseUrl: process.env.NEON_AUTH_BASE_URL || "http://localhost:3000",
+  baseUrl,
   cookies: {
-    secret: process.env.NEON_AUTH_COOKIE_SECRET || "development-only-change-me-please",
+    secret: cookieSecret,
     domain: process.env.NEON_AUTH_COOKIE_DOMAIN || undefined,
   },
 });

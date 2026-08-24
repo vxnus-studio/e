@@ -206,10 +206,20 @@ Auth phase: Neon Auth is wired through `@neondatabase/auth` and
 `/auth/sign-up` and `/auth/sign-in`; the auth proxy is mounted at
 `/api/auth/[...path]`, and the landing navigation exposes both entry points.
 Required server configuration is `NEON_AUTH_BASE_URL` and a random
-`NEON_AUTH_COOKIE_SECRET` (32+ characters). The current local env has not
-populated those two keys yet. Publisher/account ownership must be attached to
-upload records in the next upload phase; public catalog reads remain
-unauthenticated.
+`NEON_AUTH_COOKIE_SECRET` (32+ characters); both are present in the current
+local `.env.local`. Publisher/account ownership must be attached to upload
+records in the next upload phase; public catalog reads remain unauthenticated.
+- The auth pages now use a Hub-themed split layout with responsive mobile
+  behavior while retaining Neon Auth UI form behavior and validation.
+- The first publisher slice is available at `/publish` and `/api/publish`.
+  It requires the Neon Auth server session, accepts a `.tar.gz`/`.tgz` archive,
+  rejects unsafe archive paths, validates the extracted pack with
+  `@vxnus/e-knowledge`, fingerprints the immutable archive, uploads it to R2,
+  and records the authenticated Neon user ID as `publisher_id` in the registry.
+- The existing registry schema already includes `publisher_id`; no ownership
+  migration was needed for this first flow. Runtime verification with deployed
+  Neon Auth, R2, and Neon credentials remains before marking the upload phase
+  complete.
 - Add authentication, trust, timeout, size, and rate-limit policy outside E.
 - Add install/update verification and publisher revision visibility.
 
