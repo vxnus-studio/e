@@ -1,6 +1,6 @@
 {
   "name": "@vxnus/e",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Portable knowledge-pack and provider contract for Siduri",
   "type": "module",
   "license": "SEE LICENSE IN LICENSE",

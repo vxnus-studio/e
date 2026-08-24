@@ -1,8 +1,8 @@
 # Phase 6 handoff — publisher adoption and E release
 
 **Phase:** 6 — publisher adoption and release
-**Status:** local tooling and documentation complete; production verification
-pending
+**Status:** local tooling complete; patch release prepared; production
+verification pending
 
 ## Delivered
 
@@ -10,7 +10,9 @@ pending
 - Added the `e-knowledge-validate` pack validation CLI.
 - Added semantic-profile conformance fixtures, including rejection of enabled
   semantic search without model metadata.
-- Confirmed the published package line remains `0.1.1`.
+- Confirmed npm currently serves `0.1.1` as the previous release.
+- Prepared patch release `0.1.2` for the changed protocol and knowledge
+  packages.
 
 ## Remaining production gate
 
