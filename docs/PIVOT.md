@@ -29,6 +29,7 @@ Siduri Knowledge Hub
 Siduri runtime and Brain
 ```
 
+The Hub owns discovery, publisher metadata, and pack/provider distribution.
 Siduri owns installation, lifecycle, permissions, local storage, and organ
 composition. E defines the compatibility boundary for factual knowledge.
 
@@ -113,17 +114,20 @@ Knowledge: published, versioned, cited external facts
 Memory:    personal, mutable, scoped companion state
 ```
 
-## Siduri relationship
+## Hub and Siduri relationship
 
-Siduri's `KnowledgeOrgan` is the local runtime interface. An E-compatible
-provider or installed pack is adapted into that interface. Siduri may also
+The Knowledge Hub is the public registry and distribution layer. Siduri
+discovers packs there, then downloads or connects to them. Siduri's
+`KnowledgeOrgan` is the local runtime interface. An E-compatible provider or
+installed pack is adapted into that interface. Siduri may also
 support non-E integrations in the future, but E is the guaranteed contract for
 knowledge installed through the official Knowledge Hub.
 
 ```text
 E protocol      = portable knowledge compatibility
+Knowledge Hub   = hosted discovery, registry, and distribution
 KnowledgeOrgan  = Siduri runtime dependency injection
-Knowledge Hub   = install, update, scope, and lifecycle management
+Siduri          = install, update, scope, and lifecycle management
 ```
 
 ## Implementation status

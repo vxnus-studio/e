@@ -1,18 +1,18 @@
 # E Monorepo Architecture
 
-E is the contract layer for a hosted Knowledge Hub/Registry and its clients.
-The monorepo keeps shared protocol types close to the implementations that
-consume them without coupling the protocol to hosting infrastructure.
+E is the contract layer for a hosted Knowledge Hub/Registry. The monorepo
+keeps shared protocol types close to the hosted Hub without coupling the
+protocol to hosting infrastructure.
 
 | Package | Responsibility | Must not own |
 | --- | --- | --- |
 | `@vxnus/e` (`packages/protocol`) | Pack manifests, content, revisions, capabilities, retrieval | HTTP, database, auth, Siduri lifecycle |
 | `@vxnus/e-registry` | Registry entries, discovery, distribution metadata, verification state | Web framework, persistence, credentials |
-| `@vxnus/e-client` | Transport-neutral registry and provider client wrappers | Retry policy, auth, local storage, UI |
+| `apps/hub` | Hosted npm-like Knowledge Hub: landing page, registry API, pack distribution | Siduri runtime, companion memory |
 
-The future Hub application should provide the concrete API, persistence,
-publisher workflows, and deployment. A client should be usable by Siduri,
-CLI tools, and other consumers without importing the Hub application.
+The Hub application provides the concrete API, persistence, publisher
+workflows, landing page, and deployment. Siduri and CLI tools call the hosted
+Hub directly and do not import the Hub application.
 
 ## Dependency direction
 
@@ -21,11 +21,11 @@ CLI tools, and other consumers without importing the Hub application.
    ↑
 @vxnus/e-registry
    ↑
-@vxnus/e-client
+apps/hub
 ```
 
-Applications may depend on any package. Packages must not depend on an
-application, a database driver, or a specific transport.
+The Hub application depends on the protocol and registry packages. Packages
+must not depend on the Hub, a database driver, or a specific transport.
 
 ## Hosting boundary
 
@@ -39,5 +39,19 @@ will eventually implement:
 - search, pagination, and health policy;
 - authentication, rate limits, moderation, and audit logs.
 
-Those concerns remain replaceable and are intentionally absent from this
-initial monorepo layer.
+Those concerns remain replaceable and are intentionally isolated in the Hub
+application rather than added to the protocol packages.
+
+## Installation flow
+
+Siduri is the installer and runtime consumer:
+
+```text
+publisher → Hub registry → Siduri discovers pack
+                         → Siduri downloads/connects to pack
+                         → Siduri installs and manages KnowledgeOrgan
+```
+
+The Hub never owns companion installation state or memory. It advertises and
+serves knowledge; Siduri decides what to install, where it runs, and how it is
+scoped to a companion.

@@ -10,12 +10,12 @@ The workspace is intentionally split by responsibility:
 ```text
 packages/protocol  @vxnus/e          pack and retrieval contract
 packages/registry  @vxnus/e-registry Knowledge Hub registry domain contract
-packages/client    @vxnus/e-client   registry/provider client wrappers
+apps/hub           hosted Knowledge Hub, registry API, landing page, delivery
 ```
 
-The future hosted Hub application, persistence adapter, authentication, and
-deployment configuration should live in a separate application package. They
-must depend on these contracts rather than move hosting concerns into core.
+The Hub application, persistence adapter, authentication, and deployment
+configuration live under `apps/hub`. It depends on the contract packages;
+hosting concerns must not move into protocol code.
 
 ## Outcome
 
@@ -31,15 +31,14 @@ Status: complete.
 Deliverables:
 
 - Remove the generic database engines and their compatibility surface.
-- Keep `@vxnus/e` as the protocol package and establish registry/client package
-  boundaries for the future Knowledge Hub.
+- Keep `@vxnus/e` as the protocol package, `@vxnus/e-registry` as the registry
+  domain package, and establish `apps/hub` as the hosted product boundary.
 - Record the E/Siduri/publisher boundary in [PIVOT.md](./PIVOT.md).
 
 Acceptance:
 
 - The repository has no backend adapter, generic query engine, or legacy API.
-- Registry and client code depend on contracts, not on a chosen web framework
-  or database.
+- The Hub depends on contracts, not the other way around.
 - `npm run build` succeeds.
 
 ## Phase 1 — Pack manifest and validation
@@ -120,20 +119,22 @@ Acceptance:
 
 E should only change here when the interoperability contract is incomplete.
 
-## Phase 5 — Knowledge Hub and remote providers
+## Phase 5 — Hosted Knowledge Hub and remote providers
 
 Owner: Siduri Knowledge Hub, with E conformance support.
 
 Deliverables:
 
+- Build the npm-like Hub landing page and registry API in `apps/hub`.
 - Define pack discovery and publisher metadata for the Hub.
-- Support remote E providers using the same manifest and retrieval contract.
+- Serve archives and remote E provider metadata using the same contract.
 - Add authentication, trust, timeout, size, and rate-limit policy outside E.
 - Add install/update verification and publisher revision visibility.
 
 Acceptance:
 
-- The same pack works locally and remotely without a custom Siduri adapter.
+- Siduri can discover a pack, install it locally, or connect to its remote
+  provider without a custom integration.
 - Remote failures are isolated and clearly reported.
 - Hub policy cannot weaken E validation or citation requirements.
 
@@ -167,4 +168,4 @@ Acceptance:
 - [ ] Contract changes are represented in types, fixtures, and docs.
 - [ ] Acceptance checks pass before moving phases.
 - [ ] Publisher content remains separate from E protocol code.
-- [ ] Siduri-specific behavior remains outside this repository.
+- [ ] Siduri-specific runtime behavior remains outside `apps/hub` and this repo.

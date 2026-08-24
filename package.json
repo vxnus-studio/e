@@ -3,6 +3,6 @@
   "private": true,
   "type": "module",
   "workspaces": ["packages/*"],
-  "scripts": { "build": "tsc -p packages/protocol && tsc -p packages/registry && tsc -p packages/client" },
+  "scripts": { "build": "tsc -p packages/protocol && tsc -p packages/registry" },
   "devDependencies": { "typescript": "^5.9.3" }
 }

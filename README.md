@@ -22,7 +22,8 @@ installation, lifecycle, permissions, and runtime integration.
 The monorepo also contains:
 
 - `@vxnus/e-registry`: Knowledge Hub discovery and distribution contracts.
-- `@vxnus/e-client`: transport-neutral registry and provider clients.
+- `apps/hub`: the hosted Knowledge Hub product, landing page, registry, and
+  pack distribution surface.
 
 ```bash
 npm install @vxnus/e
