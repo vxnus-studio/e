@@ -86,7 +86,7 @@ Deliverables:
 - Include one tiny sample pack suitable for tests and documentation.
 - Define deterministic revision and content-hash behavior.
 
-Implemented in `packages/pack`:
+Implemented in `packages/knowledge`:
 
 - `loadPack(directory)` loads the documented filesystem layout.
 - Records are checked for unique IDs and valid source/document/chunk/entity,

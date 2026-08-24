@@ -1,4 +1,4 @@
-# @vxnus/e-pack
+# @vxnus/e-knowledge
 
 Filesystem knowledge packs for E. A pack is portable, self-contained, and
 validated before it is exposed as a `KnowledgeProvider`.
