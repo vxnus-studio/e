@@ -51,7 +51,10 @@ const neonRegistry = process.env.HUB_REGISTRY_MODE === "neon" ? createNeonRegist
 export const registry: KnowledgeRegistry = neonRegistry ? {
   async search(request) {
     const result = await neonRegistry.search(request);
-    return result.packs.length ? result : staticRegistry.search(request);
+    const staticResult = await staticRegistry.search(request);
+    const visible = new Map(result.packs.map((pack) => [pack.id, pack]));
+    for (const pack of staticResult.packs) if (!visible.has(pack.id)) visible.set(pack.id, pack);
+    return { packs: [...visible.values()].slice(0, Math.min(Math.max(request.limit ?? 20, 1), 100)) };
   },
   async get(packId, version) {
     return await neonRegistry.get(packId, version) ?? staticRegistry.get(packId, version);

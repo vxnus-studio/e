@@ -1,7 +1,7 @@
 # Phase 5 handoff — hosted provider promotion
 
 **Phase:** 5 — production deployment and cross-boundary verification
-**Status:** blocked on external deployment configuration
+**Status:** Hub deployed; Teyvat deployment configuration pending
 **Prerequisite:** deployment owners provide hosting access and server-side
 `DATABASE_URL` configuration for E-Teyvat and E Hub.
 
@@ -23,6 +23,7 @@ can retrieve cited, revisioned knowledge through the public URLs.
 ## Completion gate
 
 - Hub lookup returns the provider distribution;
+- Hub catalog search includes the first-party provider;
 - first-party provider discovery does not depend on a separate registry seed;
 - Teyvat manifest returns 200 and validates with E;
 - lexical retrieval returns cited results and one revision;
