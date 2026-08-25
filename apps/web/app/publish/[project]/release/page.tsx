@@ -5,6 +5,7 @@ import { getPublisherProfile, isControlPlaneConfigured, listProjectReleases, lis
 import { projectSlug } from "@/lib/project-slug";
 import { DashboardShell } from "../../dashboard-shell";
 import { PublishForm } from "../../publish-form";
+import { ProjectSettings } from "../../project-settings";
 import { UsernameSetup } from "../../username-setup";
 import "../../workspace.css";
 import "../../dashboard.css";
@@ -29,6 +30,7 @@ export default async function ProjectReleasePage({ params }: { params: Promise<{
     <section className="dashboard-section"><div className="section-bar"><div><span className="dashboard-kicker">Project release history</span><h2>Versions</h2></div><span className="section-count">{releases.length} total</span></div>
       {releases.length ? <div className="release-table-wrap"><table className="release-table"><thead><tr><th>Package</th><th>Version</th><th>Status</th><th>Published</th><th>Checksum</th></tr></thead><tbody>{releases.map((release) => <tr key={release.id}><td><strong>{release.packageId}</strong></td><td><code>v{release.version}</code></td><td><span className="table-status"><i />{release.distributionStatus || release.status}</span></td><td>{release.createdAt.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}</td><td><code>{release.checksum ? `${release.checksum.slice(0, 10)}…` : "—"}</code></td></tr>)}</tbody></table></div> : <div className="dashboard-empty compact"><span className="empty-mark">↗</span><div><h3>No releases yet</h3><p>Publish the first version of this project below.</p></div></div>}
     </section>
+    <ProjectSettings project={project} releaseCount={releases.length} />
     <section className="dashboard-upload"><div><span className="dashboard-kicker">New release</span><h2>Ship another version.</h2><p>Upload a portable E pack or connect a remote provider for this project.</p></div><PublishForm projectId={project.id} /></section>
   </DashboardShell>;
 }
