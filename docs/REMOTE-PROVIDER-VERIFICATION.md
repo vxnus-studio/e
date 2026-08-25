@@ -36,8 +36,8 @@ The provider returns its canonical public identity:
 
 ```json
 {
-  "id": "@vxnus/teyvat",
-  "publisher": "vxnuslabs"
+  "id": "@vxnus/e-teyvat",
+  "publisher": "vxnus"
 }
 ```
 
@@ -70,9 +70,9 @@ Hub keeps the public URL, verification timestamp, and provider identity.
 ## E-Teyvat
 
 ```text
-Provider URL: https://eteyvat.vxnus.xyz/api/knowledge
-Package ID:   @vxnus/teyvat
-Publisher:    vxnuslabs
+Provider URL: https://eteyvat.vxnus.xyz/api/e
+Package ID:   @vxnus/e-teyvat
+Publisher:    vxnus
 ```
 
 E-Teyvat remains publicly readable. Its verification key is used only by the
