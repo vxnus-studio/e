@@ -26,23 +26,23 @@ function validateSource(value: unknown, index: number, issues: ManifestValidatio
     issues.push({ path, message: "must be an object" });
     return false;
   }
-  checkKeys(value, ["id", "title", "license", "uri", "publishedAt"], path, issues);
+  checkKeys(value, ["id", "title", "license", "licenseDescription", "licenseUrl", "uri", "publishedAt"], path, issues);
   requiredString(value, "id", path, issues);
   requiredString(value, "title", path, issues);
   requiredString(value, "license", path, issues);
-  for (const key of ["uri", "publishedAt"]) {
+  for (const key of ["licenseDescription", "licenseUrl", "uri", "publishedAt"]) {
     if (value[key] !== undefined && (typeof value[key] !== "string" || value[key].trim() === "")) {
       issues.push({ path: `${path}.${key}`, message: "must be a non-empty string when provided" });
     }
   }
-  if (typeof value.uri === "string" && !URI.test(value.uri)) issues.push({ path: `${path}.uri`, message: "must be an absolute URI" });
+  for (const key of ["licenseUrl", "uri"]) if (typeof value[key] === "string" && !URI.test(value[key] as string)) issues.push({ path: `${path}.${key}`, message: "must be an absolute URI" });
   return true;
 }
 
 export function validateManifest(input: unknown): KnowledgePackManifest {
   const issues: ManifestValidationIssue[] = [];
   if (!isRecord(input)) throw new ManifestValidationError([{ path: "$", message: "must be an object" }]);
-  checkKeys(input, ["id", "name", "publisher", "version", "schemaVersion", "description", "sources", "capabilities", "retrieval"], "$", issues);
+  checkKeys(input, ["id", "name", "publisher", "version", "schemaVersion", "description", "license", "sources", "capabilities", "retrieval"], "$", issues);
   for (const key of ["id", "name", "publisher", "version", "schemaVersion", "sources", "capabilities"]) {
     if (input[key] === undefined) issues.push({ path: `$.${key}`, message: "is required" });
   }
@@ -50,6 +50,17 @@ export function validateManifest(input: unknown): KnowledgePackManifest {
   if (typeof input.version === "string" && !SEMVER.test(input.version)) issues.push({ path: "$.version", message: "must be a valid semantic version" });
   if (typeof input.schemaVersion === "string" && !SCHEMA_VERSION.test(input.schemaVersion)) issues.push({ path: "$.schemaVersion", message: "must use MAJOR.MINOR format" });
   if (input.description !== undefined && typeof input.description !== "string") issues.push({ path: "$.description", message: "must be a string" });
+  if (input.license !== undefined) {
+    if (!isRecord(input.license)) issues.push({ path: "$.license", message: "must be an object" });
+    else {
+      checkKeys(input.license, ["license", "licenseName", "licenseUrl", "rightsHolder", "copyrightNotice", "attributionText", "notice"], "$.license", issues);
+      requiredString(input.license, "license", "$.license", issues);
+      requiredString(input.license, "licenseName", "$.license", issues);
+      requiredString(input.license, "licenseUrl", "$.license", issues);
+      if (typeof input.license.licenseUrl === "string" && !URI.test(input.license.licenseUrl)) issues.push({ path: "$.license.licenseUrl", message: "must be an absolute URI" });
+      for (const key of ["rightsHolder", "copyrightNotice", "attributionText", "notice"]) if (input.license[key] !== undefined && (typeof input.license[key] !== "string" || input.license[key].trim() === "")) issues.push({ path: `$.license.${key}`, message: "must be a non-empty string when provided" });
+    }
+  }
   if (input.retrieval !== undefined) {
     if (!isRecord(input.retrieval)) issues.push({ path: "$.retrieval", message: "must be an object" });
     else {

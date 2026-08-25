@@ -95,7 +95,7 @@ export async function POST(request: Request) {
     if (await r2.exists(key)) return Response.json({ message: "That package version already exists." }, { status: 409 });
     await client.send(new PutObjectCommand({ Bucket: bucket, Key: key, Body: bytes, ContentType: "application/gzip" }));
     uploadedArchive = { client, bucket, key };
-    await publishPack({ projectId, ownerId: session.user.id, revisionId: pack.revision.id, revisionManifest: pack.manifest, pack: { id: pack.manifest.id, name: pack.manifest.name, publisher: pack.manifest.publisher, version: pack.manifest.version, schemaVersion: pack.manifest.schemaVersion, description: pack.manifest.description, sources: pack.manifest.sources, capabilities: pack.manifest.capabilities, publisherId: session.user.id, verified: false, distribution: { kind: "archive", url: r2.publicUrl(key), checksum } } });
+    await publishPack({ projectId, ownerId: session.user.id, revisionId: pack.revision.id, revisionManifest: pack.manifest, pack: { id: pack.manifest.id, name: pack.manifest.name, publisher: pack.manifest.publisher, version: pack.manifest.version, schemaVersion: pack.manifest.schemaVersion, description: pack.manifest.description, license: pack.manifest.license, sources: pack.manifest.sources, capabilities: pack.manifest.capabilities, publisherId: session.user.id, verified: false, distribution: { kind: "archive", url: r2.publicUrl(key), checksum } } });
     return Response.json({ packageId: pack.manifest.id, version: pack.manifest.version, revision: pack.revision.id, checksum, owner: session.user.id }, { status: 201 });
   } catch (error) {
     if (uploadedArchive) {

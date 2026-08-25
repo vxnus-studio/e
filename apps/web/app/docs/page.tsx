@@ -4,7 +4,7 @@ import "./docs.css";
 export const metadata = { title: "Documentation · E Knowledge Hub", description: "Technical documentation for publishing and consuming E knowledge." };
 
 const manifestExample = [
-  "{", '  "id": "@acme/teyvat",', '  "publisher": "acme",', '  "version": "1.0.0",', '  "schemaVersion": "1.0",', '  "sources": [...],', '  "capabilities": {', '    "lexicalSearch": true,', '    "semanticSearch": false,', '    "structuredEntities": true,', '    "relations": true,', '    "revisions": true', "  }", "}"
+  "{", '  "id": "@acme/teyvat",', '  "publisher": "acme",', '  "version": "1.0.0",', '  "schemaVersion": "1.0",', '  "license": { "license": "CC-BY-4.0", "licenseName": "Creative Commons Attribution 4.0 International", "licenseUrl": "https://creativecommons.org/licenses/by/4.0/" },', '  "sources": [...],', '  "capabilities": {', '    "lexicalSearch": true,', '    "semanticSearch": false,', '    "structuredEntities": true,', '    "relations": true,', '    "revisions": true', "  }", "}"
 ].join("\n");
 
 export default function DocsPage() {

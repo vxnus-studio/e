@@ -1,6 +1,6 @@
 {
   "name": "@vxnus/e-registry",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Knowledge Hub registry domain contract for E packs",
   "type": "module",
   "license": "Apache-2.0",
@@ -10,6 +10,6 @@
   "exports": { ".": { "types": "./dist/index.d.ts", "import": "./dist/index.js", "default": "./dist/index.js" } },
   "files": ["dist", "README.md", "LICENSE"],
   "scripts": { "build": "tsc", "prepack": "npm run build" },
-  "dependencies": { "@vxnus/e": ">=0.1.1" },
+  "dependencies": { "@vxnus/e": ">=0.1.3" },
   "devDependencies": { "@vxnus/e": "*", "typescript": "^5.9.3" }
 }

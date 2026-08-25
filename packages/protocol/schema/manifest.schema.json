@@ -16,6 +16,7 @@
     "version": { "type": "string", "pattern": "^(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.(0|[1-9]\\d*)(?:-[0-9A-Za-z-]+(?:\\.[0-9A-Za-z-]+)*)?(?:\\+[0-9A-Za-z-]+(?:\\.[0-9A-Za-z-]+)*)?$" },
     "schemaVersion": { "type": "string", "pattern": "^(0|[1-9]\\d*)\\.(0|[1-9]\\d*)$" },
     "description": { "type": "string" },
+    "license": { "$ref": "#/$defs/license" },
     "sources": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/source" }, "uniqueItems": true },
     "capabilities": { "$ref": "#/$defs/capabilities" },
     "retrieval": { "$ref": "#/$defs/retrieval" }
@@ -28,8 +29,23 @@
         "id": { "type": "string", "minLength": 1 },
         "title": { "type": "string", "minLength": 1 },
         "license": { "type": "string", "minLength": 1 },
+        "licenseDescription": { "type": "string", "minLength": 1 },
+        "licenseUrl": { "type": "string", "format": "uri" },
         "uri": { "type": "string", "format": "uri" },
         "publishedAt": { "type": "string", "minLength": 1 }
+      }
+    },
+    "license": {
+      "type": "object", "additionalProperties": false,
+      "required": ["license", "licenseName", "licenseUrl"],
+      "properties": {
+        "license": { "type": "string", "minLength": 1 },
+        "licenseName": { "type": "string", "minLength": 1 },
+        "licenseUrl": { "type": "string", "format": "uri" },
+        "rightsHolder": { "type": "string", "minLength": 1 },
+        "copyrightNotice": { "type": "string", "minLength": 1 },
+        "attributionText": { "type": "string", "minLength": 1 },
+        "notice": { "type": "string", "minLength": 1 }
       }
     },
     "retrieval": {

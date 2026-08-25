@@ -5,6 +5,15 @@
   "version": "1.2.0",
   "schemaVersion": "1.0",
   "description": "A cited knowledge pack for Teyvat.",
+  "license": {
+    "license": "CC-BY-4.0",
+    "licenseName": "Creative Commons Attribution 4.0 International",
+    "licenseUrl": "https://creativecommons.org/licenses/by/4.0/",
+    "rightsHolder": "Example Publisher",
+    "copyrightNotice": "© 2026 Example Publisher",
+    "attributionText": "Example Pack by Example Publisher",
+    "notice": "This license applies to original material in this pack."
+  },
   "sources": [{
     "id": "genshin-wiki",
     "title": "Genshin Impact Wiki",

@@ -8,7 +8,10 @@ repository; E stores only the resulting public pack contract.
 
 Create `manifest.json` plus `sources/`, `documents/`, `chunks/`, `entities/`,
 `relations/`, and `revisions/` directories. Every record needs a stable `id`.
-Documents reference sources and revisions; chunks reference documents;
+The manifest should declare the project license (`license`, `licenseName`, and
+`licenseUrl`) plus optional rights-holder, copyright, attribution, and notice
+text. Sources should repeat their own license identifier and human-readable
+description when needed. Documents reference sources and revisions; chunks reference documents;
 relations reference existing entities.
 
 Use the E types and the reference fixture in

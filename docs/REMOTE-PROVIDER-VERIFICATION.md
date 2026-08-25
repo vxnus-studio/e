@@ -19,9 +19,10 @@ credentials to read a published provider.
 
 ## Verification key
 
-The publisher creates a long random key in the provider application and keeps it
-server-side, for example as `E_PUBLISHER_API_KEY`. The provider must never return
-this key from any endpoint.
+The Hub generates a long random key in the publisher workspace. Copy the
+one-time environment-variable snippet into the provider application. The key
+remains only in the browser until verification; the Hub does not store or log
+it. The provider keeps it server-side and must never expose it.
 
 The Hub verifies ownership with:
 
@@ -61,10 +62,10 @@ sends the verification key to Siduri or includes it in registry responses.
 
 ## Key lifecycle
 
-Keys must use HTTPS and support rotation and revocation. The Hub must not log
-keys. If re-verification is required, store the key only in a server-side
-secret manager; otherwise discard it after registration and retain only the
-verification timestamp and provider identity.
+Keys use HTTPS and are registration-scoped. Generate a replacement key when
+rotating or re-verifying a provider. After successful registration, the Hub has
+no secret to delete: only the provider environment retains the key, while the
+Hub keeps the public URL, verification timestamp, and provider identity.
 
 ## E-Teyvat
 
