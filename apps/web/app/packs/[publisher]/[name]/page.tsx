@@ -1,6 +1,7 @@
 /* eslint-disable @next/next/no-html-link-for-pages */
 import { notFound } from "next/navigation";
 import { registry } from "@/lib/registry";
+import { CatalogRefresh } from "@/app/catalog-refresh";
 
 export default async function PackPage({ params }: { params: Promise<{ publisher: string; name: string }> }) {
   const { publisher, name } = await params;
@@ -9,7 +10,7 @@ export default async function PackPage({ params }: { params: Promise<{ publisher
   const capabilities = Object.entries(pack.capabilities).filter(([, enabled]) => enabled).map(([capability]) => capability);
   const license = pack.license;
 
-  return <main className="detail-page">
+  return <main className="detail-page"><CatalogRefresh />
     <nav className="site-nav" aria-label="Primary navigation"><a className="brand" href="/"><span className="brand-mark">E</span> knowledge hub</a><div className="nav-links"><a href="/#catalog">Catalog</a><a href="/#publish">Publish</a><a className="nav-button" href="/#install">Use with Siduri</a></div></nav>
     <section className="detail-hero" aria-labelledby="pack-title"><a className="back-link" href="/#catalog">← Back to catalog</a><div className="detail-heading"><div><p className="eyebrow">Knowledge package · {pack.verified ? "verified" : "unverified"}</p><h1 id="pack-title">{pack.name}</h1><p className="detail-package">{pack.id}</p><p className="detail-lede">{pack.description}</p></div><div className="detail-version"><span>Current release</span><strong>v{pack.version}</strong><small>Schema {pack.schemaVersion}</small></div></div></section>
     <section className="detail-content" aria-label="Pack information"><div className="detail-main"><p className="eyebrow">What is inside</p><h2>Versioned knowledge,<br />ready to retrieve.</h2><blockquote>Install this cited pack into Siduri and retrieve its grounded content locally.</blockquote><p className="citation">Source: {pack.sources[0].title} · {pack.sources[0].id} · {pack.sources[0].license}{pack.sources[0].licenseDescription ? ` · ${pack.sources[0].licenseDescription}` : ""}</p>{license?.notice && <p className="citation">{license.notice}</p>}</div><aside className="detail-aside"><div className="detail-block"><span className="detail-label">Publisher</span><strong>{pack.publisher}</strong></div><div className="detail-block"><span className="detail-label">License</span><strong><a href={license?.licenseUrl} target="_blank" rel="noreferrer">{license?.licenseName || pack.sources[0].license}</a></strong>{license?.rightsHolder && <small>Rights holder: {license.rightsHolder}</small>}{license?.copyrightNotice && <small>{license.copyrightNotice}</small>}{license?.attributionText && <small>Attribution: {license.attributionText}</small>}</div><div className="detail-block"><span className="detail-label">Capabilities</span><div className="capability-list">{capabilities.map((capability) => <span key={capability}>{capability}</span>)}</div></div>{pack.distribution.kind === "archive" && <div className="detail-block"><span className="detail-label">Archive checksum</span><code>{pack.distribution.checksum}</code></div>}</aside></section>
