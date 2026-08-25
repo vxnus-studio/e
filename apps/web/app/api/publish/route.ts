@@ -32,17 +32,33 @@ export async function POST(request: Request) {
   const kind = form.get("kind");
   if (kind === "url") {
     const rawUrl = String(form.get("url") || "").trim();
+    const apiKey = String(form.get("apiKey") || "").trim();
     let url: URL;
     try { url = new URL(rawUrl); } catch { return Response.json({ message: "Enter a valid provider URL." }, { status: 400 }); }
-    if (!["http:", "https:"].includes(url.protocol)) return Response.json({ message: "Provider URLs must use HTTP or HTTPS." }, { status: 400 });
+    if (url.protocol !== "https:") return Response.json({ message: "Provider URLs must use HTTPS." }, { status: 400 });
+    if (url.username || url.password || url.search || url.hash) return Response.json({ message: "Provider URLs must be a base HTTPS URL without credentials or query parameters." }, { status: 400 });
+    if (!apiKey) return Response.json({ message: "A provider API key is required." }, { status: 400 });
+    const providerUrl = url.toString().replace(/\/+$/, "");
     try {
-      const response = await fetch(`${rawUrl.replace(/\/+$/, "")}/manifest`, { cache: "no-store", signal: AbortSignal.timeout(10000) });
+      const response = await fetch(`${providerUrl}/manifest`, { cache: "no-store", signal: AbortSignal.timeout(10000) });
       if (!response.ok) throw new Error(`Provider manifest returned HTTP ${response.status}.`);
       const rawManifest = await response.json() as Record<string, unknown>;
       if (!Array.isArray(rawManifest.sources) || rawManifest.sources.length === 0) rawManifest.sources = [{ id: "unknown", title: "unknown", license: "unknown" }];
       const manifest = validateManifest(rawManifest);
+      const verification = await fetch(`${providerUrl}/verify`, {
+        method: "POST",
+        headers: { authorization: `Bearer ${apiKey}`, "content-type": "application/json" },
+        body: "{}",
+        cache: "no-store",
+        signal: AbortSignal.timeout(10000),
+      });
+      if (verification.status === 401) throw new Error("The provider API key is invalid.");
+      if (verification.status === 403) throw new Error("The provider API key belongs to a different provider.");
+      if (!verification.ok) throw new Error(`Provider verification returned HTTP ${verification.status}.`);
+      const identity = await verification.json() as { id?: unknown; publisher?: unknown };
+      if (identity.id !== manifest.id || identity.publisher !== manifest.publisher) throw new Error("Provider verification identity does not match its manifest.");
       const revisionId = `provider-${manifest.version}`;
-      const pack = { ...manifest, publisherId: session.user.id, verified: false, distribution: { kind: "provider" as const, url: rawUrl.replace(/\/+$/, "") } };
+      const pack = { ...manifest, publisherId: session.user.id, verified: true, distribution: { kind: "provider" as const, url: providerUrl } };
       await publishPack({ projectId, ownerId: session.user.id, revisionId, revisionManifest: manifest, pack });
       return Response.json({ packageId: pack.id, version: pack.version, revision: revisionId, owner: session.user.id }, { status: 201 });
     } catch (error) { return Response.json({ message: error instanceof Error ? error.message : "The provider could not be published." }, { status: 400 }); }

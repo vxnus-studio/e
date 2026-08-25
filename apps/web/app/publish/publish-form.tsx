@@ -11,12 +11,15 @@ export function PublishForm({ projectId }: { projectId?: string }) {
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const form = event.currentTarget;
-    const url = String(new FormData(form).get("url") || "").trim();
+    const data = new FormData(form);
+    const url = String(data.get("url") || "").trim();
+    const apiKey = String(data.get("apiKey") || "").trim();
     if (mode === "file" && !file) return setStatus({ kind: "error", message: "Choose a .tar.gz pack to continue." });
     if (mode === "url" && !url) return setStatus({ kind: "error", message: "Enter a provider URL to continue." });
+    if (mode === "url" && !apiKey) return setStatus({ kind: "error", message: "Enter the provider API key to continue." });
     if (!projectId) return setStatus({ kind: "error", message: "Create a project before publishing a release." });
     setBusy(true); setStatus(null);
-    const body = new FormData(); body.append("projectId", projectId); body.append("kind", mode); if (file) body.append("pack", file); if (url) body.append("url", url);
+    const body = new FormData(); body.append("projectId", projectId); body.append("kind", mode); if (file) body.append("pack", file); if (url) body.append("url", url); if (apiKey) body.append("apiKey", apiKey);
     try {
       const response = await fetch("/api/publish", { method: "POST", body });
       const result = await response.json() as { message?: string; packageId?: string; version?: string };
@@ -26,5 +29,5 @@ export function PublishForm({ projectId }: { projectId?: string }) {
     finally { setBusy(false); }
   }
 
-  return <form className="publish-form" onSubmit={submit}><div className="publish-form-heading"><span className="form-index">/ 01</span><h2>New release</h2><p>Publish a local file or connect a remote provider.</p></div><div className="publish-modes"><button type="button" className={mode === "file" ? "active" : ""} onClick={() => setMode("file")}>Local file</button><button type="button" className={mode === "url" ? "active" : ""} onClick={() => setMode("url")}>Remote URL</button></div>{mode === "file" ? <label className={`file-drop${file ? " has-file" : ""}`}><input type="file" accept=".tar.gz,.tgz,application/gzip" onChange={(event) => setFile(event.target.files?.[0] || null)} /><span className="file-drop-mark">{file ? "✓" : "+"}</span><strong>{file ? file.name : "Choose your archive"}</strong><small>{file ? `${(file.size / 1024 / 1024).toFixed(2)} MB selected` : "E-compatible .tar.gz, up to 25 MB"}</small></label> : <label className="provider-url-field">Provider URL<input name="url" type="url" placeholder="https://example.com/api/knowledge" /><small>We read the public manifest. Source defaults to unknown when absent.</small></label>}<button className="button button-primary" disabled={busy} type="submit">{busy ? "Checking provider…" : "Publish release"}<span aria-hidden="true">↗</span></button>{status && <p className={`publish-status ${status.kind}`} role="status">{status.message}</p>}</form>;
+  return <form className="publish-form" onSubmit={submit}><div className="publish-form-heading"><span className="form-index">/ 01</span><h2>New release</h2><p>Publish a local file or connect a remote provider.</p></div><div className="publish-modes"><button type="button" className={mode === "file" ? "active" : ""} onClick={() => setMode("file")}>Local file</button><button type="button" className={mode === "url" ? "active" : ""} onClick={() => setMode("url")}>Remote URL</button></div>{mode === "file" ? <label className={`file-drop${file ? " has-file" : ""}`}><input type="file" accept=".tar.gz,.tgz,application/gzip" onChange={(event) => setFile(event.target.files?.[0] || null)} /><span className="file-drop-mark">{file ? "✓" : "+"}</span><strong>{file ? file.name : "Choose your archive"}</strong><small>{file ? `${(file.size / 1024 / 1024).toFixed(2)} MB selected` : "E-compatible .tar.gz, up to 25 MB"}</small></label> : <div className="provider-fields"><label className="provider-url-field">Provider URL<input name="url" type="url" placeholder="https://example.com/api/knowledge" /><small>Public manifest and retrieval endpoints.</small></label><label className="provider-url-field">Provider API key<input name="apiKey" type="password" autoComplete="off" placeholder="Bearer key from the provider" /><small>Used once for verification and never stored by the Hub.</small></label></div>}<button className="button button-primary" disabled={busy} type="submit">{busy ? "Checking provider…" : "Publish release"}<span aria-hidden="true">↗</span></button>{status && <p className={`publish-status ${status.kind}`} role="status">{status.message}</p>}</form>;
 }

@@ -36,7 +36,7 @@ The provider returns its canonical public identity:
 ```json
 {
   "id": "@vxnus/teyvat",
-  "publisher": "vxnus"
+  "publisher": "vxnuslabs"
 }
 ```
 
@@ -71,7 +71,7 @@ verification timestamp and provider identity.
 ```text
 Provider URL: https://eteyvat.vxnus.xyz/api/knowledge
 Package ID:   @vxnus/teyvat
-Publisher:    vxnus
+Publisher:    vxnuslabs
 ```
 
 E-Teyvat remains publicly readable. Its verification key is used only by the
