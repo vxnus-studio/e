@@ -1,17 +1,20 @@
 /* eslint-disable @next/next/no-html-link-for-pages */
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { registry } from "@/lib/registry";
 import { getProjectByPublisher } from "@/lib/supabase-control-plane";
+import { projectSlug } from "@/lib/project-slug";
 
 export const dynamic = "force-dynamic";
 
-export default async function PublicProjectPage({ params }: { params: Promise<{ publisher: string }> }) {
-  const { publisher } = await params;
+async function PublicProjectPage({ params }: { params: Promise<{ publisher: string; project?: string }> }) {
+  const { publisher, project: projectParam } = await params;
   const namespace = publisher.toLowerCase();
   const result = await registry.search({ query: `@${namespace}/`, limit: 100 });
   const packs = result.packs.filter((pack) => pack.id.startsWith(`@${namespace}/`));
   if (!packs.length) notFound();
   const project = process.env.DATABASE_URL ? await getProjectByPublisher(namespace) : undefined;
+  if (project && !projectParam) redirect(`/projects/${namespace}/${projectSlug(project.name)}`);
+  if (project?.name && projectParam && projectSlug(project.name) !== projectParam) notFound();
   const projectName = project?.name || "Public knowledge project";
 
   return <main className="detail-page">
@@ -22,3 +25,5 @@ export default async function PublicProjectPage({ params }: { params: Promise<{ 
     <footer><span>© 2026 E Knowledge Hub</span><span>Protocol by <a href="https://github.com/vxnuslabs/e">@vxnus/e</a></span></footer>
   </main>;
 }
+
+export default PublicProjectPage;
