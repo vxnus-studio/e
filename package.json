@@ -4,6 +4,6 @@
   "license": "Apache-2.0",
   "type": "module",
   "workspaces": ["packages/*"],
-  "scripts": { "build": "tsc -p packages/protocol && tsc -p packages/registry && tsc -p packages/knowledge", "test": "npm run build && node scripts/test-manifests.mjs && node scripts/test-knowledge.mjs" },
+  "scripts": { "build": "tsc -p packages/protocol && tsc -p packages/registry && tsc -p packages/knowledge && tsc -p packages/provider", "test": "npm run build && node scripts/test-manifests.mjs && node scripts/test-knowledge.mjs && node scripts/test-provider.mjs" },
   "devDependencies": { "typescript": "^5.9.3" }
 }

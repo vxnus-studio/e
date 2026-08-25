@@ -24,6 +24,8 @@ The monorepo also contains:
 - `@vxnus/e-registry`: Knowledge Hub discovery and distribution contracts.
 - `@vxnus/e-knowledge`: local and remote knowledge consumption; currently
   provides portable filesystem packs and local retrieval.
+- `@vxnus/e-provider`: server-side SDK for building validated remote E
+  providers.
 - `apps/web`: the hosted Knowledge Hub product, landing page, registry, and
   pack distribution surface.
 

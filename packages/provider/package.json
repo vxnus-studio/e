@@ -1,0 +1,16 @@
+{
+  "name": "@vxnus/e-provider",
+  "version": "0.1.0",
+  "description": "Server-side SDK for building E-compatible remote knowledge providers",
+  "type": "module",
+  "license": "Apache-2.0",
+  "repository": { "type": "git", "url": "git+https://github.com/vxnuslabs/e.git", "directory": "packages/provider" },
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": { ".": { "types": "./dist/index.d.ts", "import": "./dist/index.js", "default": "./dist/index.js" } },
+  "files": ["dist", "README.md", "LICENSE"],
+  "scripts": { "build": "tsc", "prepack": "npm run build" },
+  "peerDependencies": { "@vxnus/e": ">=0.1.2" },
+  "devDependencies": { "@vxnus/e": "*", "typescript": "^5.9.3" }
+}

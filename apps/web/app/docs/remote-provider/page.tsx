@@ -9,13 +9,27 @@ const manifest = [
 const retrieve = [
   "POST /retrieve", "content-type: application/json", "", "{", '  "query": "Who is the traveler?",', '  "mode": "lexical",', '  "limit": 5', "}", "", "200 OK", "{", '  "revision": "r42",', '  "results": [{', '    "id": "chunk-001",', '    "content": "The Traveler journeys across Teyvat.",', '    "revision": "r42",', '    "citations": [{ "sourceId": "handbook", "documentId": "traveler", "chunkId": "chunk-001" }]', "  }]", "}"
 ].join("\n");
+const sdkExample = [
+  'import { createKnowledgeProvider } from "@vxnus/e-provider";',
+  "", 
+  "export const provider = createKnowledgeProvider({",
+  "  manifest,",
+  "  verificationKey: process.env.E_PUBLISHER_API_KEY!,",
+  "  retrieve: async (request) => searchKnowledge(request.query),",
+  "});",
+  "",
+  "provider.handlers.manifest();",
+  "provider.handlers.retrieve(requestBody);",
+  "provider.handlers.verify(request.headers.authorization);"
+].join("\n");
 
 export default function RemoteProviderDocsPage() {
   return <main className="docs-page">
     <nav className="site-nav docs-nav" aria-label="Primary navigation"><Link className="brand" href="/"><span className="brand-mark">E</span> knowledge hub</Link><div className="nav-links"><Link className="docs-nav-active" href="/docs">Docs</Link><Link href="/#catalog">Catalog</Link><Link href="/publish">Publish</Link><Link className="nav-button" href="/auth/sign-up">Create account</Link></div></nav>
-    <div className="docs-layout"><aside className="docs-sidebar"><Link className="back-link" href="/docs">← All docs</Link><p className="docs-sidebar-label">On this page</p><nav><a href="#quickstart">Quick start</a><a href="#endpoints">Endpoints</a><a href="#manifest">Manifest</a><a href="#retrieve">Retrieval</a><a href="#errors">Errors</a></nav></aside>
+    <div className="docs-layout"><aside className="docs-sidebar"><Link className="back-link" href="/docs">← All docs</Link><p className="docs-sidebar-label">On this page</p><nav><a href="#quickstart">Quick start</a><a href="#sdk">SDK</a><a href="#endpoints">Endpoints</a><a href="#manifest">Manifest</a><a href="#retrieve">Retrieval</a><a href="#errors">Errors</a></nav></aside>
       <article className="docs-article"><p className="eyebrow">Remote provider</p><h1>Connect your knowledge where it lives.</h1><p className="docs-article-lede">Give the Hub a public HTTPS URL and a one-time verification key. The Hub handles the registry metadata for you.</p>
         <section id="quickstart" className="docs-block"><h2>Quick start</h2><div className="docs-steps"><div><b>01</b><h3>Expose the contract</h3><p>Serve <code>/manifest</code>, <code>/retrieve</code>, and <code>/verify</code> from one HTTPS base URL.</p></div><div><b>02</b><h3>Create a Hub project</h3><p>Your project publisher must match the manifest identity, such as <code>@acme/teyvat</code>.</p></div><div><b>03</b><h3>Connect once</h3><p>Submit the URL and key from the publish dashboard. The key is used only to verify control.</p></div></div></section>
+        <section id="sdk" className="docs-block"><h2>Use the provider SDK</h2><p><code>@vxnus/e-provider</code> validates the manifest, retrieval request, retrieval response, and verification key behavior. Your application only supplies the search function.</p><pre><code>{sdkExample}</code></pre></section>
         <section id="endpoints" className="docs-block"><h2>Three endpoints</h2><p>Only the verification endpoint is private. Consumers use the other two without credentials.</p><div className="endpoint-list"><div><code>GET /manifest</code><span>Public package identity, sources, capabilities, and version.</span></div><div><code>POST /retrieve</code><span>Public cited results for a retrieval request.</span></div><div><code>POST /verify</code><span>Private ownership check using the Hub-supplied Bearer key.</span></div></div></section>
         <section id="manifest" className="docs-block"><h2>Manifest response</h2><p>Return a valid E manifest. The <code>id</code> and <code>publisher</code> must match the Hub project.</p><pre><code>{manifest}</code></pre></section>
         <section id="retrieve" className="docs-block"><h2>Retrieval response</h2><p>Results must include a revision and citations back to the source record.</p><pre><code>{retrieve}</code></pre></section>
