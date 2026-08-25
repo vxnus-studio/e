@@ -32,9 +32,9 @@ schema in `db/schema.ts`; production should apply the reviewed SQL migrations.
 ## Current slice
 
 - Landing page at `/`
-- `@vxnus/siduri-basics` catalog entry
-- Pack detail page at `/packs/vxnus/siduri-basics` (`@vxnus/siduri-basics` identity)
-- Registry API at `/api/packs` and `/api/packs/vxnus/siduri-basics`
+- Registry-backed catalog at `/`
+- Dynamic pack detail pages at `/packs/[publisher]/[name]`
+- Registry API at `/api/packs` and `/api/packs/[publisher]/[name]`
 - Local installation guidance for Siduri
 - Publisher entry point
 
