@@ -11,7 +11,6 @@ export function DashboardShell({ active, email, children }: { active: DashboardS
       <div className="sidebar-group"><span className="sidebar-label">Workspace</span>
         <Link className={`sidebar-link${active === "overview" ? " active" : ""}`} href="/publish"><span className="sidebar-icon">/</span>Overview</Link>
         <Link className={`sidebar-link${active === "projects" ? " active" : ""}`} href="/publish/projects"><span className="sidebar-icon">□</span>Projects</Link>
-        <Link className={`sidebar-link${active === "releases" ? " active" : ""}`} href="/publish/releases"><span className="sidebar-icon">↗</span>Releases</Link>
       </div>
       <div className="sidebar-group sidebar-bottom"><span className="sidebar-label">Account</span><Link className="sidebar-link" href="/">Catalog</Link><span className="sidebar-user">{email || "Publisher"}</span><LogoutButton /></div>
     </aside>

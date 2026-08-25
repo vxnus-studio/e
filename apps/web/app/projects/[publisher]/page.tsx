@@ -15,7 +15,7 @@ async function PublicProjectPage({ params }: { params: Promise<{ publisher: stri
   const project = process.env.DATABASE_URL ? await getProjectByPublisher(namespace) : undefined;
   if (project && !projectParam) redirect(`/projects/${namespace}/${projectSlug(project.name)}`);
   if (project?.name && projectParam && projectSlug(project.name) !== projectParam) notFound();
-  const projectName = project?.name || "Public knowledge project";
+  const projectName = project?.name || projectParam || "Public knowledge project";
 
   return <main className="detail-page">
     <nav className="site-nav" aria-label="Primary navigation"><a className="brand" href="/"><span className="brand-mark">E</span> knowledge hub</a><div className="nav-links"><a href="/#catalog">Catalog</a><a href="/publish">Publish</a><a className="nav-button" href="/auth/sign-in">Sign in</a></div></nav>

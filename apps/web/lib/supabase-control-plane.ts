@@ -4,7 +4,7 @@ import { getDatabase } from "@/db";
 import { publisherDistributions, publisherProjects, publisherProfiles, publisherReleases } from "@/db/schema";
 
 export type PublisherProject = { id: string; publisher: string; name: string; description: string | null; visibility: "private" | "public"; created_at: string; updated_at: string };
-export function isControlPlaneConfigured() { return Boolean((process.env.DATABASE_URL || process.env.SUPABASE_URL) && process.env.SUPABASE_AUTH_ENABLED === "true"); }
+export function isControlPlaneConfigured() { return Boolean(process.env.DATABASE_URL); }
 export async function listPublisherProjects(ownerId: string): Promise<PublisherProject[]> { const rows = await getDatabase().select().from(publisherProjects).where(eq(publisherProjects.ownerId, ownerId)).orderBy(desc(publisherProjects.updatedAt)); return rows.map((row) => ({ id: row.id, publisher: row.publisher, name: row.name, description: row.description, visibility: row.visibility as "private" | "public", created_at: row.createdAt.toISOString(), updated_at: row.updatedAt.toISOString() })); }
 export async function getPublisherProfile(userId: string) { const rows = await getDatabase().select({ username: publisherProfiles.username }).from(publisherProfiles).where(eq(publisherProfiles.userId, userId)).limit(1); return rows[0]; }
 export async function getProjectByPublisher(publisher: string) { const rows = await getDatabase().select({ name: publisherProjects.name, publisher: publisherProjects.publisher, description: publisherProjects.description }).from(publisherProjects).where(eq(publisherProjects.publisher, publisher)).limit(1); return rows[0]; }

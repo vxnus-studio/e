@@ -5,7 +5,7 @@ import { getDatabase } from "@/db";
 import { publisherAuditEvents, publisherDistributions, publisherProjects, publisherReleases, publisherRevisions, registryPacks } from "@/db/schema";
 
 function toPack(row: typeof registryPacks.$inferSelect): RegistryPack { return { id: row.packageId, name: row.name, publisher: row.publisher, version: row.version, schemaVersion: row.schemaVersion, description: row.description || undefined, sources: row.sources as RegistryPack["sources"], capabilities: row.capabilities as RegistryPack["capabilities"], publisherId: row.publisherId, verified: row.verified, distribution: row.distribution as RegistryPack["distribution"] }; }
-export function isSupabaseRegistryConfigured() { return Boolean(process.env.DATABASE_URL || process.env.SUPABASE_URL); }
+export function isSupabaseRegistryConfigured() { return Boolean(process.env.DATABASE_URL); }
 export async function insertRegistryPack(pack: RegistryPack, publisherId: string) { try { const rows = await getDatabase().insert(registryPacks).values({ packageId: pack.id, name: pack.name, publisher: pack.publisher, version: pack.version, schemaVersion: pack.schemaVersion, description: pack.description || null, sources: pack.sources, capabilities: pack.capabilities, publisherId, distribution: pack.distribution, verified: pack.verified }).returning(); return toPack(rows[0]); } catch (error) { if (error instanceof Error && /unique|duplicate/i.test(error.message)) { const duplicate = new Error("That package version already exists."); duplicate.name = "DuplicateRelease"; throw duplicate; } throw error; } }
 export async function publishPack(input: { projectId: string; ownerId: string; pack: RegistryPack; revisionManifest: unknown; revisionId: string }) {
   const database = getDatabase();
