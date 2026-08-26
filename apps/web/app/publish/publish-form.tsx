@@ -8,6 +8,7 @@ export function PublishForm({ projectId }: { projectId?: string }) {
   const [providerKey, setProviderKey] = useState<string | null>(null);
   const [version, setVersion] = useState("1.0.0");
   const [description, setDescription] = useState("");
+  const [showContract, setShowContract] = useState(false);
   const [apiContractText, setApiContractText] = useState("");
   const [keyBusy, setKeyBusy] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -45,13 +46,15 @@ export function PublishForm({ projectId }: { projectId?: string }) {
     if (apiKey) body.append("apiKey", apiKey);
     body.append("version", version);
     if (description) body.append("description", description);
-    if (apiContractText.trim()) body.append("apiContract", apiContractText.trim());
+    if (showContract && apiContractText.trim()) body.append("apiContract", apiContractText.trim());
 
     try {
       const response = await fetch("/api/publish", { method: "POST", body });
-      const result = (await response.json()) as { message?: string; packageId?: string; version?: string };
+      const result = (await response.json()) as { message?: string; packageId?: string; version?: string; hasOpenApi?: boolean; distributionUrl?: string };
       if (!response.ok) throw new Error(result.message || "The pack could not be published.");
-      setStatus({ kind: "success", message: `${result.packageId} v${result.version} is ready in the catalog.` });
+      
+      const openApiNote = result.hasOpenApi ? " (OpenAPI contract detected & stored)" : "";
+      setStatus({ kind: "success", message: `${result.packageId} v${result.version} is ready in the catalog${openApiNote}.` });
       setFile(null);
       setProviderKey(null);
       setCopied(false);
@@ -125,14 +128,14 @@ export function PublishForm({ projectId }: { projectId?: string }) {
       ) : (
         <div className="provider-fields">
           <label className="provider-url-field">
-            <span>Provider URL *</span>
+            <span>Provider Base URL *</span>
             <input
               name="url"
               type="url"
               required
-              placeholder="https://example.com/api/e"
+              placeholder="https://eteyvat.vxnus.xyz or https://example.com/api/e"
             />
-            <small>Public remote endpoint implementing the E handshake.</small>
+            <small>Server root or API mount. Verified automatically at <code>/api/e/verify</code> or <code>/verify</code>.</small>
           </label>
 
           <div className="form-row">
@@ -155,25 +158,37 @@ export function PublishForm({ projectId }: { projectId?: string }) {
             </label>
           </div>
 
-          <label className="provider-url-field">
-            <span>OpenAPI Contract (JSON)</span>
-            <textarea
-              value={apiContractText}
-              onChange={(e) => setApiContractText(e.target.value)}
-              rows={4}
-              placeholder='{"openapi": "3.1.0", "info": { "title": "API", "version": "1.0.0" }, "paths": { ... }}'
-              style={{
-                width: "100%",
-                background: "#ffffff",
-                border: "1px solid #dce2db",
-                color: "#1b2622",
-                padding: 10,
-                fontFamily: "monospace",
-                fontSize: 12,
-              }}
-            />
-            <small>Optional authoritative OpenAPI specification for your provider.</small>
-          </label>
+          <div>
+            <button
+              type="button"
+              className="manifest-toggle-button"
+              onClick={() => setShowContract(!showContract)}
+            >
+              {showContract ? "− Hide manual OpenAPI contract" : "+ Add manual OpenAPI contract (auto-detected if hosted at /api/openapi.json)"}
+            </button>
+          </div>
+
+          {showContract && (
+            <label className="provider-url-field">
+              <span>OpenAPI Specification (JSON)</span>
+              <textarea
+                value={apiContractText}
+                onChange={(e) => setApiContractText(e.target.value)}
+                rows={4}
+                placeholder='{"openapi": "3.1.0", "info": { "title": "API", "version": "1.0.0" }, "paths": { ... }}'
+                style={{
+                  width: "100%",
+                  background: "#ffffff",
+                  border: "1px solid #dce2db",
+                  color: "#1b2622",
+                  padding: 10,
+                  fontFamily: "monospace",
+                  fontSize: 12,
+                }}
+              />
+              <small>Optional manual contract. If your server hosts <code>/api/openapi.json</code>, E Hub discovers it automatically.</small>
+            </label>
+          )}
 
           <div className="provider-key-box">
             <div className="provider-key-heading">
@@ -198,7 +213,7 @@ export function PublishForm({ projectId }: { projectId?: string }) {
                   {copied ? "✓ Copied to clipboard" : "Copy environment variable"}
                 </button>
                 <small>
-                  Set <strong>E_PUBLISHER_API_KEY</strong> in your provider, then click <em>Verify and publish</em>.
+                  Set <strong>E_PUBLISHER_API_KEY</strong> on your server, then click <em>Verify and publish</em>.
                 </small>
               </>
             ) : (
@@ -211,7 +226,7 @@ export function PublishForm({ projectId }: { projectId?: string }) {
       )}
 
       <button className="button button-primary" disabled={busy} type="submit" style={{ marginTop: 20 }}>
-        {busy ? "Publishing release…" : mode === "url" ? "Verify and publish ↗" : "Publish release ↗"}
+        {busy ? "Verifying & publishing…" : mode === "url" ? "Verify and publish ↗" : "Publish release ↗"}
       </button>
 
       {status && (

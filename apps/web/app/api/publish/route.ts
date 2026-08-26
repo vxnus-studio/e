@@ -52,23 +52,128 @@ export async function POST(request: Request) {
     if (url.protocol !== "https:" && url.protocol !== "http:") return Response.json({ message: "Provider URLs must use HTTP/HTTPS." }, { status: 400 });
     if (url.username || url.password || url.search || url.hash) return Response.json({ message: "Provider URLs must be a base URL without credentials or query parameters." }, { status: 400 });
     if (!apiKey) return Response.json({ message: "A provider API key is required." }, { status: 400 });
-    const providerUrl = url.toString().replace(/\/+$/, "");
-    try {
-      const verification = await fetch(`${providerUrl}/verify`, {
-        method: "POST",
-        headers: { authorization: `Bearer ${apiKey}`, "content-type": "application/json" },
-        body: "{}",
-        cache: "no-store",
-        signal: AbortSignal.timeout(10000),
-      });
-      if (verification.status === 401) throw new Error("The provider API key is invalid.");
-      if (verification.status === 403) throw new Error("The provider API key belongs to a different provider.");
-      if (!verification.ok) throw new Error(`Provider verification returned HTTP ${verification.status}.`);
-      const identity = await verification.json() as { id?: unknown; publisher?: unknown };
-      if (typeof identity.id !== "string" || typeof identity.publisher !== "string") {
-        throw new Error("Provider verification identity is invalid.");
-      }
 
+    const normalizedUrl = url.toString().replace(/\/+$/, "");
+    const origin = url.origin;
+
+    // 1. Smart verification handshake
+    const verifyCandidates: string[] = [];
+    if (normalizedUrl.endsWith("/api/e") || normalizedUrl.endsWith("/e")) {
+      verifyCandidates.push(`${normalizedUrl}/verify`);
+    } else {
+      verifyCandidates.push(
+        `${normalizedUrl}/api/e/verify`,
+        `${normalizedUrl}/e/verify`,
+        `${normalizedUrl}/verify`
+      );
+    }
+
+    let verifiedEndpoint: string | null = null;
+    let verifiedIdentity: { id: string; publisher: string } | null = null;
+    let lastVerifyError: string = "Provider verification failed.";
+
+    for (const candidate of verifyCandidates) {
+      try {
+        const verification = await fetch(candidate, {
+          method: "POST",
+          headers: { authorization: `Bearer ${apiKey}`, "content-type": "application/json" },
+          body: "{}",
+          cache: "no-store",
+          signal: AbortSignal.timeout(8000),
+        });
+        if (verification.status === 401) return Response.json({ message: "The provider API key is invalid." }, { status: 400 });
+        if (verification.status === 403) return Response.json({ message: "The provider API key belongs to a different provider." }, { status: 400 });
+        if (verification.ok) {
+          const identity = await verification.json() as { id?: unknown; publisher?: unknown };
+          if (typeof identity.id === "string" && typeof identity.publisher === "string") {
+            verifiedEndpoint = candidate;
+            verifiedIdentity = { id: identity.id, publisher: identity.publisher };
+            break;
+          }
+        }
+      } catch (err) {
+        lastVerifyError = err instanceof Error ? err.message : "Connection failed.";
+      }
+    }
+
+    if (!verifiedEndpoint || !verifiedIdentity) {
+      return Response.json({ message: `Could not verify provider handshake at ${normalizedUrl} (${lastVerifyError})` }, { status: 400 });
+    }
+
+    const canonicalProviderUrl = verifiedEndpoint.replace(/\/verify$/, "");
+
+    // 2. Auto-discover OpenAPI Contract if not explicitly provided
+    if (!apiContract) {
+      const openapiCandidates = [
+        `${origin}/api/openapi.json`,
+        `${origin}/openapi.json`,
+        `${canonicalProviderUrl}/openapi.json`,
+        `${origin}/api/swagger.json`,
+        `${origin}/swagger.json`,
+      ];
+      const uniqueOpenApiCandidates = [...new Set(openapiCandidates)];
+
+      for (const openapiUrl of uniqueOpenApiCandidates) {
+        try {
+          const res = await fetch(openapiUrl, {
+            method: "GET",
+            headers: { accept: "application/json" },
+            cache: "no-store",
+            signal: AbortSignal.timeout(5000),
+          });
+          if (res.ok) {
+            const spec = await res.json() as { openapi?: string; swagger?: string; paths?: Record<string, unknown> };
+            if ((spec.openapi || spec.swagger) && spec.paths && typeof spec.paths === "object" && Object.keys(spec.paths).length > 0) {
+              apiContract = spec as RegistryPack["apiContract"];
+              break;
+            }
+          }
+        } catch {
+          // Ignore and continue probing candidates
+        }
+      }
+    }
+
+    // 3. Knowledge access interface enforcement
+    const hasContractPaths = Boolean(
+      apiContract &&
+      apiContract.paths &&
+      typeof apiContract.paths === "object" &&
+      Object.keys(apiContract.paths).length > 0
+    );
+
+    let supportsRetrieve = false;
+    if (!hasContractPaths) {
+      try {
+        const probeRes = await fetch(`${canonicalProviderUrl}/retrieve`, {
+          method: "POST",
+          headers: {
+            authorization: `Bearer ${apiKey}`,
+            "content-type": "application/json",
+          },
+          body: JSON.stringify({ query: "e-handshake-probe", limit: 1 }),
+          cache: "no-store",
+          signal: AbortSignal.timeout(6000),
+        });
+        if (probeRes.status !== 404 && probeRes.status !== 502) {
+          supportsRetrieve = true;
+        }
+      } catch {
+        // Retrieve probe failed
+      }
+    }
+
+    if (!hasContractPaths && !supportsRetrieve) {
+      return Response.json(
+        {
+          message:
+            "Remote provider must expose an accessible knowledge interface: either a responsive POST /retrieve endpoint or an OpenAPI contract declaring your custom endpoints (e.g. at /api/openapi.json or uploaded with the release).",
+        },
+        { status: 400 }
+      );
+    }
+
+    try {
       const projectRows = await getDatabase()
         .select({
           name: publisherProjects.name,
@@ -85,14 +190,14 @@ export async function POST(request: Request) {
       const revisionId = `provider-${version}`;
       const sources = projectManifest.sources && projectManifest.sources.length > 0
         ? projectManifest.sources
-        : [{ id: "provider", title: `${identity.id} Provider`, license: "Proprietary" }];
+        : [{ id: "provider", title: `${verifiedIdentity.id} Provider`, license: "Proprietary" }];
       const capabilities = projectManifest.capabilities || { lexicalSearch: false, semanticSearch: false, structuredEntities: true, relations: true, revisions: true };
       const license = projectManifest.license;
 
       const packManifest = {
-        id: identity.id,
-        name: identity.id.split("/")[1] || identity.id,
-        publisher: identity.publisher,
+        id: verifiedIdentity.id,
+        name: verifiedIdentity.id.split("/")[1] || verifiedIdentity.id,
+        publisher: verifiedIdentity.publisher,
         version,
         schemaVersion: "1.0",
         description: description || projectManifest.description || project?.description || undefined,
@@ -106,12 +211,12 @@ export async function POST(request: Request) {
         ...packManifest,
         publisherId: session.user.id,
         verified: true,
-        distribution: { kind: "provider" as const, url: providerUrl },
+        distribution: { kind: "provider" as const, url: canonicalProviderUrl },
         apiContract,
       };
 
       await publishPack({ projectId, ownerId: session.user.id, revisionId, revisionManifest: packManifest, pack, apiContract });
-      return Response.json({ packageId: pack.id, version: pack.version, revision: revisionId, owner: session.user.id }, { status: 201 });
+      return Response.json({ packageId: pack.id, version: pack.version, revision: revisionId, owner: session.user.id, distributionUrl: canonicalProviderUrl, hasOpenApi: hasContractPaths }, { status: 201 });
     } catch (error) { return Response.json({ message: error instanceof Error ? error.message : "The provider could not be published." }, { status: 400 }); }
   }
   const file = form.get("pack");

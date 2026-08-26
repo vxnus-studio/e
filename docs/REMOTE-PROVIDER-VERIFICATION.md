@@ -4,28 +4,17 @@ This standard applies when the E Knowledge Hub registers a remote E provider. It
 that a publisher controls both the Hub publisher identity and the provider
 behind the public URL.
 
-## Provider contract
+## Provider contract & endpoints
 
-Every remote provider MUST expose the ownership verification endpoint below its registered base URL:
+Every remote provider MUST expose an ownership verification endpoint and at least one accessible knowledge interface:
 
-```text
-POST /verify
-```
-
-### Endpoints
-- **`POST /verify` (MANDATORY):** Private ownership verification handshake using the Hub-supplied Bearer key.
-- **`GET /manifest` (NOT REQUIRED):** The provider does NOT serve a manifest. Authoritative metadata and project definitions live exclusively in E Infrastructure.
-- **`POST /retrieve` (OPTIONAL):** Generic search is optional. Providers are free to expose custom REST, GraphQL, or RPC endpoints documented in the E-owned OpenAPI contract.
-
-## Verification key
-
-The Hub generates a random key in the publisher workspace. Copy the
-environment-variable snippet into the provider application. The provider keeps it server-side.
-
-The Hub verifies ownership with:
+### 1. Verification Handshake (MANDATORY)
+The provider handles the verification handshake at either:
+- `POST /api/e/verify` (Standard recommendation)
+- `POST /verify` (Direct mount)
 
 ```http
-POST {provider-url}/verify
+POST {baseUrl}/api/e/verify
 Authorization: Bearer <publisher-api-key>
 Content-Type: application/json
 ```
@@ -34,7 +23,7 @@ The provider returns its canonical public identity:
 
 ```json
 {
-  "id": "@vxnus/teyvat",
+  "id": "@vxnus/e-teyvat",
   "publisher": "vxnus"
 }
 ```
@@ -42,35 +31,41 @@ The provider returns its canonical public identity:
 Invalid or missing keys return `401 Unauthorized`; a valid key for a different
 provider returns `403 Forbidden`.
 
-## Hub registration & manifest rules
+### 2. Knowledge Access Interface (MANDATORY)
+To prevent publishing closed black boxes, the remote provider MUST support at least one query mechanism:
 
-The Hub accepts a remote release only when the signed-in account owns the
-publisher ID, provider verification succeeds, the provider identity matches the
-project namespace, the package/version is not already registered, and the normalized
-provider URL is not already registered by another release.
+- **Path A: OpenAPI Contract (Recommended):**
+  Host an OpenAPI 3.0/3.1 specification at `GET /api/openapi.json` (or `GET /openapi.json`). E Hub auto-discovers and registers your custom endpoints (`/api/entities`, `/api/farming`, etc.) for AI tool-calling.
+- **Path B: Standard E Retrieval:**
+  Implement `POST /api/e/retrieve` (or `POST /retrieve`) for cited lexical/semantic search.
 
-The authoritative manifest (including `license`, `sources`, `capabilities`, and OpenAPI `apiContract`)
-is defined and managed directly within the Hub project workspace during project creation or via
-the project settings manifest editor. When a release is published, the release automatically inherits
-the project's configured manifest.
+### 3. Manifest Endpoint (NOT REQUIRED)
+The provider does NOT serve a `GET /manifest` endpoint. Authoritative pack metadata, license, and capability definitions live exclusively in E Hub.
 
-The Hub stores only the public provider URL, verification state, and the authoritative pack manifest. It never
-sends the verification key to Siduri or includes it in registry responses.
+## Base URL discovery
 
-## Key lifecycle
+When a publisher enters a Base URL (e.g. `https://eteyvat.vxnus.xyz` or `https://eteyvat.vxnus.xyz/api/e`):
+1. E Hub probes verification paths in order: `/api/e/verify`, `/e/verify`, `/verify`.
+2. E Hub probes OpenAPI auto-discovery at `/api/openapi.json`, `/openapi.json`.
+3. If no OpenAPI contract exists, E Hub probes standard retrieval at `/api/e/retrieve`, `/retrieve`.
 
-Keys use HTTPS and are registration-scoped. Generate a replacement key when
-rotating or re-verifying a provider. After successful registration, the Hub has
-no secret to delete: only the provider environment retains the key, while the
-Hub keeps the public URL, verification timestamp, and provider identity.
+## Verification key
 
-## E-Teyvat
+The Hub generates a random key in the publisher workspace. Copy the
+environment-variable snippet into the provider application:
 
-```text
-Provider URL: https://eteyvat.vxnus.xyz/api/e
-Package ID:   @vxnus/e-teyvat
-Publisher:    vxnus
+```bash
+E_PUBLISHER_API_KEY=eprov_...
 ```
 
-E-Teyvat remains publicly readable. Its verification key is used only by the
-Hub to establish publisher control during registration.
+The provider keeps this key server-side. The Hub never includes the private key in client bundles or public API responses.
+
+## E-Teyvat Reference Implementation
+
+```text
+Server Origin:  https://eteyvat.vxnus.xyz
+Provider Mount: https://eteyvat.vxnus.xyz/api/e
+OpenAPI Spec:   https://eteyvat.vxnus.xyz/api/openapi.json
+Package ID:     @vxnus/e-teyvat
+Publisher:      vxnus
+```

@@ -172,39 +172,68 @@ async function handleVerifyProvider(url, apiKey) {
     process.exit(1);
   }
 
-  const providerUrl = url.replace(/\/+$/, "");
-  console.log(`Connecting to ${providerUrl}/verify ...`);
+  const normalizedUrl = url.replace(/\/+$/, "");
+  console.log(`Connecting to ${normalizedUrl} ...`);
 
-  try {
-    const res = await fetch(`${providerUrl}/verify`, {
-      method: "POST",
-      headers: {
-        authorization: `Bearer ${apiKey}`,
-        "content-type": "application/json",
-      },
-      body: "{}",
-    });
+  const candidates = normalizedUrl.endsWith("/api/e") || normalizedUrl.endsWith("/e")
+    ? [`${normalizedUrl}/verify`]
+    : [`${normalizedUrl}/api/e/verify`, `${normalizedUrl}/e/verify`, `${normalizedUrl}/verify`];
 
-    if (res.status === 401) {
-      console.error(`✗ Handshake failed: 401 Unauthorized (Invalid provider API key)`);
-      process.exit(1);
-    }
-    if (res.status === 403) {
-      console.error(`✗ Handshake failed: 403 Forbidden (Key belongs to different provider)`);
-      process.exit(1);
-    }
-    if (!res.ok) {
-      console.error(`✗ Handshake failed: HTTP ${res.status}`);
-      process.exit(1);
-    }
+  let verifiedEndpoint = null;
+  let identity = null;
 
-    const identity = await res.json();
-    console.log(`✓ Provider verification successful!`);
-    console.log(`Provider Identity: ${identity.id} (@${identity.publisher})`);
-    console.log(`Conformant:        POST /verify responds with valid E publisher identity.`);
-  } catch (error) {
-    console.error(`✗ Verification request failed: ${error instanceof Error ? error.message : error}`);
+  for (const candidate of candidates) {
+    try {
+      const res = await fetch(candidate, {
+        method: "POST",
+        headers: {
+          authorization: `Bearer ${apiKey}`,
+          "content-type": "application/json",
+        },
+        body: "{}",
+      });
+
+      if (res.status === 401) {
+        console.error(`✗ Handshake failed: 401 Unauthorized (Invalid provider API key)`);
+        process.exit(1);
+      }
+      if (res.status === 403) {
+        console.error(`✗ Handshake failed: 403 Forbidden (Key belongs to different provider)`);
+        process.exit(1);
+      }
+      if (res.ok) {
+        identity = await res.json();
+        verifiedEndpoint = candidate;
+        break;
+      }
+    } catch {}
+  }
+
+  if (!verifiedEndpoint || !identity) {
+    console.error(`✗ Verification request failed: Could not verify provider handshake at ${normalizedUrl}`);
     process.exit(1);
+  }
+
+  console.log(`✓ Provider verification successful!`);
+  console.log(`Verified Endpoint: ${verifiedEndpoint}`);
+  console.log(`Provider Identity: ${identity.id} (@${identity.publisher})`);
+
+  // Probe OpenAPI spec
+  const openapiUrls = [
+    `${new URL(normalizedUrl).origin}/api/openapi.json`,
+    `${new URL(normalizedUrl).origin}/openapi.json`,
+  ];
+  for (const oUrl of openapiUrls) {
+    try {
+      const oRes = await fetch(oUrl);
+      if (oRes.ok) {
+        const spec = await oRes.json();
+        if (spec.openapi && spec.paths) {
+          console.log(`OpenAPI Contract:  Found at ${oUrl} (${Object.keys(spec.paths).length} endpoints)`);
+          break;
+        }
+      }
+    } catch {}
   }
 }
 
