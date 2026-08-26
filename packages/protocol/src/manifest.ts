@@ -42,7 +42,7 @@ function validateSource(value: unknown, index: number, issues: ManifestValidatio
 export function validateManifest(input: unknown): KnowledgePackManifest {
   const issues: ManifestValidationIssue[] = [];
   if (!isRecord(input)) throw new ManifestValidationError([{ path: "$", message: "must be an object" }]);
-  checkKeys(input, ["id", "name", "publisher", "version", "schemaVersion", "description", "license", "sources", "capabilities", "retrieval"], "$", issues);
+  checkKeys(input, ["id", "name", "publisher", "version", "schemaVersion", "description", "license", "sources", "capabilities", "retrieval", "apiContract"], "$", issues);
   for (const key of ["id", "name", "publisher", "version", "schemaVersion", "sources", "capabilities"]) {
     if (input[key] === undefined) issues.push({ path: `$.${key}`, message: "is required" });
   }

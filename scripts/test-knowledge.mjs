@@ -15,9 +15,9 @@ await assert.rejects(() => loadPack(new URL("../packages/knowledge/fixtures/samp
 const remoteManifest = { ...pack.manifest };
 const remoteResponse = { revision: "r1", results: [{ id: "intro-1", content: "remote cited fact", revision: "r1", citations: [{ sourceId: "handbook", documentId: "intro", chunkId: "intro-1" }] }] };
 const originalFetch = globalThis.fetch;
-globalThis.fetch = async (url) => ({ ok: true, status: 200, json: async () => String(url).endsWith("/manifest") ? remoteManifest : remoteResponse });
-const remote = createRemoteProvider({ baseUrl: "https://example.test/provider/", timeoutMs: 1000 });
-assert.equal((await remote.manifest()).id, "sample-knowledge");
+globalThis.fetch = async (url) => ({ ok: true, status: 200, json: async () => remoteResponse });
+const remote = createRemoteProvider({ baseUrl: "https://example.test/provider/", manifest: remoteManifest, timeoutMs: 1000 });
+assert.equal(remote.manifest ? (await remote.manifest()).id : undefined, "sample-knowledge");
 assert.equal((await remote.retrieve({ query: "hello", mode: "lexical" })).results[0].citations[0].sourceId, "handbook");
 globalThis.fetch = originalFetch;
 console.log("Pack fixtures passed.");

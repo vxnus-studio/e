@@ -15,6 +15,15 @@ const packs: RegistryPack[] = [
     publisherId: "vxnus",
     verified: false,
     distribution: { kind: "provider", url: "https://eteyvat.vxnus.xyz/api/e" },
+    apiContract: {
+      openapi: "3.1.0",
+      info: { title: "E-Teyvat Knowledge API", version: "1.0.0" },
+      paths: {
+        "/api/entities": { get: { summary: "List or search entities" } },
+        "/api/knowledge/search": { get: { summary: "Keyword search" } },
+        "/api/farming": { get: { summary: "Farming sources" } }
+      }
+    }
   },
 ];
 

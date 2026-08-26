@@ -36,15 +36,17 @@ export function validateRetrievalResponse(response: unknown, manifest?: Knowledg
 }
 
 export async function assertConformantProvider(provider: KnowledgeProvider): Promise<void> {
-  const manifest = await provider.manifest();
-  validateRetrievalRequest({ query: "", mode: "lexical", limit: 1 });
-  const response = await provider.retrieve({ query: "", mode: "lexical", limit: 1 });
-  validateRetrievalResponse(response, manifest);
-  const repeat = await provider.retrieve({ query: "", mode: "lexical", limit: 1 });
-  if (JSON.stringify(response) !== JSON.stringify(repeat)) throw new Error("provider returned non-deterministic retrieval results");
-  if (manifest.capabilities.semanticSearch === false) {
-    let accepted = false;
-    try { await provider.retrieve({ query: "", mode: "semantic", limit: 1 }); accepted = true; } catch { /* expected */ }
-    if (accepted) throw new Error("provider accepted unsupported semantic retrieval");
+  const manifest = provider.manifest ? await provider.manifest() : undefined;
+  if (provider.retrieve) {
+    validateRetrievalRequest({ query: "", mode: "lexical", limit: 1 });
+    const response = await provider.retrieve({ query: "", mode: "lexical", limit: 1 });
+    if (manifest) validateRetrievalResponse(response, manifest);
+    const repeat = await provider.retrieve({ query: "", mode: "lexical", limit: 1 });
+    if (JSON.stringify(response) !== JSON.stringify(repeat)) throw new Error("provider returned non-deterministic retrieval results");
+    if (manifest && manifest.capabilities.semanticSearch === false) {
+      let accepted = false;
+      try { await provider.retrieve({ query: "", mode: "semantic", limit: 1 }); accepted = true; } catch { /* expected */ }
+      if (accepted) throw new Error("provider accepted unsupported semantic retrieval");
+    }
   }
 }

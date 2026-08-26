@@ -14,12 +14,22 @@ export interface PackCapabilities { lexicalSearch: boolean; semanticSearch: bool
 export interface EmbeddingProfile { model: string; dimensions: number; provider: string; }
 export interface RetrievalProfile { embedding?: EmbeddingProfile; }
 export interface PackLicense { license: string; licenseName: string; licenseUrl: string; rightsHolder?: string; copyrightNotice?: string; attributionText?: string; notice?: string; }
-export interface KnowledgePackManifest extends PackIdentity { description?: string; license?: PackLicense; sources: PackSource[]; capabilities: PackCapabilities; retrieval?: RetrievalProfile; }
+export interface KnowledgePackManifest extends PackIdentity {
+  description?: string;
+  license?: PackLicense;
+  sources: PackSource[];
+  capabilities: PackCapabilities;
+  retrieval?: RetrievalProfile;
+  apiContract?: JsonObject;
+}
 export interface RetrievalRequest { query: string; mode?: "lexical" | "semantic" | "hybrid"; limit?: number; revision?: string; filters?: JsonObject; }
 export interface RetrievalCitation { sourceId: string; documentId?: string; chunkId?: string; locator?: string; }
 export interface RetrievalResult { id: string; content: string; citations: RetrievalCitation[]; revision: string; score?: number; metadata?: JsonObject; }
 export interface RetrievalResponse { results: RetrievalResult[]; revision: string; partial?: boolean; }
-export interface KnowledgeProvider { manifest(): Promise<KnowledgePackManifest> | KnowledgePackManifest; retrieve(request: RetrievalRequest): Promise<RetrievalResponse>; }
+export interface KnowledgeProvider {
+  manifest?: (() => Promise<KnowledgePackManifest> | KnowledgePackManifest) | undefined;
+  retrieve?: ((request: RetrievalRequest) => Promise<RetrievalResponse>) | undefined;
+}
 
 export interface ManifestValidationIssue { path: string; message: string; }
 

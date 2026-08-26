@@ -20,6 +20,8 @@ export interface RemoteProviderConfig {
   timeoutMs?: number;
   retries?: number;
   headers?: Record<string, string>;
+  apiContract?: Record<string, unknown>;
+  manifest?: KnowledgePackManifest;
 }
 
 const remoteRequest = async (url: string, init: RequestInit, config: RemoteProviderConfig): Promise<unknown> => {
@@ -52,15 +54,11 @@ const remoteRequest = async (url: string, init: RequestInit, config: RemoteProvi
 export function createRemoteProvider(config: RemoteProviderConfig): KnowledgeProvider {
   const baseUrl = config.baseUrl.replace(/\/+$/, "");
   if (!/^https?:\/\//i.test(baseUrl)) throw new Error("remote knowledge provider baseUrl must be an HTTP(S) URL");
-  let manifestPromise: Promise<KnowledgePackManifest> | undefined;
+  const manifest = config.manifest;
   const provider: KnowledgeProvider = {
-    manifest: () => {
-      manifestPromise ??= remoteRequest(`${baseUrl}/manifest`, { method: "GET" }, config).then((value) => validateManifest(value));
-      return manifestPromise;
-    },
+    manifest: manifest ? () => manifest : undefined,
     retrieve: async (request) => {
       const validatedRequest = validateRetrievalRequest(request);
-      const manifest = await provider.manifest();
       const response = await remoteRequest(`${baseUrl}/retrieve`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(validatedRequest) }, config);
       return validateRetrievalResponse(response, manifest);
     },

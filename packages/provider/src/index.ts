@@ -13,20 +13,21 @@ export interface ProviderVerificationResult {
 }
 
 export interface KnowledgeProviderConfig {
-  manifest: KnowledgePackManifest;
   verificationKey: string;
-  retrieve(request: RetrievalRequest): Promise<RetrievalResponse> | RetrievalResponse;
+  identity?: ProviderIdentity;
+  manifest?: KnowledgePackManifest;
+  retrieve?(request: RetrievalRequest): Promise<RetrievalResponse> | RetrievalResponse;
 }
 
 export interface KnowledgeProviderHandlers {
-  manifest(): KnowledgePackManifest;
-  retrieve(request: unknown): Promise<RetrievalResponse>;
-  verify(authorization?: string): ProviderVerificationResult;
+  manifest?: (() => KnowledgePackManifest) | undefined;
+  retrieve?: ((request: unknown) => Promise<RetrievalResponse>) | undefined;
+  verify: (authorization?: string) => ProviderVerificationResult;
 }
 
 export interface EKnowledgeProvider extends KnowledgeProvider {
   handlers: KnowledgeProviderHandlers;
-  identity: ProviderIdentity;
+  identity?: ProviderIdentity | undefined;
 }
 
 function matchesKey(provided: string, expected: string): boolean {
@@ -43,19 +44,25 @@ function bearerToken(authorization?: string): string | undefined {
 }
 
 export function createKnowledgeProvider(config: KnowledgeProviderConfig): EKnowledgeProvider {
-  const manifest = validateManifest(config.manifest);
-  if (!config.verificationKey.trim()) throw new Error("verificationKey must be a non-empty server-side secret");
-  const identity = { id: manifest.id, publisher: manifest.publisher };
+  if (!config.verificationKey || !config.verificationKey.trim()) {
+    throw new Error("verificationKey must be a non-empty server-side secret");
+  }
+  const manifest = config.manifest ? validateManifest(config.manifest) : undefined;
+  const identity: ProviderIdentity = config.identity ?? (manifest ? { id: manifest.id, publisher: manifest.publisher } : { id: "unknown", publisher: "unknown" });
 
   const handlers: KnowledgeProviderHandlers = {
-    manifest: () => manifest,
-    retrieve: async (input) => {
+    manifest: manifest ? () => manifest : undefined,
+    retrieve: config.retrieve ? async (input) => {
       const request = validateRetrievalRequest(input);
-      if (request.mode === "semantic" && !manifest.capabilities.semanticSearch) throw new Error("retrieval mode 'semantic' is not supported");
-      if (request.mode === "hybrid" && (!manifest.capabilities.lexicalSearch || !manifest.capabilities.semanticSearch)) throw new Error("retrieval mode 'hybrid' is not supported");
-      const response = await config.retrieve(request);
+      if (manifest && request.mode === "semantic" && !manifest.capabilities.semanticSearch) {
+        throw new Error("retrieval mode 'semantic' is not supported");
+      }
+      if (manifest && request.mode === "hybrid" && (!manifest.capabilities.lexicalSearch || !manifest.capabilities.semanticSearch)) {
+        throw new Error("retrieval mode 'hybrid' is not supported");
+      }
+      const response = await config.retrieve!(request);
       return validateRetrievalResponse(response, manifest);
-    },
+    } : undefined,
     verify: (authorization) => {
       const token = bearerToken(authorization);
       if (!token || !matchesKey(token, config.verificationKey)) return { status: 401, body: { error: "unauthorized" } };

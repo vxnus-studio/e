@@ -1,28 +1,26 @@
 # Remote provider verification
 
-This standard applies when the Hub registers a remote E provider. It proves
+This standard applies when the E Knowledge Hub registers a remote E provider. It proves
 that a publisher controls both the Hub publisher identity and the provider
 behind the public URL.
 
-## Provider endpoints
+## Provider contract
 
-Every remote provider exposes these endpoints below its registered base URL:
+Every remote provider MUST expose the ownership verification endpoint below its registered base URL:
 
 ```text
-GET  /manifest
-POST /retrieve
 POST /verify
 ```
 
-`/manifest` and `/retrieve` are public. Siduri and other consumers do not need
-credentials to read a published provider.
+### Endpoints
+- **`POST /verify` (MANDATORY):** Private ownership verification handshake using the Hub-supplied Bearer key.
+- **`GET /manifest` (NOT REQUIRED):** The provider does NOT serve a manifest. Authoritative metadata and project definitions live exclusively in E Infrastructure.
+- **`POST /retrieve` (OPTIONAL):** Generic search is optional. Providers are free to expose custom REST, GraphQL, or RPC endpoints documented in the E-owned OpenAPI contract.
 
 ## Verification key
 
-The Hub generates a long random key in the publisher workspace. Copy the
-one-time environment-variable snippet into the provider application. The key
-remains only in the browser until verification; the Hub does not store or log
-it. The provider keeps it server-side and must never expose it.
+The Hub generates a random key in the publisher workspace. Copy the
+environment-variable snippet into the provider application. The provider keeps it server-side.
 
 The Hub verifies ownership with:
 
@@ -36,7 +34,7 @@ The provider returns its canonical public identity:
 
 ```json
 {
-  "id": "@vxnus/e-teyvat",
+  "id": "@vxnus/teyvat",
   "publisher": "vxnus"
 }
 ```

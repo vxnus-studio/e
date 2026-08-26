@@ -1,9 +1,10 @@
-import type { KnowledgePackManifest } from "@vxnus/e";
+import type { JsonObject, KnowledgePackManifest } from "@vxnus/e";
 
 export interface RegistryPack extends KnowledgePackManifest {
   publisherId: string;
   distribution: RegistryDistribution;
   verified: boolean;
+  apiContract?: JsonObject;
 }
 
 export interface RegistryDistribution {

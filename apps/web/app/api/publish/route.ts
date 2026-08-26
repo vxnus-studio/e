@@ -33,18 +33,22 @@ export async function POST(request: Request) {
   if (kind === "url") {
     const rawUrl = String(form.get("url") || "").trim();
     const apiKey = String(form.get("apiKey") || "").trim();
+    const version = String(form.get("version") || "1.0.0").trim();
+    const description = String(form.get("description") || "").trim();
+    let rawContract = form.get("apiContract");
+    let apiContract: Record<string, unknown> | undefined;
+    if (typeof rawContract === "string" && rawContract.trim()) {
+      try { apiContract = JSON.parse(rawContract); }
+      catch { return Response.json({ message: "Invalid OpenAPI contract JSON." }, { status: 400 }); }
+    }
+
     let url: URL;
     try { url = new URL(rawUrl); } catch { return Response.json({ message: "Enter a valid provider URL." }, { status: 400 }); }
-    if (url.protocol !== "https:") return Response.json({ message: "Provider URLs must use HTTPS." }, { status: 400 });
-    if (url.username || url.password || url.search || url.hash) return Response.json({ message: "Provider URLs must be a base HTTPS URL without credentials or query parameters." }, { status: 400 });
+    if (url.protocol !== "https:" && url.protocol !== "http:") return Response.json({ message: "Provider URLs must use HTTP/HTTPS." }, { status: 400 });
+    if (url.username || url.password || url.search || url.hash) return Response.json({ message: "Provider URLs must be a base URL without credentials or query parameters." }, { status: 400 });
     if (!apiKey) return Response.json({ message: "A provider API key is required." }, { status: 400 });
     const providerUrl = url.toString().replace(/\/+$/, "");
     try {
-      const response = await fetch(`${providerUrl}/manifest`, { cache: "no-store", signal: AbortSignal.timeout(10000) });
-      if (!response.ok) throw new Error(`Provider manifest returned HTTP ${response.status}.`);
-      const rawManifest = await response.json() as Record<string, unknown>;
-      if (!Array.isArray(rawManifest.sources) || rawManifest.sources.length === 0) rawManifest.sources = [{ id: "unknown", title: "unknown", license: "unknown" }];
-      const manifest = validateManifest(rawManifest);
       const verification = await fetch(`${providerUrl}/verify`, {
         method: "POST",
         headers: { authorization: `Bearer ${apiKey}`, "content-type": "application/json" },
@@ -56,10 +60,32 @@ export async function POST(request: Request) {
       if (verification.status === 403) throw new Error("The provider API key belongs to a different provider.");
       if (!verification.ok) throw new Error(`Provider verification returned HTTP ${verification.status}.`);
       const identity = await verification.json() as { id?: unknown; publisher?: unknown };
-      if (identity.id !== manifest.id || identity.publisher !== manifest.publisher) throw new Error("Provider verification identity does not match its manifest.");
-      const revisionId = `provider-${manifest.version}`;
-      const pack = { ...manifest, publisherId: session.user.id, verified: true, distribution: { kind: "provider" as const, url: providerUrl } };
-      await publishPack({ projectId, ownerId: session.user.id, revisionId, revisionManifest: manifest, pack });
+      if (typeof identity.id !== "string" || typeof identity.publisher !== "string") {
+        throw new Error("Provider verification identity is invalid.");
+      }
+
+      const revisionId = `provider-${version}`;
+      const packManifest = {
+        id: identity.id,
+        name: identity.id.split("/")[1] || identity.id,
+        publisher: identity.publisher,
+        version,
+        schemaVersion: "1.0",
+        description: description || undefined,
+        sources: [{ id: "provider", title: `${identity.id} Provider`, license: "Proprietary" }],
+        capabilities: { lexicalSearch: false, semanticSearch: false, structuredEntities: true, relations: true, revisions: true },
+        apiContract,
+      };
+
+      const pack = {
+        ...packManifest,
+        publisherId: session.user.id,
+        verified: true,
+        distribution: { kind: "provider" as const, url: providerUrl },
+        apiContract,
+      };
+
+      await publishPack({ projectId, ownerId: session.user.id, revisionId, revisionManifest: packManifest, pack, apiContract });
       return Response.json({ packageId: pack.id, version: pack.version, revision: revisionId, owner: session.user.id }, { status: 201 });
     } catch (error) { return Response.json({ message: error instanceof Error ? error.message : "The provider could not be published." }, { status: 400 }); }
   }
