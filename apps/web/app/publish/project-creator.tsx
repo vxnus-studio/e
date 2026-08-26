@@ -99,16 +99,16 @@ export function ProjectCreator() {
       </button>
 
       {open && (
-        <div className="modal-backdrop" onClick={() => setOpen(false)}>
-          <div className="modal-dialog" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header">
+        <div className="drawer-backdrop" onClick={() => setOpen(false)}>
+          <div className="drawer-panel" onClick={(e) => e.stopPropagation()}>
+            <div className="drawer-header">
               <div>
                 <span className="dashboard-kicker">Workspace</span>
                 <h2>New Knowledge Project</h2>
               </div>
               <button
                 type="button"
-                className="modal-close-btn"
+                className="drawer-close-btn"
                 onClick={() => setOpen(false)}
                 aria-label="Close"
               >
@@ -116,26 +116,26 @@ export function ProjectCreator() {
               </button>
             </div>
 
-            <nav className="modal-tabs" aria-label="Creation mode">
+            <nav className="drawer-tabs" aria-label="Creation mode">
               <button
                 type="button"
-                className={`modal-tab ${activeTab === "basics" ? "active" : ""}`}
+                className={`drawer-tab ${activeTab === "basics" ? "active" : ""}`}
                 onClick={() => setActiveTab("basics")}
               >
                 1. Project Identity
               </button>
               <button
                 type="button"
-                className={`modal-tab ${activeTab === "manifest" ? "active" : ""}`}
+                className={`drawer-tab ${activeTab === "manifest" ? "active" : ""}`}
                 onClick={() => setActiveTab("manifest")}
               >
-                2. Manifest & License (Optional)
+                2. Manifest & License
               </button>
             </nav>
 
-            <form onSubmit={submit} className="modal-body">
+            <form onSubmit={submit} className="drawer-body">
               {activeTab === "basics" && (
-                <div className="modal-form-fields">
+                <div className="drawer-form-fields">
                   <label>
                     Project name *
                     <input
@@ -153,19 +153,19 @@ export function ProjectCreator() {
                     <textarea
                       value={description}
                       onChange={(e) => setDescription(e.target.value)}
-                      rows={3}
-                      placeholder="What domain does this knowledge pack cover?"
+                      rows={4}
+                      placeholder="What domain does this knowledge pack make accessible?"
                     />
                   </label>
 
-                  <div className="modal-hint-box">
-                    <span>Tip:</span> You can configure knowledge sources, licenses, and AI search capabilities now or update them later in project settings.
+                  <div className="drawer-hint-box">
+                    <span>Tip:</span> You can configure knowledge sources, licenses, and AI search capabilities now or update them anytime in project settings.
                   </div>
                 </div>
               )}
 
               {activeTab === "manifest" && (
-                <div className="modal-form-fields">
+                <div className="drawer-form-fields">
                   <label>
                     Default License
                     <select value={licenseKey} onChange={(e) => setLicenseKey(e.target.value)}>
@@ -254,9 +254,9 @@ export function ProjectCreator() {
                 </div>
               )}
 
-              {message && <p className="creator-error">{message}</p>}
+              {message && <p className="creator-error" style={{ margin: "0 24px" }}>{message}</p>}
 
-              <div className="modal-footer">
+              <div className="drawer-footer">
                 <button className="button button-dark" onClick={() => setOpen(false)} type="button">
                   Cancel
                 </button>
