@@ -6,6 +6,7 @@ import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { loadPack } from "@vxnus/e-knowledge";
 import { validateManifest } from "@vxnus/e";
+import type { RegistryPack } from "@vxnus/e-registry";
 import { auth } from "@/lib/auth-server";
 import { createR2ArchiveStore } from "@/lib/r2";
 import { publishPack } from "@/lib/supabase-registry";
@@ -36,9 +37,9 @@ export async function POST(request: Request) {
     const version = String(form.get("version") || "1.0.0").trim();
     const description = String(form.get("description") || "").trim();
     let rawContract = form.get("apiContract");
-    let apiContract: Record<string, unknown> | undefined;
+    let apiContract: RegistryPack["apiContract"] | undefined;
     if (typeof rawContract === "string" && rawContract.trim()) {
-      try { apiContract = JSON.parse(rawContract); }
+      try { apiContract = JSON.parse(rawContract) as RegistryPack["apiContract"]; }
       catch { return Response.json({ message: "Invalid OpenAPI contract JSON." }, { status: 400 }); }
     }
 

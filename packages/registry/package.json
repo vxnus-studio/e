@@ -1,6 +1,6 @@
 {
   "name": "@vxnus/e-registry",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "description": "Knowledge Hub registry domain contract for E packs",
   "type": "module",
   "license": "Apache-2.0",
