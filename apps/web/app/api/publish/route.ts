@@ -7,6 +7,10 @@ import { promisify } from "node:util";
 import { loadPack } from "@vxnus/e-knowledge";
 import { validateManifest } from "@vxnus/e";
 import type { RegistryPack } from "@vxnus/e-registry";
+import type { KnowledgePackManifest } from "@vxnus/e";
+import { getDatabase } from "@/db";
+import { publisherProjects } from "@/db/schema";
+import { and, eq } from "drizzle-orm";
 import { auth } from "@/lib/auth-server";
 import { createR2ArchiveStore } from "@/lib/r2";
 import { publishPack } from "@/lib/supabase-registry";
@@ -65,16 +69,36 @@ export async function POST(request: Request) {
         throw new Error("Provider verification identity is invalid.");
       }
 
+      const projectRows = await getDatabase()
+        .select({
+          name: publisherProjects.name,
+          publisher: publisherProjects.publisher,
+          description: publisherProjects.description,
+          manifest: publisherProjects.manifest,
+        })
+        .from(publisherProjects)
+        .where(and(eq(publisherProjects.id, projectId), eq(publisherProjects.ownerId, session.user.id)))
+        .limit(1);
+      const project = projectRows[0];
+      const projectManifest = (project?.manifest as Partial<KnowledgePackManifest>) || {};
+
       const revisionId = `provider-${version}`;
+      const sources = projectManifest.sources && projectManifest.sources.length > 0
+        ? projectManifest.sources
+        : [{ id: "provider", title: `${identity.id} Provider`, license: "Proprietary" }];
+      const capabilities = projectManifest.capabilities || { lexicalSearch: false, semanticSearch: false, structuredEntities: true, relations: true, revisions: true };
+      const license = projectManifest.license;
+
       const packManifest = {
         id: identity.id,
         name: identity.id.split("/")[1] || identity.id,
         publisher: identity.publisher,
         version,
         schemaVersion: "1.0",
-        description: description || undefined,
-        sources: [{ id: "provider", title: `${identity.id} Provider`, license: "Proprietary" }],
-        capabilities: { lexicalSearch: false, semanticSearch: false, structuredEntities: true, relations: true, revisions: true },
+        description: description || projectManifest.description || project?.description || undefined,
+        license: license || undefined,
+        sources,
+        capabilities,
         apiContract,
       };
 

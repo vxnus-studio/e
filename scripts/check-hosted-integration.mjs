@@ -13,8 +13,7 @@ const pack = await json(`${hubUrl}/vxnus/teyvat`);
 if (pack.id !== "@vxnus/teyvat" || pack.distribution?.kind !== "provider" || pack.distribution.url !== providerUrl) {
   throw new Error("Hub registry does not point @vxnus/teyvat to the expected provider URL");
 }
-const manifest = await json(`${providerUrl}/manifest`);
-if (manifest.id !== "@vxnus/teyvat" || manifest.capabilities?.lexicalSearch !== true) throw new Error("Teyvat manifest is not E-compatible");
+if (!pack.sources?.length) throw new Error("Pack in Hub registry is missing sources");
 const retrieval = await json(`${providerUrl}/retrieve`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ query: "Furina", mode: "lexical", limit: 1 }) });
 if (retrieval.revision !== undefined && (!Array.isArray(retrieval.results) || retrieval.results.some((result) => result.revision !== retrieval.revision || !result.citations?.length))) throw new Error("Teyvat retrieval response lost revision or citations");
 console.log(JSON.stringify({ hub: hubUrl, provider: providerUrl, pack: pack.id, revision: retrieval.revision, results: retrieval.results?.length ?? 0 }, null, 2));

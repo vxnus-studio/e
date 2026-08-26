@@ -42,20 +42,19 @@ The provider returns its canonical public identity:
 Invalid or missing keys return `401 Unauthorized`; a valid key for a different
 provider returns `403 Forbidden`.
 
-## Hub registration rules
+## Hub registration & manifest rules
 
 The Hub accepts a remote release only when the signed-in account owns the
 publisher ID, provider verification succeeds, the provider identity matches the
-manifest, the package/version is not already registered, and the normalized
+project namespace, the package/version is not already registered, and the normalized
 provider URL is not already registered by another release.
 
-If a provider does not declare source metadata, the Hub records:
+The authoritative manifest (including `license`, `sources`, `capabilities`, and OpenAPI `apiContract`)
+is defined and managed directly within the Hub project workspace during project creation or via
+the project settings manifest editor. When a release is published, the release automatically inherits
+the project's configured manifest.
 
-```json
-{ "id": "unknown", "title": "unknown", "license": "unknown" }
-```
-
-The Hub stores only the public provider URL and verification state. It never
+The Hub stores only the public provider URL, verification state, and the authoritative pack manifest. It never
 sends the verification key to Siduri or includes it in registry responses.
 
 ## Key lifecycle
