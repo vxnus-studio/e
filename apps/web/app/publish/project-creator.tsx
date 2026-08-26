@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
 import type { KnowledgePackManifest } from "@vxnus/e";
 
 const LICENSE_PRESETS: Record<string, { name: string; url: string }> = {
@@ -13,11 +13,11 @@ const LICENSE_PRESETS: Record<string, { name: string; url: string }> = {
 
 export function ProjectCreator() {
   const [open, setOpen] = useState(false);
-  const [showManifestFields, setShowManifestFields] = useState(false);
+  const [activeTab, setActiveTab] = useState<"basics" | "manifest">("basics");
   const [message, setMessage] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
-  // Manifest form state
+  // Form state
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [licenseKey, setLicenseKey] = useState("CC-BY-4.0");
@@ -31,6 +31,14 @@ export function ProjectCreator() {
     lexicalSearch: false,
     semanticSearch: false,
   });
+
+  useEffect(() => {
+    function handleKeyDown(e: KeyboardEvent) {
+      if (e.key === "Escape" && open) setOpen(false);
+    }
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [open]);
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -56,7 +64,7 @@ export function ProjectCreator() {
             uri: sourceUri.trim() || undefined,
           }]
         : [{
-            id: "source-1",
+            id: "primary-source",
             title: `${name.trim() || "Project"} Knowledge Base`,
             license: licenseKey,
             licenseUrl: preset.url || undefined,
@@ -84,143 +92,182 @@ export function ProjectCreator() {
     }
   }
 
-  if (!open) {
-    return (
+  return (
+    <>
       <button className="button button-dark create-project-button" onClick={() => setOpen(true)} type="button">
         New project <span>+</span>
       </button>
-    );
-  }
 
-  return (
-    <form className="project-creator" onSubmit={submit}>
-      <label>
-        Project name *
-        <input
-          name="name"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          required
-          placeholder="e.g. Teyvat Knowledge"
-        />
-      </label>
-      <label>
-        Description
-        <input
-          name="description"
-          value={description}
-          onChange={(e) => setDescription(e.target.value)}
-          placeholder="What does this project make knowable?"
-        />
-      </label>
-
-      <div className="creator-manifest-toggle creator-wide">
-        <button
-          type="button"
-          className="manifest-toggle-button"
-          onClick={() => setShowManifestFields(!showManifestFields)}
-        >
-          {showManifestFields ? "− Hide manifest options" : "+ Configure manifest (license, sources, capabilities)"}
-        </button>
-      </div>
-
-      {showManifestFields && (
-        <>
-          <label>
-            Pack License
-            <select
-              value={licenseKey}
-              onChange={(e) => setLicenseKey(e.target.value)}
-              style={{ background: "#fff", border: "1px solid var(--line)", padding: 10, font: "13px Arial" }}
-            >
-              <option value="CC-BY-4.0">CC-BY-4.0 (Creative Commons Attribution 4.0)</option>
-              <option value="MIT">MIT License</option>
-              <option value="Apache-2.0">Apache 2.0</option>
-              <option value="CC0-1.0">CC0 1.0 (Public Domain)</option>
-              <option value="Proprietary">Proprietary / Custom</option>
-            </select>
-          </label>
-          <label>
-            Rights Holder / Author
-            <input
-              value={rightsHolder}
-              onChange={(e) => setRightsHolder(e.target.value)}
-              placeholder="e.g. Acme Corp or Your Name"
-            />
-          </label>
-          <label>
-            Primary Source Title
-            <input
-              value={sourceTitle}
-              onChange={(e) => setSourceTitle(e.target.value)}
-              placeholder="e.g. Official Documentation"
-            />
-          </label>
-          <label>
-            Source Documentation / Repository URI
-            <input
-              value={sourceUri}
-              onChange={(e) => setSourceUri(e.target.value)}
-              placeholder="https://github.com/..."
-            />
-          </label>
-          <div className="creator-wide capabilities-group" style={{ display: "grid", gap: 6, marginTop: 4 }}>
-            <span style={{ fontSize: 10, color: "var(--muted)", textTransform: "uppercase", fontFamily: "var(--font-geist-mono), monospace" }}>Capabilities</span>
-            <div style={{ display: "flex", flexWrap: "wrap", gap: 14, fontSize: 12 }}>
-              <label style={{ display: "flex", alignItems: "center", gap: 5, textTransform: "none", cursor: "pointer" }}>
-                <input
-                  type="checkbox"
-                  checked={capabilities.structuredEntities}
-                  onChange={(e) => setCapabilities({ ...capabilities, structuredEntities: e.target.checked })}
-                />
-                Structured Entities
-              </label>
-              <label style={{ display: "flex", alignItems: "center", gap: 5, textTransform: "none", cursor: "pointer" }}>
-                <input
-                  type="checkbox"
-                  checked={capabilities.relations}
-                  onChange={(e) => setCapabilities({ ...capabilities, relations: e.target.checked })}
-                />
-                Relations
-              </label>
-              <label style={{ display: "flex", alignItems: "center", gap: 5, textTransform: "none", cursor: "pointer" }}>
-                <input
-                  type="checkbox"
-                  checked={capabilities.revisions}
-                  onChange={(e) => setCapabilities({ ...capabilities, revisions: e.target.checked })}
-                />
-                Revisions
-              </label>
-              <label style={{ display: "flex", alignItems: "center", gap: 5, textTransform: "none", cursor: "pointer" }}>
-                <input
-                  type="checkbox"
-                  checked={capabilities.lexicalSearch}
-                  onChange={(e) => setCapabilities({ ...capabilities, lexicalSearch: e.target.checked })}
-                />
-                Lexical Search
-              </label>
-              <label style={{ display: "flex", alignItems: "center", gap: 5, textTransform: "none", cursor: "pointer" }}>
-                <input
-                  type="checkbox"
-                  checked={capabilities.semanticSearch}
-                  onChange={(e) => setCapabilities({ ...capabilities, semanticSearch: e.target.checked })}
-                />
-                Semantic Search
-              </label>
+      {open && (
+        <div className="modal-backdrop" onClick={() => setOpen(false)}>
+          <div className="modal-dialog" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <div>
+                <span className="dashboard-kicker">Workspace</span>
+                <h2>New Knowledge Project</h2>
+              </div>
+              <button
+                type="button"
+                className="modal-close-btn"
+                onClick={() => setOpen(false)}
+                aria-label="Close"
+              >
+                ✕
+              </button>
             </div>
-          </div>
-        </>
-      )}
 
-      {message && <p className="creator-error">{message}</p>}
-      <div className="creator-actions creator-wide" style={{ display: "flex", gap: 10, marginTop: 4 }}>
-        <button className="button button-primary" disabled={busy} type="submit">
-          {busy ? "Creating…" : "Create project"}
-        </button>
-        <button className="button button-dark" onClick={() => setOpen(false)} type="button">
-          Cancel
-        </button>
-      </div>
-    </form>
+            <nav className="modal-tabs" aria-label="Creation mode">
+              <button
+                type="button"
+                className={`modal-tab ${activeTab === "basics" ? "active" : ""}`}
+                onClick={() => setActiveTab("basics")}
+              >
+                1. Project Identity
+              </button>
+              <button
+                type="button"
+                className={`modal-tab ${activeTab === "manifest" ? "active" : ""}`}
+                onClick={() => setActiveTab("manifest")}
+              >
+                2. Manifest & License (Optional)
+              </button>
+            </nav>
+
+            <form onSubmit={submit} className="modal-body">
+              {activeTab === "basics" && (
+                <div className="modal-form-fields">
+                  <label>
+                    Project name *
+                    <input
+                      value={name}
+                      onChange={(e) => setName(e.target.value)}
+                      required
+                      autoFocus
+                      placeholder="e.g. Teyvat Knowledge"
+                    />
+                    <small>Creates the package namespace <code>@{`{username}`}/{name.toLowerCase().replace(/[^a-z0-9]+/g, "-") || "name"}</code></small>
+                  </label>
+
+                  <label>
+                    Description
+                    <textarea
+                      value={description}
+                      onChange={(e) => setDescription(e.target.value)}
+                      rows={3}
+                      placeholder="What domain does this knowledge pack cover?"
+                    />
+                  </label>
+
+                  <div className="modal-hint-box">
+                    <span>Tip:</span> You can configure knowledge sources, licenses, and AI search capabilities now or update them later in project settings.
+                  </div>
+                </div>
+              )}
+
+              {activeTab === "manifest" && (
+                <div className="modal-form-fields">
+                  <label>
+                    Default License
+                    <select value={licenseKey} onChange={(e) => setLicenseKey(e.target.value)}>
+                      <option value="CC-BY-4.0">CC-BY-4.0 (Creative Commons Attribution 4.0)</option>
+                      <option value="MIT">MIT License</option>
+                      <option value="Apache-2.0">Apache License 2.0</option>
+                      <option value="CC0-1.0">CC0 1.0 (Public Domain)</option>
+                      <option value="Proprietary">Proprietary / Custom</option>
+                    </select>
+                  </label>
+
+                  <label>
+                    Rights Holder / Author
+                    <input
+                      value={rightsHolder}
+                      onChange={(e) => setRightsHolder(e.target.value)}
+                      placeholder="e.g. Acme Corp or vxnus"
+                    />
+                  </label>
+
+                  <div style={{ borderTop: "1px solid #dce2db", paddingTop: 12 }}>
+                    <label>
+                      Primary Knowledge Source Title
+                      <input
+                        value={sourceTitle}
+                        onChange={(e) => setSourceTitle(e.target.value)}
+                        placeholder="e.g. Official Documentation"
+                      />
+                    </label>
+                  </div>
+
+                  <label>
+                    Source Documentation / Repository URI
+                    <input
+                      value={sourceUri}
+                      onChange={(e) => setSourceUri(e.target.value)}
+                      placeholder="https://github.com/..."
+                    />
+                  </label>
+
+                  <div className="capabilities-box">
+                    <span className="capabilities-label">Capabilities</span>
+                    <div className="capabilities-checks">
+                      <label>
+                        <input
+                          type="checkbox"
+                          checked={capabilities.structuredEntities}
+                          onChange={(e) => setCapabilities({ ...capabilities, structuredEntities: e.target.checked })}
+                        />
+                        Structured Entities
+                      </label>
+                      <label>
+                        <input
+                          type="checkbox"
+                          checked={capabilities.relations}
+                          onChange={(e) => setCapabilities({ ...capabilities, relations: e.target.checked })}
+                        />
+                        Relations
+                      </label>
+                      <label>
+                        <input
+                          type="checkbox"
+                          checked={capabilities.revisions}
+                          onChange={(e) => setCapabilities({ ...capabilities, revisions: e.target.checked })}
+                        />
+                        Revisions
+                      </label>
+                      <label>
+                        <input
+                          type="checkbox"
+                          checked={capabilities.lexicalSearch}
+                          onChange={(e) => setCapabilities({ ...capabilities, lexicalSearch: e.target.checked })}
+                        />
+                        Lexical Search
+                      </label>
+                      <label>
+                        <input
+                          type="checkbox"
+                          checked={capabilities.semanticSearch}
+                          onChange={(e) => setCapabilities({ ...capabilities, semanticSearch: e.target.checked })}
+                        />
+                        Semantic Search
+                      </label>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {message && <p className="creator-error">{message}</p>}
+
+              <div className="modal-footer">
+                <button className="button button-dark" onClick={() => setOpen(false)} type="button">
+                  Cancel
+                </button>
+                <button className="button button-primary" disabled={busy} type="submit">
+                  {busy ? "Creating…" : "Create project ↗"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+    </>
   );
 }

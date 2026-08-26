@@ -6,12 +6,19 @@ const packs: RegistryPack[] = [
     id: "@vxnus/e-teyvat",
     name: "e-teyvat",
     publisher: "vxnus",
-    version: "1.0.0",
+    version: "1.0.1",
     schemaVersion: "1.0",
     description: "Structured Genshin Impact knowledge.",
     license: { license: "CC-BY-4.0", licenseName: "Creative Commons Attribution 4.0 International", licenseUrl: "https://creativecommons.org/licenses/by/4.0/", rightsHolder: "vxnus", copyrightNotice: "© 2026 vxnus", attributionText: "E-Teyvat by vxnus", notice: "E-Teyvat is an unofficial fan project and is not affiliated with, endorsed by, or sponsored by HoYoverse. This license applies only to original material contributed to E-Teyvat and does not grant, transfer, or imply any license or permission to use Genshin Impact or other third-party intellectual property. Users are responsible for ensuring that their use of third-party intellectual property complies with applicable rights, licenses, and terms." },
     sources: [{ id: "e-teyvat", title: "E-Teyvat", license: "CC-BY-4.0", licenseDescription: "Creative Commons Attribution 4.0 International", licenseUrl: "https://creativecommons.org/licenses/by/4.0/", uri: "https://github.com/vxnuslabs/e-teyvat" }],
-    capabilities: { lexicalSearch: true, semanticSearch: false, structuredEntities: true, relations: true, revisions: true },
+    capabilities: { lexicalSearch: true, semanticSearch: true, structuredEntities: true, relations: true, revisions: true },
+    retrieval: {
+      embedding: {
+        model: "text-embedding-3-small",
+        dimensions: 1536,
+        provider: "openai"
+      }
+    },
     publisherId: "vxnus",
     verified: false,
     distribution: { kind: "provider", url: "https://eteyvat.vxnus.xyz/api/e" },
