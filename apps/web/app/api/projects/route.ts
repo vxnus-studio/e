@@ -8,11 +8,12 @@ export async function POST(request: Request) {
   const { data: session } = await auth.getSession();
   if (!session?.user) return Response.json({ message: "Sign in to create a project." }, { status: 401 });
   if (!isControlPlaneConfigured()) return Response.json({ message: "Project workspace is not configured yet." }, { status: 503 });
-  const body = await request.json() as { name?: string; description?: string; manifest?: import("@vxnus/e").KnowledgePackManifest };
+  const body = await request.json() as { name?: string; description?: string; visibility?: "private" | "public"; manifest?: import("@vxnus/e").KnowledgePackManifest };
   const profile = await getDatabase().select({ username: publisherProfiles.username }).from(publisherProfiles).where(eq(publisherProfiles.userId, session.user.id)).limit(1);
   const publisher = String(profile[0]?.username || "").toLowerCase();
   if (!publisher || !/^([a-z0-9][a-z0-9-]{1,30})$/.test(publisher)) return Response.json({ message: "Your account does not have a valid username." }, { status: 400 });
   if (!body.name?.trim()) return Response.json({ message: "A project name is required." }, { status: 400 });
-  try { return Response.json({ project: await createPublisherProject({ ownerId: session.user.id, publisher, name: body.name.trim(), description: body.description?.trim(), manifest: body.manifest }) }, { status: 201 }); }
+  if (body.visibility && body.visibility !== "private" && body.visibility !== "public") return Response.json({ message: "Choose a valid project visibility." }, { status: 400 });
+  try { return Response.json({ project: await createPublisherProject({ ownerId: session.user.id, publisher, name: body.name.trim(), description: body.description?.trim(), visibility: body.visibility || "public", manifest: body.manifest }) }, { status: 201 }); }
   catch (error) { return Response.json({ message: error instanceof Error ? error.message : "Project could not be created." }, { status: 400 }); }
 }

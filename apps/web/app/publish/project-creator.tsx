@@ -20,6 +20,7 @@ export function ProjectCreator() {
   // Form state
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
+  const [visibility, setVisibility] = useState<"public" | "private">("public");
   const [licenseKey, setLicenseKey] = useState("CC-BY-4.0");
   const [rightsHolder, setRightsHolder] = useState("");
   const [sourceTitle, setSourceTitle] = useState("");
@@ -79,6 +80,7 @@ export function ProjectCreator() {
         body: JSON.stringify({
           name: name.trim(),
           description: description.trim() || undefined,
+          visibility,
           manifest,
         }),
       });
@@ -146,6 +148,14 @@ export function ProjectCreator() {
                       placeholder="e.g. Teyvat Knowledge"
                     />
                     <small>Creates the package namespace <code>@{`{username}`}/{name.toLowerCase().replace(/[^a-z0-9]+/g, "-") || "name"}</code></small>
+                  </label>
+
+                  <label>
+                    Visibility
+                    <select value={visibility} onChange={(e) => setVisibility(e.target.value as "public" | "private")}>
+                      <option value="public">Public (Discoverable on Hub & CLI)</option>
+                      <option value="private">Private (Workspace only)</option>
+                    </select>
                   </label>
 
                   <label>
