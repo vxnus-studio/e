@@ -213,7 +213,112 @@ siduri pack add vxnus/elena-companion-bundle
 
 ---
 
-## 6. Implementation Roadmap
+---
+
+## 6. Publisher Metrics & Social Signals Telemetry
+
+To empower pack authors with actionable feedback and provide transparent community signals for discovery and ranking, É introduces a multi-tier telemetry and engagement specification.
+
+```
+                  ┌────────────────────────────────────────────────────────┐
+                  │                 Consumer / Siduri Client               │
+                  │ (Optional Opt-In Telemetry & Authenticated Star/Review)│
+                  └──────────┬──────────────────────────┬──────────────────┘
+                             │                          │
+           Install Event /   │                          │ Star / Rating /
+       Opt-in Retrieval Ping │                          │ Public Comment
+                             ▼                          ▼
+                  ┌────────────────────────────────────────────────────────┐
+                  │                  É Hub Control Plane                   │
+                  │                   (Supabase / API)                     │
+                  ├─────────────────────────────┬──────────────────────────┤
+                  │     Usage Telemetry Aggs    │ Social & Review System   │
+                  │  - Total Installs           │ - Stars / Likes          │
+                  │  - Retrieval Volume/Latency │ - Ratings (1-5★)         │
+                  │  - Active Installations     │ - Authenticated Reviews  │
+                  └─────────────────────────────┴──────────────────────────┘
+                                                │
+                                                ▼
+                               ┌─────────────────────────────────┐
+                               │   Publisher Control Dashboard   │
+                               │  (`/publish` Analytics Overview)│
+                               └─────────────────────────────────┘
+```
+
+### 6.1 Core Metrics
+
+1. **Total Installed Count (`total_installs`)**
+   - **Definition:** The cumulative count of package installations initiated and successfully verified via CLI (`siduri pack add`) or desktop/web application clients.
+   - **Granularity:** Global lifetime installs, per-version install breakdown, and 30-day trailing installation velocity.
+   - **Deduplication:** Rate-limited and anonymized client instance tokens to prevent artificial volume manipulation.
+
+2. **Total Retrieval Count (`total_retrievals`)**
+   - **Definition:** Telemetry tracking knowledge retrieval queries served to Siduri agents at inference time.
+   - **Opt-In & Intentionality:**
+     - **Default Privacy:** Local-only retrieval telemetry is disabled by default or strictly aggregated on-device.
+     - **Explicit Consent:** Companion owners who install a pack can opt into anonymous retrieval telemetry sharing (`siduri config set telemetry.retrieval true` or via UI toggle).
+     - **Remote Provider Metrics:** For remote knowledge providers (HTTP endpoints), server-side request counts, chunk hit rates, and latency profiles are tracked directly by the provider or gateway proxy.
+   - **Value to Publisher:** Highlights which knowledge domains, chunk subsets, or query vectors are frequently cited in real-world agent dialogues.
+
+3. **Stars & Likes (`stars_count`, `likes_count`)**
+   - **Definition:** Fast-engagement sentiment indicator (similar to GitHub Stars) allowing registered É Hub users to bookmark and endorse packs.
+   - **Anti-Sybil Controls:** Restricted to verified Supabase user accounts with verified email addresses.
+
+4. **Public Commenters, Reviews & Rating (`ratings_count`, `average_rating`)**
+   - **Five-Star Rating Scale:** Aggregate score (1.0 to 5.0) computed with a Bayesian average to avoid skew on early releases.
+   - **Verified User Comments:** Public discussion threads and formatted reviews.
+   - **Verified Installer Badge:** Reviews posted by accounts with a verified installation history receive a `"Verified Inhabitant / Installer"` badge.
+   - **Publisher Reply:** Authors can post pinned official replies to clarify compatibility or acknowledge bug reports.
+
+5. **Extended Operational & Health Signals (Proposed)**
+   - **Active Installations / Weekly Active Vessels (WAV):** Optional heartbeat reporting packs currently mounted in active Siduri runtime profiles.
+   - **Citation Quality & Helpful Rate:** Agent feedback loop where users can flag if a retrieved context citation hallucinated or successfully answered their prompt.
+   - **Bundle Inclusion Count:** Tracks how many composite Persona Sanctuary bundles reference this specific pack as an upstream dependency.
+   - **Retention / Uninstalls:** Count of pack removals (`siduri pack remove`) to measure long-term satisfaction.
+
+### 6.2 Schema & Control Plane Integration
+
+Control-plane tables added to Supabase:
+
+```sql
+-- Aggregated metric cache for fast discovery queries
+create table if not exists public.publisher_pack_metrics (
+  package_id text primary key,
+  total_installs bigint not null default 0,
+  active_installs bigint not null default 0,
+  total_retrievals bigint not null default 0,
+  stars_count integer not null default 0,
+  ratings_count integer not null default 0,
+  rating_average numeric(3, 2) not null default 0.00,
+  updated_at timestamptz not null default now()
+);
+
+-- User social endorsements (stars / likes)
+create table if not exists public.publisher_pack_stars (
+  package_id text not null,
+  user_id uuid not null references auth.users(id) on delete cascade,
+  created_at timestamptz not null default now(),
+  primary key (package_id, user_id)
+);
+
+-- Public reviews, ratings, and comments
+create table if not exists public.publisher_pack_reviews (
+  id uuid primary key default gen_random_uuid(),
+  package_id text not null,
+  user_id uuid not null references auth.users(id) on delete cascade,
+  rating smallint check (rating between 1 and 5),
+  title text,
+  comment text,
+  is_verified_installer boolean not null default false,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  unique (package_id, user_id)
+);
+```
+
+---
+
+## 7. Implementation Roadmap
 
 - [ ] **Phase 1: Manifest & Spec Refactor** (`packages/protocol`)
   - Introduce `BaseEPackManifest` and polymorphic manifest validation for `knowledge`, `body`, `voice`, `behavior`, and `bundle`.
@@ -223,3 +328,8 @@ siduri pack add vxnus/elena-companion-bundle
   - Update `@siduri-x/body` and `@siduri-x/voice` to load local `.epack` unpacked assets.
 - [ ] **Phase 4: É Hub & Marketplace** (`apps/web`)
   - Implement R2 storage pipeline, user authentication, asset listings, category browsing, and presigned delivery.
+- [ ] **Phase 5: Publisher Analytics & Social Graph**
+  - Implement Supabase metric tables (`publisher_pack_metrics`, `publisher_pack_stars`, `publisher_pack_reviews`).
+  - Add client opt-in retrieval/install telemetry hooks in Siduri CLI.
+  - Surface visual graphs and engagement metrics in the `/publish` dashboard.
+
