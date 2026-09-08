@@ -20,8 +20,9 @@ export default async function PackPage({ params }: { params: Promise<{ publisher
         </a>
         <div className="nav-links">
           <a href="/catalog">Catalog</a>
+          <a href="/docs">Docs</a>
           <a href="/publish">Publish</a>
-          <a className="nav-button" href="/#install">Use with Siduri</a>
+          <a className="nav-button" href="/publish">Publish a pack</a>
         </div>
       </nav>
 
@@ -55,7 +56,7 @@ export default async function PackPage({ params }: { params: Promise<{ publisher
         <div className="detail-main">
           <p className="eyebrow">What is inside</p>
           <h2>Versioned knowledge,<br />ready to retrieve.</h2>
-          <blockquote>Install this cited pack into Siduri and retrieve its grounded content locally or remotely.</blockquote>
+          <blockquote>Install this cited pack into any E-compatible AI and retrieve its grounded content locally or remotely.</blockquote>
           
           <div style={{ marginTop: 24 }}>
             <span className="detail-label" style={{ display: "block", marginBottom: 8 }}>Knowledge Sources ({pack.sources.length})</span>
@@ -131,19 +132,6 @@ export default async function PackPage({ params }: { params: Promise<{ publisher
             </div>
           ))}
         </aside>
-      </section>
-
-      <section className="detail-install" aria-labelledby="detail-install-title">
-        <div>
-          <p className="eyebrow">Install locally</p>
-          <h2 id="detail-install-title">Put this pack<br />in Siduri.</h2>
-          <p>Download or copy the pack directory, then point Siduri at its local path.</p>
-        </div>
-        <div className="install-code">
-          <span className="code-label">SIDURI CONFIG</span>
-          <code><b>knowledge</b>:<br />  provider: e-knowledge<br />  packPath: ./knowledge-pack</code>
-          <span className="code-caption">Siduri validates the manifest before use.</span>
-        </div>
       </section>
 
       <footer>

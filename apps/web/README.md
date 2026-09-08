@@ -1,8 +1,8 @@
 # E Knowledge Hub
 
 The hosted discovery surface for E knowledge packs. This app is intentionally
-small in the first slice: it presents the catalog, explains local Siduri
-installation, and gives publishers a place to start.
+small in the first slice: it presents the catalog, explains E-compatible AI
+integration, and gives publishers a place to start.
 
 The current hosted origin is <https://e.vxnus.xyz>.
 
@@ -36,7 +36,7 @@ schema in `db/schema.ts`; production should apply the reviewed SQL migrations.
 - Registry-backed catalog preview at `/`
 - Dynamic pack detail pages at `/packs/[publisher]/[name]`
 - Registry API at `/api/packs` and `/api/packs/[publisher]/[name]`
-- Local installation guidance for Siduri
+- E-compatible AI integration guidance
 - Publisher entry point
 
 R2 serves immutable pack artifacts through

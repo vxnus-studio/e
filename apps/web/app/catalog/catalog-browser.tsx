@@ -424,7 +424,7 @@ export function CatalogBrowser({
           <h3>No knowledge packs indexed yet</h3>
           <p>
             The registry is currently waiting for knowledge publishers. Be the first to publish a
-            portable or remote pack into Siduri&apos;s open ecosystem.
+            portable or remote pack into the E-compatible ecosystem.
           </p>
           <div className="catalog-empty-actions">
             <Link className="button button-primary" href="/publish">

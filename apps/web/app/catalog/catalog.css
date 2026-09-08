@@ -623,31 +623,6 @@
   margin-top: 8px;
 }
 
-/* Siduri install guide section at bottom */
-.catalog-install-banner {
-  background: #e5ebe3;
-  border-top: 1px solid var(--line);
-  display: grid;
-  gap: 8vw;
-  grid-template-columns: 1fr 1fr;
-  padding: 90px max(32px, calc((100vw - 1240px) / 2));
-}
-
-.catalog-install-banner h2 {
-  font-size: clamp(2.2rem, 4vw, 3.8rem);
-  font-weight: 500;
-  letter-spacing: -0.05em;
-  line-height: 1;
-  margin-bottom: 20px;
-}
-
-.catalog-install-banner p {
-  color: var(--muted);
-  font-size: 14px;
-  line-height: 1.6;
-  max-width: 460px;
-}
-
 @media (max-width: 860px) {
   .catalog-hero {
     display: block;
@@ -676,13 +651,5 @@
     align-items: center;
     padding-top: 12px;
     border-top: 1px dashed var(--line);
-  }
-  .catalog-install-banner {
-    display: block;
-    padding-left: 20px;
-    padding-right: 20px;
-  }
-  .catalog-install-banner .install-code {
-    margin-top: 40px;
   }
 }

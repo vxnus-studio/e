@@ -15,7 +15,7 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "E Knowledge Hub",
-  description: "Discover portable knowledge for Siduri.",
+  description: "Discover portable, E-compatible knowledge packs.",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
