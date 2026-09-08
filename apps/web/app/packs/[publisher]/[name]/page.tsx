@@ -19,14 +19,14 @@ export default async function PackPage({ params }: { params: Promise<{ publisher
           <span className="brand-mark">E</span> knowledge hub
         </a>
         <div className="nav-links">
-          <a href="/#catalog">Catalog</a>
+          <a href="/catalog">Catalog</a>
           <a href="/publish">Publish</a>
           <a className="nav-button" href="/#install">Use with Siduri</a>
         </div>
       </nav>
 
       <section className="detail-hero" aria-labelledby="pack-title">
-        <a className="back-link" href="/#catalog">← Back to catalog</a>
+        <a className="back-link" href="/catalog">← Back to catalog</a>
         <div className="detail-heading">
           <div>
             <p className="eyebrow">

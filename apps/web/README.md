@@ -32,7 +32,8 @@ schema in `db/schema.ts`; production should apply the reviewed SQL migrations.
 ## Current slice
 
 - Landing page at `/`
-- Registry-backed catalog at `/`
+- Dedicated catalog browsing page at `/catalog` with live search, filters, and sorting
+- Registry-backed catalog preview at `/`
 - Dynamic pack detail pages at `/packs/[publisher]/[name]`
 - Registry API at `/api/packs` and `/api/packs/[publisher]/[name]`
 - Local installation guidance for Siduri

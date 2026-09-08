@@ -40,7 +40,7 @@ export async function POST(request: Request) {
     const apiKey = String(form.get("apiKey") || "").trim();
     const version = String(form.get("version") || "1.0.0").trim();
     const description = String(form.get("description") || "").trim();
-    let rawContract = form.get("apiContract");
+    const rawContract = form.get("apiContract");
     let apiContract: RegistryPack["apiContract"] | undefined;
     if (typeof rawContract === "string" && rawContract.trim()) {
       try { apiContract = JSON.parse(rawContract) as RegistryPack["apiContract"]; }
