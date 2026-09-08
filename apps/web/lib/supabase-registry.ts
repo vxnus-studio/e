@@ -103,8 +103,17 @@ export function createSupabaseRegistry(): KnowledgeRegistry {
         const limit = Math.min(Math.max(input.limit ?? 20, 1), 100);
         const filters = query ? or(ilike(registryPacks.packageId, `%${query}%`), ilike(registryPacks.name, `%${query}%`), ilike(registryPacks.publisher, `%${query}%`)) : undefined;
         const visibility = eq(publisherProjects.visibility, "public");
-        const rows = await getDatabase().select().from(registryPacks).innerJoin(publisherProjects, and(eq(publisherProjects.ownerId, registryPacks.publisherId), eq(publisherProjects.publisher, registryPacks.publisher))).where(filters ? and(visibility, filters) : visibility).orderBy(asc(registryPacks.packageId), desc(registryPacks.version)).limit(limit);
-        return { packs: rows.map(({ registry_packs: pack }) => toPack(pack)) };
+        const rows = await getDatabase().select().from(registryPacks).innerJoin(publisherProjects, and(eq(publisherProjects.ownerId, registryPacks.publisherId), eq(publisherProjects.publisher, registryPacks.publisher))).where(filters ? and(visibility, filters) : visibility).orderBy(asc(registryPacks.packageId), desc(registryPacks.version));
+        const seen = new Set<string>();
+        const latestPacks: RegistryPack[] = [];
+        for (const { registry_packs: pack } of rows) {
+          if (!seen.has(pack.packageId)) {
+            seen.add(pack.packageId);
+            latestPacks.push(toPack(pack));
+            if (latestPacks.length >= limit) break;
+          }
+        }
+        return { packs: latestPacks };
       } catch (err) {
         console.error("[supabase-registry] Failed search query:", err);
         return { packs: [] };
