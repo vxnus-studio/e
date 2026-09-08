@@ -7,8 +7,8 @@ import { publisherAuditEvents, publisherDistributions, publisherProjects, publis
 
 function toPack(row: typeof registryPacks.$inferSelect): RegistryPack {
   const distribution = row.distribution as RegistryPack["distribution"];
-  const distributions = distribution ? [distribution] : [];
-  const distributionType = resolveDistributionType(distributions);
+  const distributions = (row.distributions as RegistryDistribution[] | null) || (distribution ? [distribution] : []);
+  const distributionType = (row.distributionType as RegistryPack["distributionType"]) || resolveDistributionType(distributions);
   return {
     id: row.packageId,
     name: row.name,
@@ -30,6 +30,8 @@ function toPack(row: typeof registryPacks.$inferSelect): RegistryPack {
 export function isSupabaseRegistryConfigured() { return Boolean(process.env.DATABASE_URL); }
 export async function insertRegistryPack(pack: RegistryPack, publisherId: string) {
   try {
+    const distributions = pack.distributions || (pack.distribution ? [pack.distribution] : []);
+    const distributionType = pack.distributionType || resolveDistributionType(distributions);
     const rows = await getDatabase().insert(registryPacks).values({
       packageId: pack.id,
       name: pack.name,
@@ -41,7 +43,9 @@ export async function insertRegistryPack(pack: RegistryPack, publisherId: string
       sources: pack.sources,
       capabilities: pack.capabilities,
       publisherId,
+      distributionType,
       distribution: pack.distribution,
+      distributions,
       verified: pack.verified,
       apiContract: pack.apiContract || null,
     }).returning();
@@ -65,6 +69,7 @@ export async function publishPack(input: { projectId: string; ownerId: string; p
   return database.transaction(async (tx) => {
     const revisions = await tx.insert(publisherRevisions).values({ projectId: input.projectId, revisionId: input.revisionId, manifest: input.revisionManifest, checksum: input.pack.distribution.kind === "archive" ? input.pack.distribution.checksum : null, status: "valid" }).returning({ id: publisherRevisions.id });
     const distributions = input.pack.distributions || (input.pack.distribution ? [input.pack.distribution] : []);
+    const distributionType = input.pack.distributionType || resolveDistributionType(distributions);
     const registry = await tx.insert(registryPacks).values({
       packageId: input.pack.id,
       name: input.pack.name,
@@ -76,7 +81,9 @@ export async function publishPack(input: { projectId: string; ownerId: string; p
       sources: input.pack.sources,
       capabilities: input.pack.capabilities,
       publisherId: input.ownerId,
+      distributionType,
       distribution: input.pack.distribution,
+      distributions,
       verified: input.pack.verified,
       apiContract: input.apiContract || input.pack.apiContract || null,
     }).returning();
