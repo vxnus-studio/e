@@ -9,9 +9,9 @@ import "./catalog.css";
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
-  title: "Knowledge Catalog · E Knowledge Hub",
+  title: "Knowledge Catalog · E Hub",
   description:
-    "Browse versioned, cited knowledge packs ready to install into E-compatible AI or query via remote provider.",
+    "Browse versioned, cited knowledge capabilities ready to install into E-compatible AI or query via remote provider.",
 };
 
 interface CatalogPageProps {
@@ -38,7 +38,7 @@ export default async function CatalogPage({ searchParams }: CatalogPageProps) {
       {/* Navigation */}
       <nav className="site-nav" aria-label="Primary navigation">
         <Link className="brand" href="/">
-          <span className="brand-mark">E</span> knowledge hub
+          <span className="brand-mark">E</span> Hub
         </Link>
         <div className="nav-links">
           <Link href="/docs">Docs</Link>
@@ -56,7 +56,7 @@ export default async function CatalogPage({ searchParams }: CatalogPageProps) {
       {/* Hero Header */}
       <section className="catalog-hero" aria-labelledby="catalog-hero-title">
         <div className="catalog-hero-copy">
-          <p className="eyebrow">Open Knowledge Catalog</p>
+          <p className="eyebrow">E Hub Capabilities · Knowledge</p>
           <h1 id="catalog-hero-title">Knowledge your AI can trust.</h1>
           <p className="catalog-hero-lede">
             Discover versioned, cited knowledge packs built for E-compatible AI. Filter by
@@ -68,7 +68,7 @@ export default async function CatalogPage({ searchParams }: CatalogPageProps) {
           <div className="catalog-stat-item">
             <span>Indexed packs</span>
             <strong>{packs.length}</strong>
-            <small>Versioned & portable</small>
+            <small>Knowledge capability</small>
           </div>
           <div className="catalog-stat-item">
             <span>Format</span>
@@ -98,7 +98,7 @@ export default async function CatalogPage({ searchParams }: CatalogPageProps) {
 
       {/* Footer */}
       <footer>
-        <span>© 2026 E Knowledge Hub</span>
+        <span>© 2026 E Hub</span>
         <span>
           Protocol by{" "}
           <a href="https://github.com/vxnus-studio/e" target="_blank" rel="noreferrer">

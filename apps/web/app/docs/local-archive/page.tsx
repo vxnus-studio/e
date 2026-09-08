@@ -1,7 +1,7 @@
 import Link from "next/link";
 import "../docs.css";
 
-export const metadata = { title: "Local archives · E Knowledge Hub Docs", description: "Build, validate, and publish a local E knowledge archive." };
+export const metadata = { title: "Local archives · E Hub Docs", description: "Build, validate, and publish a local knowledge archive on E Hub." };
 
 const tree = [
   "knowledge-pack/",
@@ -27,9 +27,9 @@ const commands = [
 
 export default function LocalArchiveDocsPage() {
   return <main className="docs-page">
-    <nav className="site-nav docs-nav" aria-label="Primary navigation"><Link className="brand" href="/"><span className="brand-mark">E</span> knowledge hub</Link><div className="nav-links"><Link className="docs-nav-active" href="/docs">Docs</Link><Link href="/catalog">Catalog</Link><Link href="/publish">Publish</Link><Link className="nav-button" href="/auth/sign-up">Create account</Link></div></nav>
+    <nav className="site-nav docs-nav" aria-label="Primary navigation"><Link className="brand" href="/"><span className="brand-mark">E</span> Hub</Link><div className="nav-links"><Link className="docs-nav-active" href="/docs">Docs</Link><Link href="/catalog">Catalog</Link><Link href="/publish">Publish</Link><Link className="nav-button" href="/auth/sign-up">Create account</Link></div></nav>
     <div className="docs-layout"><aside className="docs-sidebar"><Link className="back-link" href="/docs">← All docs</Link><p className="docs-sidebar-label">On this page</p><nav><a href="#quickstart">Quick start</a><a href="#structure">Pack structure</a><a href="#validate">Validate</a><a href="#publish">Publish</a><a href="#consume">E-compatible integration</a></nav></aside>
-      <article className="docs-article"><p className="eyebrow">Local archive</p><h1>Ship a portable pack.</h1><p className="docs-article-lede">Build knowledge as a self-contained directory, validate it locally, then upload one immutable archive to the Hub.</p>
+      <article className="docs-article"><p className="eyebrow">Knowledge capability · Local archive</p><h1>Ship a portable pack.</h1><p className="docs-article-lede">Build knowledge as a self-contained directory, validate it locally, then upload one immutable archive to E Hub.</p>
         <section id="quickstart" className="docs-block"><h2>Quick start</h2><div className="docs-steps"><div><b>01</b><h3>Build the directory</h3><p>Keep normalized public records under the standard E directories and give every record a stable <code>id</code>.</p></div><div><b>02</b><h3>Validate locally</h3><p>Run the E validator before archiving. It checks references, revisions, and content hashes.</p></div><div><b>03</b><h3>Upload once</h3><p>Choose <strong>Local file</strong> in the publisher workspace and upload a <code>.tar.gz</code> or <code>.tgz</code>.</p></div></div></section>
         <section id="structure" className="docs-block"><h2>Pack structure</h2><p>A pack is portable because the manifest and records travel together. The manifest identity must use the <code>@publisher/name</code> format.</p><pre><code>{tree}</code></pre></section>
         <section id="validate" className="docs-block"><h2>Validate and archive</h2><p>The validator reads the directory before the Hub sees it. Keep archive creation reproducible and do not rewrite record bytes after validation.</p><pre><code>{commands}</code></pre></section>
@@ -44,6 +44,6 @@ export default function LocalArchiveDocsPage() {
         <div className="docs-article-cta"><div><strong>Ready to upload?</strong><span>Build a project, then publish from the workspace.</span></div><Link className="button button-primary" href="/publish">Open publisher workspace ↗</Link></div>
       </article>
     </div>
-    <footer><span>© 2026 E Knowledge Hub</span><span>Protocol by <a href="https://github.com/vxnus-studio/e">@vxnus/e</a></span></footer>
+    <footer><span>© 2026 E Hub</span><span>Protocol by <a href="https://github.com/vxnus-studio/e">@vxnus/e</a></span></footer>
   </main>;
 }

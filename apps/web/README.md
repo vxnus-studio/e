@@ -1,8 +1,8 @@
-# E Knowledge Hub
+# E Hub
 
-The hosted discovery surface for E knowledge packs. This app is intentionally
-small in the first slice: it presents the catalog, explains E-compatible AI
-integration, and gives publishers a place to start.
+The hosted discovery surface for modular capabilities for E-compatible AI,
+starting with knowledge packs. This app presents the catalog, explains
+E-compatible AI integration, and gives publishers a place to start.
 
 The current hosted origin is <https://e.vxnus.xyz>.
 

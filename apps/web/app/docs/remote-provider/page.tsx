@@ -1,7 +1,7 @@
 import Link from "next/link";
 import "../docs.css";
 
-export const metadata = { title: "Remote providers · E Knowledge Hub Docs", description: "Connect a hosted E knowledge provider to the Knowledge Hub." };
+export const metadata = { title: "Remote providers · E Hub Docs", description: "Connect a hosted knowledge provider to E Hub." };
 
 const manifest = [
   "{",
@@ -24,7 +24,7 @@ const openapiSpec = [
   '  "paths": {',
   '    "/api/entities": { "get": { "summary": "Search game entities" } },',
   '    "/api/farming": { "get": { "summary": "Farming source locations" } }',
-  "  }",
+  '  }',
   "}"
 ].join("\n");
 
@@ -43,9 +43,9 @@ const sdkExample = [
 
 export default function RemoteProviderDocsPage() {
   return <main className="docs-page">
-    <nav className="site-nav docs-nav" aria-label="Primary navigation"><Link className="brand" href="/"><span className="brand-mark">E</span> knowledge hub</Link><div className="nav-links"><Link className="docs-nav-active" href="/docs">Docs</Link><Link href="/catalog">Catalog</Link><Link href="/publish">Publish</Link><Link className="nav-button" href="/auth/sign-up">Create account</Link></div></nav>
+    <nav className="site-nav docs-nav" aria-label="Primary navigation"><Link className="brand" href="/"><span className="brand-mark">E</span> Hub</Link><div className="nav-links"><Link className="docs-nav-active" href="/docs">Docs</Link><Link href="/catalog">Catalog</Link><Link href="/publish">Publish</Link><Link className="nav-button" href="/auth/sign-up">Create account</Link></div></nav>
     <div className="docs-layout"><aside className="docs-sidebar"><Link className="back-link" href="/docs">← All docs</Link><p className="docs-sidebar-label">On this page</p><nav><a href="#quickstart">Quick start</a><a href="#sdk">SDK</a><a href="#endpoints">Endpoints & Discovery</a><a href="#openapi">OpenAPI Contract</a><a href="#manifest">Authoritative Hub Manifest</a><a href="#errors">Verification Rules</a></nav></aside>
-      <article className="docs-article"><p className="eyebrow">Remote provider</p><h1>Connect your knowledge where it lives.</h1><p className="docs-article-lede">Give the Hub a Base URL and a one-time verification key. Project metadata and manifest are managed centrally on the Hub, with automatic OpenAPI discovery.</p>
+      <article className="docs-article"><p className="eyebrow">Knowledge capability · Remote provider</p><h1>Connect your knowledge where it lives.</h1><p className="docs-article-lede">Give E Hub a Base URL and a one-time verification key. Project metadata and manifest are managed centrally on the Hub, with automatic OpenAPI discovery.</p>
         <section id="quickstart" className="docs-block"><h2>Quick start</h2><div className="docs-steps"><div><b>01</b><h3>Expose /verify</h3><p>Expose <code>POST /api/e/verify</code> (or <code>/verify</code>) on your server with your <code>E_PUBLISHER_API_KEY</code>.</p></div><div><b>02</b><h3>Expose OpenAPI or /retrieve</h3><p>Host your API spec at <code>GET /api/openapi.json</code> or implement standard <code>POST /retrieve</code>.</p></div><div><b>03</b><h3>Verify & Publish</h3><p>Enter your Base URL in the publisher workspace and click Verify and publish.</p></div></div></section>
         <section id="sdk" className="docs-block"><h2>Use the provider SDK</h2><p><code>@vxnus/e-provider</code> handles ownership verification and optional search validation. Remote providers do NOT host manifests—the Hub manages authoritative pack metadata.</p><pre><code>{sdkExample}</code></pre></section>
         <section id="endpoints" className="docs-block"><h2>Endpoints & Smart Discovery</h2><p>When you provide a Base URL (e.g. <code>https://eteyvat.vxnus.xyz</code>), E Hub verifies your provider and discovers endpoints automatically:</p><div className="endpoint-list"><div><code>POST /api/e/verify</code><span><b>MANDATORY:</b> Handshake verifying your <code>E_PUBLISHER_API_KEY</code> (also supports <code>/verify</code>).</span></div><div><code>GET /api/openapi.json</code><span><b>RECOMMENDED:</b> Auto-discovered OpenAPI specification describing your custom endpoints.</span></div><div><code>POST /api/e/retrieve</code><span><b>OPTIONAL:</b> Standard E lexical/semantic search (required if no OpenAPI contract is provided).</span></div></div></section>
@@ -55,6 +55,6 @@ export default function RemoteProviderDocsPage() {
         <div className="docs-article-cta"><div><strong>Ready to publish?</strong><span>Create a project and configure your manifest in the Hub workspace.</span></div><Link className="button button-primary" href="/publish">Open publisher workspace ↗</Link></div>
       </article>
     </div>
-    <footer><span>© 2026 E Knowledge Hub</span><span>Protocol by <a href="https://github.com/vxnus-studio/e">@vxnus/e</a></span></footer>
+    <footer><span>© 2026 E Hub</span><span>Protocol by <a href="https://github.com/vxnus-studio/e">@vxnus/e</a></span></footer>
   </main>;
 }

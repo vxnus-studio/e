@@ -16,7 +16,7 @@ export default async function PackPage({ params }: { params: Promise<{ publisher
       <CatalogRefresh />
       <nav className="site-nav" aria-label="Primary navigation">
         <a className="brand" href="/">
-          <span className="brand-mark">E</span> knowledge hub
+          <span className="brand-mark">E</span> Hub
         </a>
         <div className="nav-links">
           <a href="/catalog">Catalog</a>
@@ -31,7 +31,7 @@ export default async function PackPage({ params }: { params: Promise<{ publisher
         <div className="detail-heading">
           <div>
             <p className="eyebrow">
-              Knowledge package · {pack.verified ? "verified" : "unverified"} ·{" "}
+              Knowledge capability · {pack.verified ? "verified" : "unverified"} ·{" "}
               <span style={{ textTransform: "uppercase", fontWeight: 600 }}>
                 {pack.distributionType === "both"
                   ? "Local & Remote"
@@ -135,7 +135,7 @@ export default async function PackPage({ params }: { params: Promise<{ publisher
       </section>
 
       <footer>
-        <span>© 2026 E Knowledge Hub</span>
+        <span>© 2026 E Hub</span>
         <span>Protocol by <a href="https://github.com/vxnus-studio/e">@vxnus/e</a></span>
       </footer>
     </main>
