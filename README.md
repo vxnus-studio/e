@@ -30,7 +30,7 @@ The monorepo also contains:
   pack distribution surface.
 
 ```bash
-npm install @vxnus/e@0.1.1
+npm install @vxnus/e@0.1.5
 ```
 
 The companion packages are published separately:
