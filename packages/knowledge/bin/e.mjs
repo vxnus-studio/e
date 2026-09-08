@@ -110,6 +110,7 @@ async function handleInspect(target) {
       console.log(`License:       ${pack.manifest.license.license} (${pack.manifest.license.licenseName})`);
       if (pack.manifest.license.rightsHolder) console.log(`Rights Holder: ${pack.manifest.license.rightsHolder}`);
     }
+    console.log(`Distribution:  Local Archive (.tar.gz / directory)`);
     if (archiveChecksum) {
       console.log(`Archive SHA:   ${archiveChecksum}`);
     }

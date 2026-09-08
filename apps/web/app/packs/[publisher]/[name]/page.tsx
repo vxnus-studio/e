@@ -29,7 +29,16 @@ export default async function PackPage({ params }: { params: Promise<{ publisher
         <a className="back-link" href="/#catalog">← Back to catalog</a>
         <div className="detail-heading">
           <div>
-            <p className="eyebrow">Knowledge package · {pack.verified ? "verified" : "unverified"}</p>
+            <p className="eyebrow">
+              Knowledge package · {pack.verified ? "verified" : "unverified"} ·{" "}
+              <span style={{ textTransform: "uppercase", fontWeight: 600 }}>
+                {pack.distributionType === "both"
+                  ? "Local & Remote"
+                  : pack.distributionType === "remote"
+                  ? "Remote Provider"
+                  : "Local Archive"}
+              </span>
+            </p>
             <h1 id="pack-title">{pack.name}</h1>
             <p className="detail-package">{pack.id}</p>
             <p className="detail-lede">{pack.description}</p>
@@ -112,19 +121,15 @@ export default async function PackPage({ params }: { params: Promise<{ publisher
             </div>
           )}
 
-          {pack.distribution.kind === "provider" && (
-            <div className="detail-block">
-              <span className="detail-label">Distribution Endpoint</span>
-              <code>{pack.distribution.url}</code>
+          {(pack.distributions || [pack.distribution]).map((dist, i) => (
+            <div className="detail-block" key={`${dist.kind}-${i}`}>
+              <span className="detail-label">
+                {dist.kind === "provider" ? "Remote Distribution Endpoint" : "Local Archive"}
+              </span>
+              <code>{dist.url}</code>
+              {dist.checksum && <small>SHA-256: {dist.checksum}</small>}
             </div>
-          )}
-
-          {pack.distribution.kind === "archive" && (
-            <div className="detail-block">
-              <span className="detail-label">Archive checksum</span>
-              <code>{pack.distribution.checksum}</code>
-            </div>
-          )}
+          ))}
         </aside>
       </section>
 

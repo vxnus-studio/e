@@ -63,4 +63,15 @@ assert.equal(registryRelease.apiContract.openapi, "3.1.0");
 assert.ok(registryRelease.apiContract.paths["/api/entities"]);
 assert.ok(registryRelease.apiContract.paths["/api/farming"]);
 
+// TEST 5: Knowledge distribution types (local, remote, both)
+import { resolveDistributionType } from "../packages/registry/dist/index.js";
+
+assert.equal(resolveDistributionType({ kind: "archive", url: "https://r2.com/p.tar.gz" }), "local");
+assert.equal(resolveDistributionType({ kind: "provider", url: "https://api.com" }), "remote");
+assert.equal(resolveDistributionType([
+  { kind: "archive", url: "https://r2.com/p.tar.gz" },
+  { kind: "provider", url: "https://api.com" }
+]), "both");
+assert.equal(resolveDistributionType(), "local");
+
 console.log("All E Core Architecture tests passed successfully!");
