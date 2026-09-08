@@ -15,6 +15,8 @@ type ReleaseItem = {
   version: string;
   status: string;
   createdAt: Date;
+  distributionKind?: string | null;
+  distributionUrl?: string | null;
   distributionStatus: string | null;
   checksum: string | null;
 };
@@ -103,6 +105,7 @@ export function ProjectView({ project, releases }: ProjectViewProps) {
                   <tr>
                     <th>Package</th>
                     <th>Version</th>
+                    <th>Distribution</th>
                     <th>Status</th>
                     <th>Published</th>
                     <th>Checksum</th>
@@ -116,6 +119,39 @@ export function ProjectView({ project, releases }: ProjectViewProps) {
                       </td>
                       <td>
                         <code>v{release.version}</code>
+                      </td>
+                      <td>
+                        <span
+                          className="table-status"
+                          style={{
+                            background:
+                              release.distributionKind === "provider"
+                                ? "rgba(79, 140, 255, 0.12)"
+                                : "rgba(34, 197, 94, 0.12)",
+                            color:
+                              release.distributionKind === "provider"
+                                ? "#60a5fa"
+                                : "#4ade80",
+                            border: "1px solid rgba(255,255,255,0.08)",
+                            textTransform: "uppercase",
+                            fontSize: "10px",
+                            letterSpacing: "0.04em",
+                          }}
+                        >
+                          <i
+                            style={{
+                              background:
+                                release.distributionKind === "provider"
+                                  ? "#60a5fa"
+                                  : "#4ade80",
+                            }}
+                          />
+                          {release.distributionKind === "provider"
+                            ? "Remote Provider"
+                            : release.distributionKind === "archive"
+                            ? "Local Archive"
+                            : "Local Archive"}
+                        </span>
                       </td>
                       <td>
                         <span className="table-status">
@@ -178,7 +214,14 @@ export function ProjectView({ project, releases }: ProjectViewProps) {
               </button>
             </div>
           </div>
-          <PublishForm projectId={project.id} />
+          <PublishForm
+            projectId={project.id}
+            initialMode={
+              (project.manifest as Record<string, unknown> | null)?.targetDistribution === "provider"
+                ? "url"
+                : "file"
+            }
+          />
         </section>
       )}
 

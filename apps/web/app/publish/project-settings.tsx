@@ -39,8 +39,9 @@ export function ProjectSettings({ project, releaseCount }: ProjectSettingsProps)
   const [name, setName] = useState(project.name);
   const [description, setDescription] = useState(project.description || "");
   const [visibility, setVisibility] = useState(project.visibility);
-
-  // Manifest editor state
+  const [targetDistribution, setTargetDistribution] = useState<"archive" | "provider" | "both">(
+    (project.manifest as Record<string, unknown> | null)?.targetDistribution as "archive" | "provider" | "both" || "archive"
+  );
   const initialManifest = project.manifest || {};
   const [manifestMode, setManifestMode] = useState<"visual" | "json">("visual");
   const [licenseKey, setLicenseKey] = useState(initialManifest.license?.license || "CC-BY-4.0");
@@ -119,6 +120,7 @@ export function ProjectSettings({ project, releaseCount }: ProjectSettingsProps)
         },
         sources: sources.filter((s) => s.title.trim()),
         capabilities,
+        ...(targetDistribution ? { targetDistribution } : {}),
       };
     }
 
@@ -193,6 +195,21 @@ export function ProjectSettings({ project, releaseCount }: ProjectSettingsProps)
               <option value="private">Private — only you and members</option>
               <option value="public">Public — visible in the catalog</option>
             </select>
+          </label>
+
+          <label>
+            Knowledge Distribution Mode
+            <select
+              value={targetDistribution}
+              onChange={(event) => setTargetDistribution(event.target.value as "archive" | "provider" | "both")}
+            >
+              <option value="archive">Local Archive (.tar.gz) — offline downloadable pack</option>
+              <option value="provider">Remote Provider (API) — live hosted knowledge endpoint</option>
+              <option value="both">Hybrid (Both) — downloadable archive + hosted API</option>
+            </select>
+            <small style={{ color: "#666", fontSize: 11, marginTop: 4 }}>
+              Configures the default shipping channel and catalog badge for this knowledge pack.
+            </small>
           </label>
 
           {/* Manifest Editor Sub-section */}

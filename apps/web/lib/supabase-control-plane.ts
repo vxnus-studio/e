@@ -23,5 +23,48 @@ export async function deletePublisherProject(input: { ownerId: string; projectId
     return Boolean(deleted[0]);
   });
 }
-export async function listPublisherReleases(ownerId: string) { return getDatabase().select({ id: publisherReleases.id, projectName: publisherProjects.name, publisher: publisherProjects.publisher, packageId: publisherReleases.packageId, version: publisherReleases.version, status: publisherReleases.status, createdAt: publisherReleases.createdAt, distributionStatus: publisherDistributions.status, checksum: publisherDistributions.checksum }).from(publisherReleases).innerJoin(publisherProjects, eq(publisherProjects.id, publisherReleases.projectId)).leftJoin(publisherDistributions, eq(publisherDistributions.releaseId, publisherReleases.id)).where(eq(publisherProjects.ownerId, ownerId)).orderBy(desc(publisherReleases.createdAt)).limit(20); }
-export async function listProjectReleases(ownerId: string, projectId: string) { return getDatabase().select({ id: publisherReleases.id, projectName: publisherProjects.name, publisher: publisherProjects.publisher, packageId: publisherReleases.packageId, version: publisherReleases.version, status: publisherReleases.status, createdAt: publisherReleases.createdAt, distributionStatus: publisherDistributions.status, checksum: publisherDistributions.checksum }).from(publisherReleases).innerJoin(publisherProjects, eq(publisherProjects.id, publisherReleases.projectId)).leftJoin(publisherDistributions, eq(publisherDistributions.releaseId, publisherReleases.id)).where(and(eq(publisherProjects.ownerId, ownerId), eq(publisherProjects.id, projectId))).orderBy(desc(publisherReleases.createdAt)).limit(100); }
+export async function listPublisherReleases(ownerId: string) {
+  return getDatabase()
+    .select({
+      id: publisherReleases.id,
+      projectName: publisherProjects.name,
+      publisher: publisherProjects.publisher,
+      packageId: publisherReleases.packageId,
+      version: publisherReleases.version,
+      status: publisherReleases.status,
+      createdAt: publisherReleases.createdAt,
+      distributionKind: publisherDistributions.kind,
+      distributionUrl: publisherDistributions.url,
+      distributionStatus: publisherDistributions.status,
+      checksum: publisherDistributions.checksum,
+    })
+    .from(publisherReleases)
+    .innerJoin(publisherProjects, eq(publisherProjects.id, publisherReleases.projectId))
+    .leftJoin(publisherDistributions, eq(publisherDistributions.releaseId, publisherReleases.id))
+    .where(eq(publisherProjects.ownerId, ownerId))
+    .orderBy(desc(publisherReleases.createdAt))
+    .limit(20);
+}
+
+export async function listProjectReleases(ownerId: string, projectId: string) {
+  return getDatabase()
+    .select({
+      id: publisherReleases.id,
+      projectName: publisherProjects.name,
+      publisher: publisherProjects.publisher,
+      packageId: publisherReleases.packageId,
+      version: publisherReleases.version,
+      status: publisherReleases.status,
+      createdAt: publisherReleases.createdAt,
+      distributionKind: publisherDistributions.kind,
+      distributionUrl: publisherDistributions.url,
+      distributionStatus: publisherDistributions.status,
+      checksum: publisherDistributions.checksum,
+    })
+    .from(publisherReleases)
+    .innerJoin(publisherProjects, eq(publisherProjects.id, publisherReleases.projectId))
+    .leftJoin(publisherDistributions, eq(publisherDistributions.releaseId, publisherReleases.id))
+    .where(and(eq(publisherProjects.ownerId, ownerId), eq(publisherProjects.id, projectId)))
+    .orderBy(desc(publisherReleases.createdAt))
+    .limit(100);
+}

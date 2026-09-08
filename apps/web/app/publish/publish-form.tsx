@@ -2,9 +2,15 @@
 
 import { FormEvent, useState } from "react";
 
-export function PublishForm({ projectId }: { projectId?: string }) {
+export function PublishForm({
+  projectId,
+  initialMode = "file",
+}: {
+  projectId?: string;
+  initialMode?: "file" | "url";
+}) {
   const [file, setFile] = useState<File | null>(null);
-  const [mode, setMode] = useState<"file" | "url">("file");
+  const [mode, setMode] = useState<"file" | "url">(initialMode);
   const [providerKey, setProviderKey] = useState<string | null>(null);
   const [version, setVersion] = useState("1.0.0");
   const [description, setDescription] = useState("");
