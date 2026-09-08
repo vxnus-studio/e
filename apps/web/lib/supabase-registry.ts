@@ -7,8 +7,8 @@ import { publisherAuditEvents, publisherDistributions, publisherProjects, publis
 
 function toPack(row: typeof registryPacks.$inferSelect): RegistryPack {
   const distribution = row.distribution as RegistryPack["distribution"];
-  const distributions = (row.distributions as RegistryDistribution[] | null) || (distribution ? [distribution] : []);
-  const distributionType = (row.distributionType as RegistryPack["distributionType"]) || resolveDistributionType(distributions);
+  const distributions = distribution ? [distribution] : [];
+  const distributionType = resolveDistributionType(distributions);
   return {
     id: row.packageId,
     name: row.name,
@@ -30,8 +30,6 @@ function toPack(row: typeof registryPacks.$inferSelect): RegistryPack {
 export function isSupabaseRegistryConfigured() { return Boolean(process.env.DATABASE_URL); }
 export async function insertRegistryPack(pack: RegistryPack, publisherId: string) {
   try {
-    const distributions = pack.distributions || (pack.distribution ? [pack.distribution] : []);
-    const distributionType = pack.distributionType || resolveDistributionType(distributions);
     const rows = await getDatabase().insert(registryPacks).values({
       packageId: pack.id,
       name: pack.name,
@@ -43,9 +41,7 @@ export async function insertRegistryPack(pack: RegistryPack, publisherId: string
       sources: pack.sources,
       capabilities: pack.capabilities,
       publisherId,
-      distributionType,
       distribution: pack.distribution,
-      distributions,
       verified: pack.verified,
       apiContract: pack.apiContract || null,
     }).returning();
@@ -69,7 +65,6 @@ export async function publishPack(input: { projectId: string; ownerId: string; p
   return database.transaction(async (tx) => {
     const revisions = await tx.insert(publisherRevisions).values({ projectId: input.projectId, revisionId: input.revisionId, manifest: input.revisionManifest, checksum: input.pack.distribution.kind === "archive" ? input.pack.distribution.checksum : null, status: "valid" }).returning({ id: publisherRevisions.id });
     const distributions = input.pack.distributions || (input.pack.distribution ? [input.pack.distribution] : []);
-    const distributionType = input.pack.distributionType || resolveDistributionType(distributions);
     const registry = await tx.insert(registryPacks).values({
       packageId: input.pack.id,
       name: input.pack.name,
@@ -81,9 +76,7 @@ export async function publishPack(input: { projectId: string; ownerId: string; p
       sources: input.pack.sources,
       capabilities: input.pack.capabilities,
       publisherId: input.ownerId,
-      distributionType,
       distribution: input.pack.distribution,
-      distributions,
       verified: input.pack.verified,
       apiContract: input.apiContract || input.pack.apiContract || null,
     }).returning();
@@ -95,4 +88,30 @@ export async function publishPack(input: { projectId: string; ownerId: string; p
     return toPack(registry[0]);
   });
 }
-export function createSupabaseRegistry(): KnowledgeRegistry { return { async search(input: RegistrySearchRequest): Promise<RegistrySearchResponse> { const query = input.query?.trim() ?? ""; const limit = Math.min(Math.max(input.limit ?? 20, 1), 100); const filters = query ? or(ilike(registryPacks.packageId, `%${query}%`), ilike(registryPacks.name, `%${query}%`), ilike(registryPacks.publisher, `%${query}%`)) : undefined; const visibility = eq(publisherProjects.visibility, "public"); const rows = await getDatabase().select().from(registryPacks).innerJoin(publisherProjects, and(eq(publisherProjects.ownerId, registryPacks.publisherId), eq(publisherProjects.publisher, registryPacks.publisher))).where(filters ? and(visibility, filters) : visibility).orderBy(asc(registryPacks.packageId), desc(registryPacks.version)).limit(limit); return { packs: rows.map(({ registry_packs: pack }) => toPack(pack)) }; }, async get(packageId: string, version?: string) { const filter = version ? and(eq(registryPacks.packageId, packageId), eq(registryPacks.version, version)) : eq(registryPacks.packageId, packageId); const rows = await getDatabase().select().from(registryPacks).innerJoin(publisherProjects, and(eq(publisherProjects.ownerId, registryPacks.publisherId), eq(publisherProjects.publisher, registryPacks.publisher))).where(and(eq(publisherProjects.visibility, "public"), filter)).orderBy(desc(registryPacks.version)).limit(1); return rows[0] ? toPack(rows[0].registry_packs) : undefined; } }; }
+export function createSupabaseRegistry(): KnowledgeRegistry {
+  return {
+    async search(input: RegistrySearchRequest): Promise<RegistrySearchResponse> {
+      try {
+        const query = input.query?.trim() ?? "";
+        const limit = Math.min(Math.max(input.limit ?? 20, 1), 100);
+        const filters = query ? or(ilike(registryPacks.packageId, `%${query}%`), ilike(registryPacks.name, `%${query}%`), ilike(registryPacks.publisher, `%${query}%`)) : undefined;
+        const visibility = eq(publisherProjects.visibility, "public");
+        const rows = await getDatabase().select().from(registryPacks).innerJoin(publisherProjects, and(eq(publisherProjects.ownerId, registryPacks.publisherId), eq(publisherProjects.publisher, registryPacks.publisher))).where(filters ? and(visibility, filters) : visibility).orderBy(asc(registryPacks.packageId), desc(registryPacks.version)).limit(limit);
+        return { packs: rows.map(({ registry_packs: pack }) => toPack(pack)) };
+      } catch (err) {
+        console.error("[supabase-registry] Failed search query:", err);
+        return { packs: [] };
+      }
+    },
+    async get(packageId: string, version?: string) {
+      try {
+        const filter = version ? and(eq(registryPacks.packageId, packageId), eq(registryPacks.version, version)) : eq(registryPacks.packageId, packageId);
+        const rows = await getDatabase().select().from(registryPacks).innerJoin(publisherProjects, and(eq(publisherProjects.ownerId, registryPacks.publisherId), eq(publisherProjects.publisher, registryPacks.publisher))).where(and(eq(publisherProjects.visibility, "public"), filter)).orderBy(desc(registryPacks.version)).limit(1);
+        return rows[0] ? toPack(rows[0].registry_packs) : undefined;
+      } catch (err) {
+        console.error("[supabase-registry] Failed get query:", err);
+        return undefined;
+      }
+    }
+  };
+}
