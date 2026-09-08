@@ -55,6 +55,6 @@ export default function RemoteProviderDocsPage() {
         <div className="docs-article-cta"><div><strong>Ready to publish?</strong><span>Create a project and configure your manifest in the Hub workspace.</span></div><Link className="button button-primary" href="/publish">Open publisher workspace ↗</Link></div>
       </article>
     </div>
-    <footer><span>© 2026 E Knowledge Hub</span><span>Protocol by <a href="https://github.com/vxnuslabs/e">@vxnus/e</a></span></footer>
+    <footer><span>© 2026 E Knowledge Hub</span><span>Protocol by <a href="https://github.com/vxnus-studio/e">@vxnus/e</a></span></footer>
   </main>;
 }

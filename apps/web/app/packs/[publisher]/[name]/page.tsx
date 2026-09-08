@@ -143,7 +143,7 @@ export default async function PackPage({ params }: { params: Promise<{ publisher
 
       <footer>
         <span>© 2026 E Knowledge Hub</span>
-        <span>Protocol by <a href="https://github.com/vxnuslabs/e">@vxnus/e</a></span>
+        <span>Protocol by <a href="https://github.com/vxnus-studio/e">@vxnus/e</a></span>
       </footer>
     </main>
   );
